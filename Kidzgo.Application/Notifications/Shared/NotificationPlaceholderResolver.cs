@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Shared;
 using Kidzgo.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,7 +66,7 @@ internal static class NotificationPlaceholderResolver
             ["student_name"] = data.DisplayName ?? "Hoc sinh",
             ["pause_from"] = data.PauseFrom.ToString("dd/MM/yyyy"),
             ["pause_to"] = data.PauseTo.ToString("dd/MM/yyyy"),
-            ["outcome"] = data.Outcome?.ToString() ?? string.Empty,
+            ["outcome"] = VietnameseEnumText.ForPauseEnrollmentOutcome(data.Outcome),
             ["outcome_note"] = data.OutcomeNote ?? string.Empty
         };
     }

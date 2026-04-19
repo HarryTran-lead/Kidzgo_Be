@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.Extensions.Primitives;
 using Serilog.Context;
 
@@ -31,8 +32,7 @@ public class RequestContextLoggingMiddleware(RequestDelegate next)
 
     private static string GetUserId(HttpContext context)
     {
-        return context.User.FindFirst("uid")?.Value
-            ?? context.User.FindFirst("sub")?.Value
+        return context.User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? "anonymous";
     }
 }

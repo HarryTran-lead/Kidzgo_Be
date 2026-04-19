@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.PauseEnrollmentRequests.Notifications;
+using Kidzgo.Application.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
@@ -65,7 +66,7 @@ public sealed class UpdatePauseEnrollmentOutcomeCommandHandler(
             PauseEnrollmentRequestNotificationHelper.NotificationType.OutcomeUpdated,
             pauseRequest.PauseFrom,
             pauseRequest.PauseTo,
-            request.Outcome.ToString(),
+            VietnameseEnumText.ForPauseEnrollmentOutcome(request.Outcome),
             request.OutcomeNote,
             cancellationToken);
 

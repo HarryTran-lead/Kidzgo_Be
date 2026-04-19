@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Finance;
 using Kidzgo.Domain.Homework;
@@ -373,7 +374,7 @@ public sealed class SendNotificationRemindersJob(
                     studentProfile.UserId,
                     studentProfile.Id,
                     mediaItem.Caption ?? "Media mới",
-                    mediaItem.Type.ToString(),
+                    VietnameseEnumText.ForMediaType(mediaItem.Type),
                     mediaItem.Class?.Title,
                     studentProfile.DisplayName
                 ));

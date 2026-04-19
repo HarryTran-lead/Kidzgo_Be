@@ -7,6 +7,7 @@ using Kidzgo.Application.Homework.CreateMultipleChoiceHomeworkFromBank;
 using Kidzgo.Application.Homework.DeleteHomeworkAssignment;
 using Kidzgo.Application.Homework.GetHomeworkAssignmentById;
 using Kidzgo.Application.Homework.GetHomeworkAssignments;
+using Kidzgo.Application.Homework.GetMyCreatedHomeworkAssignments;
 using Kidzgo.Application.Homework.GetHomeworkSubmissionDetail;
 using Kidzgo.Application.Homework.GetHomeworkSubmissions;
 using Kidzgo.Application.Homework.GetStudentHomeworkHistory;
@@ -232,7 +233,47 @@ public class HomeworkController : ControllerBase
     }
 
     /// <summary>
-    /// UC-119: Xem chi tiết Homework Assignment
+    /// Teacher xem danh sach homework do chinh minh tao
+    /// </summary>
+    [HttpGet("my-created")]
+    [Authorize(Roles = "Teacher")]
+    public async Task<IResult> GetMyCreatedHomeworkAssignments(
+        [FromQuery] Guid? classId,
+        [FromQuery] Guid? sessionId,
+        [FromQuery] string? skill,
+        [FromQuery] string? submissionType,
+        [FromQuery] Guid? branchId,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        SubmissionType? parsedSubmissionType = null;
+        if (TryParseSubmissionType(submissionType, out var tmpType))
+        {
+            parsedSubmissionType = tmpType;
+        }
+
+        var query = new GetMyCreatedHomeworkAssignmentsQuery
+        {
+            ClassId = classId,
+            SessionId = sessionId,
+            Skill = skill,
+            SubmissionType = parsedSubmissionType,
+            BranchId = branchId,
+            FromDate = fromDate,
+            ToDate = toDate,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// UC-119: Xem chi tiáº¿t Homework Assignment
     /// </summary>
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Teacher,ManagementStaff,Admin")]

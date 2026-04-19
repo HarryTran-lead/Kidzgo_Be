@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Users.Events;
 using MediatR;
@@ -95,10 +96,10 @@ public sealed class ApproveProfileCommandHandler(IDbContext context, IPublisher 
                     .OrderBy(profile => profile.CreatedAt)
                     .Select(profile => new ProfileCreatedEmailProfile(
                         profile.Id,
-                        profile.ProfileType.ToString(),
+                        VietnameseEnumText.ForProfileType(profile.ProfileType),
                         profile.DisplayName,
                         profile.Name ?? string.Empty,
-                        profile.Gender?.ToString() ?? string.Empty,
+                        VietnameseEnumText.ForGender(profile.Gender),
                         profile.DateOfBirth?.ToString("yyyy-MM-dd") ?? string.Empty,
                         profile.ZaloId ?? string.Empty,
                         profile.CreatedAt.ToString("dd/MM/yyyy HH:mm")

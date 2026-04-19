@@ -39,6 +39,13 @@ internal sealed class LoggingPipelineBehavior<TRequest, TResponse>(
 
             return result;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(
+                "Request {RequestName} was canceled by the client or upstream caller",
+                requestName);
+            throw;
+        }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unhandled exception while processing request {RequestName}", requestName);

@@ -400,7 +400,7 @@ public sealed class StudentSessionAssignmentService(
         }
     }
 
-    public async Task CancelAssignmentsForEnrollmentInRangeAsync(
+    public async Task<int> CancelAssignmentsForEnrollmentInRangeAsync(
         Guid enrollmentId,
         DateTime fromUtc,
         DateTime toUtc,
@@ -420,6 +420,8 @@ public sealed class StudentSessionAssignmentService(
             assignment.Status = StudentSessionAssignmentStatus.Cancelled;
             assignment.UpdatedAt = now;
         }
+
+        return assignments.Count;
     }
 
     public async Task ReassignFutureAssignmentsToRegistrationAsync(

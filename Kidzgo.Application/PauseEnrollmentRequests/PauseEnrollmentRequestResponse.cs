@@ -22,5 +22,8 @@ public sealed class PauseEnrollmentRequestResponse
     public Guid? ReassignedEnrollmentId { get; set; }
     public Guid? OutcomeCompletedBy { get; set; }
     public DateTime? OutcomeCompletedAt { get; set; }
+    public int ReservedSessionCount { get; set; }
+    public DateOnly? ReservationExpiresOn { get; set; }
+    public DateTime? ReservationSnapshotAt { get; set; }
     public List<PauseEnrollmentClassDto> Classes { get; set; } = new();
 }

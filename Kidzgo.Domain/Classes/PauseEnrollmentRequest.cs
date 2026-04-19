@@ -25,6 +25,9 @@ public class PauseEnrollmentRequest : Entity
     public Guid? ReassignedEnrollmentId { get; set; }
     public Guid? OutcomeCompletedBy { get; set; }
     public DateTime? OutcomeCompletedAt { get; set; }
+    public int ReservedSessionCount { get; set; }
+    public DateOnly? ReservationExpiresOn { get; set; }
+    public DateTime? ReservationSnapshotAt { get; set; }
 
     public Profile StudentProfile { get; set; } = null!;
     public Class? Class { get; set; }

@@ -87,6 +87,9 @@ public sealed class GetPauseEnrollmentRequestByIdQueryHandler(IDbContext context
             ReassignedEnrollmentId = item.ReassignedEnrollmentId,
             OutcomeCompletedBy = item.OutcomeCompletedBy,
             OutcomeCompletedAt = item.OutcomeCompletedAt,
+            ReservedSessionCount = item.ReservedSessionCount,
+            ReservationExpiresOn = item.ReservationExpiresOn,
+            ReservationSnapshotAt = item.ReservationSnapshotAt,
             Classes = classes
         };
     }

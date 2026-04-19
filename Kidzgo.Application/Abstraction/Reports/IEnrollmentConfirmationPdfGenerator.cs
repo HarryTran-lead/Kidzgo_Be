@@ -70,5 +70,14 @@ public sealed class EnrollmentReconciliationPdfSection
     public int MakeupScheduledCount { get; init; }
     public string? MakeupScheduledDetails { get; init; }
     public DateOnly? ReconciledEndDate { get; init; }
+    public EnrollmentReservationPdfSection? Reservation { get; init; }
     public string? Note { get; init; }
+}
+
+public sealed class EnrollmentReservationPdfSection
+{
+    public int ReservedSessionCount { get; init; }
+    public DateOnly? PauseFrom { get; init; }
+    public DateOnly? PauseTo { get; init; }
+    public DateOnly? ReservationExpiresOn { get; init; }
 }

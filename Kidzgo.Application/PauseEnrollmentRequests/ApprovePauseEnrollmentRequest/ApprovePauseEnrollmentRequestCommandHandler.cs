@@ -110,16 +110,18 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
             now,
             cancellationToken);
 
+        var reservedSessionCount = 0;
         foreach (var enrollment in affectedEnrollments)
         {
             var previousStatus = enrollment.Status;
             enrollment.Status = EnrollmentStatus.Paused;
             enrollment.UpdatedAt = now;
-            await studentSessionAssignmentService.CancelAssignmentsForEnrollmentInRangeAsync(
+            var enrollmentReservedSessionCount = await studentSessionAssignmentService.CancelAssignmentsForEnrollmentInRangeAsync(
                 enrollment.Id,
                 pauseFromUtc,
                 pauseToUtc,
                 cancellationToken);
+            reservedSessionCount += enrollmentReservedSessionCount;
 
             var history = new PauseEnrollmentRequestHistory
             {
@@ -132,12 +134,17 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
                 NewStatus = EnrollmentStatus.Paused,
                 PauseFrom = pauseRequest.PauseFrom,
                 PauseTo = pauseRequest.PauseTo,
+                ReservedSessionCount = enrollmentReservedSessionCount,
                 ChangedAt = now,
                 ChangedBy = userContext.UserId
             };
 
             context.PauseEnrollmentRequestHistories.Add(history);
         }
+
+        pauseRequest.ReservedSessionCount = reservedSessionCount;
+        pauseRequest.ReservationExpiresOn = pauseRequest.PauseFrom.AddMonths(3);
+        pauseRequest.ReservationSnapshotAt = now;
 
         await context.SaveChangesAsync(cancellationToken);
 

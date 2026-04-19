@@ -14,6 +14,7 @@ public class PauseEnrollmentRequestHistory : Entity
     public EnrollmentStatus NewStatus { get; set; }
     public DateOnly PauseFrom { get; set; }
     public DateOnly PauseTo { get; set; }
+    public int ReservedSessionCount { get; set; }
     public DateTime ChangedAt { get; set; }
     public Guid? ChangedBy { get; set; }
 

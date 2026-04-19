@@ -366,6 +366,10 @@ public sealed class GenerateEnrollmentConfirmationPdfCommandHandler(
         var previousRange = await GetStudyDateRangeAsync(previousEnrollmentIds, cancellationToken);
         var absences = await GetAbsenceRowsAsync(registration.StudentProfileId, previousEnrollmentIds, cancellationToken);
         var makeupRows = await GetMakeupRowsAsync(registration.StudentProfileId, previousEnrollmentIds, cancellationToken);
+        var reservation = await GetReservationSectionAsync(
+            registration.StudentProfileId,
+            previousEnrollmentIds,
+            cancellationToken);
 
         var excusedAbsences = absences
             .Where(a => a.AbsenceType is AbsenceType.WithNotice24H or AbsenceType.LongTerm)
@@ -394,7 +398,72 @@ public sealed class GenerateEnrollmentConfirmationPdfCommandHandler(
             MakeupScheduledCount = makeupRows.Count,
             MakeupScheduledDetails = FormatDateList(makeupRows.Select(m => m.TargetDate)),
             ReconciledEndDate = reconciledEndDate,
+            Reservation = reservation,
             Note = "Chỉ áp dụng học bù đối với các buổi nghỉ có phép theo chính sách trung tâm."
+        };
+    }
+
+    private async Task<EnrollmentReservationPdfSection?> GetReservationSectionAsync(
+        Guid studentProfileId,
+        IReadOnlyCollection<Guid> enrollmentIds,
+        CancellationToken cancellationToken)
+    {
+        if (enrollmentIds.Count == 0)
+        {
+            return null;
+        }
+
+        var rows = await context.PauseEnrollmentRequestHistories
+            .AsNoTracking()
+            .Where(history => history.StudentProfileId == studentProfileId &&
+                              history.EnrollmentId.HasValue &&
+                              enrollmentIds.Contains(history.EnrollmentId.Value) &&
+                              history.NewStatus == EnrollmentStatus.Paused &&
+                              history.PauseEnrollmentRequest.Status == PauseEnrollmentRequestStatus.Approved)
+            .Select(history => new
+            {
+                history.PauseEnrollmentRequestId,
+                history.PauseFrom,
+                history.PauseTo,
+                history.ReservedSessionCount,
+                RequestReservedSessionCount = history.PauseEnrollmentRequest.ReservedSessionCount,
+                history.PauseEnrollmentRequest.ReservationExpiresOn,
+                SnapshotAt = history.PauseEnrollmentRequest.ReservationSnapshotAt,
+                history.PauseEnrollmentRequest.ApprovedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var latestRequest = rows
+            .GroupBy(row => row.PauseEnrollmentRequestId)
+            .Select(group => new
+            {
+                PauseFrom = group.Min(row => row.PauseFrom),
+                PauseTo = group.Max(row => row.PauseTo),
+                ReservedSessionCount = group.Sum(row => row.ReservedSessionCount),
+                RequestReservedSessionCount = group.Max(row => row.RequestReservedSessionCount),
+                ReservationExpiresOn = group.Select(row => row.ReservationExpiresOn).FirstOrDefault(date => date.HasValue),
+                SnapshotAt = group.Select(row => row.SnapshotAt).FirstOrDefault(date => date.HasValue),
+                ApprovedAt = group.Select(row => row.ApprovedAt).FirstOrDefault(date => date.HasValue)
+            })
+            .OrderByDescending(row => row.ApprovedAt)
+            .ThenByDescending(row => row.PauseFrom)
+            .FirstOrDefault();
+
+        if (latestRequest is null || !latestRequest.SnapshotAt.HasValue)
+        {
+            return null;
+        }
+
+        var reservedSessionCount = latestRequest.ReservedSessionCount > 0
+            ? latestRequest.ReservedSessionCount
+            : latestRequest.RequestReservedSessionCount;
+
+        return new EnrollmentReservationPdfSection
+        {
+            ReservedSessionCount = reservedSessionCount,
+            PauseFrom = latestRequest.PauseFrom,
+            PauseTo = latestRequest.PauseTo,
+            ReservationExpiresOn = latestRequest.ReservationExpiresOn ?? latestRequest.PauseFrom.AddMonths(3)
         };
     }
 

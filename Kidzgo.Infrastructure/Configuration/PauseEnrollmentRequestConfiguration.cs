@@ -61,6 +61,13 @@ public class PauseEnrollmentRequestConfiguration : IEntityTypeConfiguration<Paus
 
         builder.Property(x => x.OutcomeCompletedAt);
 
+        builder.Property(x => x.ReservedSessionCount)
+            .IsRequired();
+
+        builder.Property(x => x.ReservationExpiresOn);
+
+        builder.Property(x => x.ReservationSnapshotAt);
+
         builder.HasOne(x => x.StudentProfile)
             .WithMany()
             .HasForeignKey(x => x.StudentProfileId)

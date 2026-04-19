@@ -40,6 +40,9 @@ public class PauseEnrollmentRequestHistoryConfiguration : IEntityTypeConfigurati
         builder.Property(x => x.PauseTo)
             .IsRequired();
 
+        builder.Property(x => x.ReservedSessionCount)
+            .IsRequired();
+
         builder.Property(x => x.ChangedAt)
             .IsRequired();
 

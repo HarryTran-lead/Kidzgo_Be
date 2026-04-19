@@ -133,6 +133,22 @@ public sealed class EnrollmentConfirmationPdfGenerator(
             ? DisplayText(reconciliation.PreviousClassTitle)
             : $"{reconciliation.PreviousClassCode} - {DisplayText(reconciliation.PreviousClassTitle)}";
         var studyDaySummary = DisplayText(document.StudyDaySummary, "Theo lịch lớp");
+        var reservation = reconciliation.Reservation;
+        var reservedSessionCount = reservation is null
+            ? "....."
+            : $"{DisplayNumber(reservation.ReservedSessionCount)} buổi";
+        var reservationFrom = reservation is not null && reservation.PauseFrom.HasValue
+            ? DisplayDate(reservation.PauseFrom.Value)
+            : ".....";
+        var reservationTo = reservation is not null && reservation.PauseTo.HasValue
+            ? DisplayDate(reservation.PauseTo.Value)
+            : ".....";
+        var reservationExpirySuffix = reservation is not null && reservation.ReservationExpiresOn.HasValue
+            ? $", đến {DisplayDate(reservation.ReservationExpiresOn.Value)}"
+            : string.Empty;
+        var reservationTerm = reservation is not null && reservation.PauseFrom.HasValue
+            ? $"03 tháng (tính từ ngày {DisplayDate(reservation.PauseFrom.Value)}{reservationExpirySuffix})"
+            : "03 tháng (tính từ ngày ..../..../....)";
 
         return $$"""
 <!DOCTYPE html>
@@ -152,7 +168,6 @@ public sealed class EnrollmentConfirmationPdfGenerator(
             <table>
                 <tr><th>Họ tên học viên</th><td>{{H(document.StudentName)}}</td></tr>
                 <tr><th>Lớp đăng ký tiếp</th><td>{{H($"{document.ClassCode} - {document.ClassTitle}")}}</td></tr>
-                <tr><th>Giáo viên phụ trách</th><td>{{H(DisplayText(document.TeacherName))}}</td></tr>
             </table>
         </section>
 
@@ -161,11 +176,9 @@ public sealed class EnrollmentConfirmationPdfGenerator(
             <table>
                 <tr><th>Lớp / khóa hiện tại</th><td>{{H(previousClass)}}</td></tr>
                 <tr><th>Chương trình</th><td>{{H(DisplayText(reconciliation.PreviousProgramName))}}</td></tr>
-                <tr><th>Giáo viên phụ trách</th><td>{{H(DisplayText(reconciliation.PreviousTeacherName))}}</td></tr>
                 <tr><th>Thời gian khóa học</th><td>{{H($"{DisplayDate(reconciliation.CourseStartDate)} - {DisplayDate(reconciliation.CourseEndDate)}")}}</td></tr>
                 <tr><th>Tổng số buổi theo khóa</th><td>{{H(DisplayNumber(reconciliation.TotalSessions))}} buổi</td></tr>
-                <tr><th>Số buổi đã xếp lịch</th><td>{{H(DisplayNumber(reconciliation.AssignedSessionCount))}} buổi</td></tr>
-                <tr><th>Số buổi nghỉ có phép</th><td>{{reconciliation.ExcusedAbsenceCount}} buổi</td></tr>
+                <tr><th>Số buổi nghỉ có phép theo quy định</th><td>{{reconciliation.ExcusedAbsenceCount}} buổi</td></tr>
                 <tr><th>Chi tiết ngày nghỉ có phép / Lễ Tết</th><td>{{H(DisplayText(reconciliation.ExcusedAbsenceDetails, "Không có"))}}</td></tr>
                 <tr><th>Số buổi nghỉ không phép</th><td>{{reconciliation.UnexcusedAbsenceCount}} buổi</td></tr>
                 <tr><th>Chi tiết ngày nghỉ không phép</th><td>{{H(DisplayText(reconciliation.UnexcusedAbsenceDetails, "Không có"))}}</td></tr>
@@ -190,12 +203,32 @@ public sealed class EnrollmentConfirmationPdfGenerator(
                 <tr><th>Tổng thanh toán</th><td class="amount">.....</td></tr>
                 <tr><th>Ghi chú</th><td>Học phí chưa bao gồm tài liệu nếu trung tâm có thu riêng.</td></tr>
             </table>
-            <div class="case-note">
-                <strong>Trường hợp 2:</strong> Nếu ngừng học và chưa thanh toán các buổi phát sinh, trung tâm sẽ đối soát số buổi phát sinh và đơn giá theo hồ sơ thực tế.
-            </div>
-            <div class="case-note">
-                <strong>Trường hợp 3:</strong> Nếu bảo lưu khóa học, số buổi bảo lưu và thời hạn bảo lưu áp dụng theo chính sách hiện hành của trung tâm.
-            </div>
+            <div class="sub-title">Trường hợp 2: Ngừng học và chưa thanh toán các buổi phát sinh</div>
+            <table>
+                <tr><th>Thời gian phát sinh</th><td>từ ..... đến .....</td></tr>
+                <tr><th>Số buổi phát sinh</th><td>..... buổi</td></tr>
+                <tr><th>Đơn giá/buổi</th><td>.....</td></tr>
+                <tr><th>Chi phí khác (nếu có)</th><td>.....<br><span class="muted">(Ví dụ: tài liệu, lệ phí...)</span></td></tr>
+                <tr><th>Tổng cần thanh toán</th><td class="amount">.....</td></tr>
+            </table>
+
+            <div class="sub-title">Trường hợp 3: Bảo lưu khóa học</div>
+            <table>
+                <tr><th>Số buổi bảo lưu</th><td>{{H(reservedSessionCount)}}</td></tr>
+                <tr><th>Thời gian bảo lưu</th><td>{{H($"{reservationFrom} - {reservationTo}")}}</td></tr>
+                <tr><th>Thời hạn bảo lưu</th><td>{{H(reservationTerm)}}</td></tr>
+                <tr>
+                    <th>Quy định bảo lưu</th>
+                    <td>
+                        <ul class="policy-list">
+                            <li>Chỉ áp dụng bảo lưu tối đa 01 lần cho mỗi khóa học.</li>
+                            <li>Sau thời hạn bảo lưu, nếu học viên không quay lại, số buổi còn lại sẽ không còn hiệu lực.</li>
+                            <li>Trung tâm sẽ hỗ trợ sắp xếp lớp phù hợp khi học viên quay lại học.</li>
+                            <li>Học phí đã đóng không được hoàn lại.</li>
+                        </ul>
+                    </td>
+                </tr>
+            </table>
         </section>
 
         {{PaymentSection(document)}}
@@ -300,6 +333,10 @@ public sealed class EnrollmentConfirmationPdfGenerator(
         }
         .policy-list li {
             margin: 5px 0;
+        }
+        .muted {
+            color: #65727f;
+            font-size: 12px;
         }
         .note,
         .case-note {

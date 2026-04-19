@@ -1,5 +1,7 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Shared;
+using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Notifications;
 using Kidzgo.Domain.Notifications.Events;
 using Kidzgo.Domain.Users;
@@ -254,21 +256,24 @@ internal static class PauseEnrollmentRequestNotificationHelper
             ["outcome_note"] = outcomeNote ?? string.Empty
         };
 
+        var reassignOutcomeText = VietnameseEnumText.ForPauseEnrollmentOutcome(PauseEnrollmentOutcome.ReassignEquivalentClass);
+        var tutoringOutcomeText = VietnameseEnumText.ForPauseEnrollmentOutcome(PauseEnrollmentOutcome.ContinueWithTutoring);
+
         var (templateCode, fallbackTitle, fallbackContent, priority) = type switch
         {
             StaffFollowUpType.ReassignEquivalentClass => (
                 StaffReassignInAppCode,
                 "Cần xếp lớp mới cho học sinh bảo lưu",
                 string.IsNullOrWhiteSpace(outcomeNote)
-                    ? $"Học sinh {studentName} có outcome bảo lưu ReassignEquivalentClass cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Vui lòng kiểm tra và xếp lớp khác thủ công."
-                    : $"Học sinh {studentName} có outcome bảo lưu ReassignEquivalentClass cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Ghi chú: {outcomeNote}. Vui lòng kiểm tra và xếp lớp khác thủ công.",
+                    ? $"Học sinh {studentName} có outcome bảo lưu {reassignOutcomeText} cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Vui lòng kiểm tra và xếp lớp khác thủ công."
+                    : $"Học sinh {studentName} có outcome bảo lưu {reassignOutcomeText} cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Ghi chú: {outcomeNote}. Vui lòng kiểm tra và xếp lớp khác thủ công.",
                 "high"),
             _ => (
                 StaffTutoringInAppCode,
                 "Cần tư vấn gói học kèm sau bảo lưu",
                 string.IsNullOrWhiteSpace(outcomeNote)
-                    ? $"Học sinh {studentName} có outcome bảo lưu ContinueWithTutoring cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Vui lòng tư vấn chọn gói và khóa học kèm thêm."
-                    : $"Học sinh {studentName} có outcome bảo lưu ContinueWithTutoring cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Ghi chú: {outcomeNote}. Vui lòng tư vấn chọn gói và khóa học kèm thêm.",
+                    ? $"Học sinh {studentName} có outcome bảo lưu {tutoringOutcomeText} cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Vui lòng tư vấn chọn gói và khóa học kèm thêm."
+                    : $"Học sinh {studentName} có outcome bảo lưu {tutoringOutcomeText} cho giai đoạn {pauseFrom:dd/MM/yyyy} - {pauseTo:dd/MM/yyyy}. Ghi chú: {outcomeNote}. Vui lòng tư vấn chọn gói và khóa học kèm thêm.",
                 "normal")
         };
 

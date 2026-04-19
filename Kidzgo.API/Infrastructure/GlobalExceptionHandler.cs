@@ -13,6 +13,20 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is OperationCanceledException &&
+            (httpContext.RequestAborted.IsCancellationRequested || cancellationToken.IsCancellationRequested))
+        {
+            logger.LogInformation(
+                "Request was canceled for {Method} {Path}{QueryString}. TraceId: {TraceId}. UserId: {UserId}",
+                httpContext.Request.Method,
+                httpContext.Request.Path,
+                httpContext.Request.QueryString,
+                httpContext.TraceIdentifier,
+                httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous");
+
+            return true;
+        }
+
         // Handle authorization failures
         if (exception is UnauthorizedAccessException)
         {
@@ -57,8 +71,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
             httpContext.Request.Path,
             httpContext.Request.QueryString,
             httpContext.TraceIdentifier,
-            httpContext.User.FindFirstValue("uid")
-                ?? httpContext.User.FindFirstValue("sub")
+            httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? "anonymous");
 
         var errorProblemDetails = new ProblemDetails()

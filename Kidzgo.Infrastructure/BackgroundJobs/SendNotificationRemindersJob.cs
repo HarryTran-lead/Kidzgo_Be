@@ -316,7 +316,7 @@ public sealed class SendNotificationRemindersJob(
             foreach (var enrollment in enrollments)
             {
                 var studentProfile = enrollment.StudentProfile;
-                if (studentProfile?.User == null || string.IsNullOrWhiteSpace(studentProfile.User.Email))
+                if (studentProfile?.User == null)
                     continue;
 
                 mission.Raise(new MissionReminderDomainEvent(

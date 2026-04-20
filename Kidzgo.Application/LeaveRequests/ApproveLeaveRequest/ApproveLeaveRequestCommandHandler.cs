@@ -10,7 +10,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.LeaveRequests.ApproveLeaveRequest;
 
-public sealed class ApproveLeaveRequestCommandHandler(IDbContext context, IUserContext userContext)
+public sealed class ApproveLeaveRequestCommandHandler(
+    IDbContext context,
+    IUserContext userContext,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<ApproveLeaveRequestCommand>
 {
     public async Task<Result> Handle(ApproveLeaveRequestCommand request, CancellationToken cancellationToken)
@@ -60,28 +63,31 @@ public sealed class ApproveLeaveRequestCommandHandler(IDbContext context, IUserC
                          c.SourceSessionId == session.Id,
                     cancellationToken);
 
-            if (creditExists)
+            if (!creditExists)
             {
-                continue;
+                var credit = new MakeupCredit
+                {
+                    Id = Guid.NewGuid(),
+                    StudentProfileId = leave.StudentProfileId,
+                    SourceSessionId = session.Id,
+                    Status = MakeupCreditStatus.Available,
+                    CreatedReason = CreatedReason.ApprovedLeave24H,
+                    ExpiresAt = null,
+                    CreatedAt = VietnamTime.UtcNow()
+                };
+                context.MakeupCredits.Add(credit);
+
+                await AutoScheduleMakeupForWeekendAsync(
+                    context,
+                    credit,
+                    session,
+                    VietnamTime.ToVietnamDateOnly(session.PlannedDatetime),
+                    cancellationToken);
             }
 
-            var credit = new MakeupCredit
-            {
-                Id = Guid.NewGuid(),
-                StudentProfileId = leave.StudentProfileId,
-                SourceSessionId = session.Id,
-                Status = MakeupCreditStatus.Available,
-                CreatedReason = CreatedReason.ApprovedLeave24H,
-                ExpiresAt = null,
-                CreatedAt = VietnamTime.UtcNow()
-            };
-            context.MakeupCredits.Add(credit);
-
-            await AutoScheduleMakeupForWeekendAsync(
-                context,
-                credit,
+            await approvedLeaveAttendanceService.ApplyApprovedLeaveActivationAsync(
+                leave.StudentProfileId,
                 session,
-                VietnamTime.ToVietnamDateOnly(session.PlannedDatetime),
                 cancellationToken);
         }
 

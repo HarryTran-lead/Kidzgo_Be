@@ -13,7 +13,8 @@ namespace Kidzgo.Application.LeaveRequests.CreateLeaveRequest;
 
 public sealed class CreateLeaveRequestCommandHandler(
     IDbContext context,
-    SessionParticipantService sessionParticipantService)
+    SessionParticipantService sessionParticipantService,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<CreateLeaveRequestCommand, CreateLeaveRequestResponse>
 {
     private const int MaxLeavesPerMonth = 2;
@@ -185,6 +186,11 @@ public sealed class CreateLeaveRequestCommandHandler(
                 }
 
                 leave.ApprovedAt = now;
+
+                await approvedLeaveAttendanceService.ApplyApprovedLeaveActivationAsync(
+                    command.StudentProfileId,
+                    session,
+                    cancellationToken);
             }
         }
 

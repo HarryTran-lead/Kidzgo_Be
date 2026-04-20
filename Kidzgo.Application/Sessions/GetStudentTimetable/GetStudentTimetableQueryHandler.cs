@@ -14,7 +14,8 @@ namespace Kidzgo.Application.Sessions.GetStudentTimetable;
 
 public sealed class GetStudentTimetableQueryHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService
 ) : IQueryHandler<GetStudentTimetableQuery, GetStudentTimetableResponse>
 {
     public async Task<Result<GetStudentTimetableResponse>> Handle(GetStudentTimetableQuery query, CancellationToken cancellationToken)
@@ -351,6 +352,19 @@ public sealed class GetStudentTimetableQueryHandler(
         var attendanceLookup = attendances.ToDictionary(
             attendance => (attendance.StudentProfileId, attendance.SessionId),
             attendance => attendance);
+        var approvedLeavePairs = await approvedLeaveAttendanceService.GetApprovedLeavePairsAsync(
+            sessionMetadata.Keys
+                .Where(entry => sessionDetails.ContainsKey(entry.SessionId))
+                .Select(entry =>
+                {
+                    var session = sessionDetails[entry.SessionId];
+                    return new ApprovedLeaveSessionCandidate(
+                        entry.StudentProfileId,
+                        entry.SessionId,
+                        session.ClassId,
+                        VietnamTime.ToVietnamDateOnly(session.PlannedDatetime));
+                }),
+            cancellationToken);
 
         var sessions = sessionMetadata
             .Where(entry => sessionDetails.ContainsKey(entry.Key.SessionId))
@@ -359,6 +373,7 @@ public sealed class GetStudentTimetableQueryHandler(
                 var student = studentLookup[entry.Key.StudentProfileId];
                 var session = sessionDetails[entry.Key.SessionId];
                 attendanceLookup.TryGetValue((entry.Key.StudentProfileId, entry.Key.SessionId), out var attendance);
+                var hasApprovedLeave = approvedLeavePairs.Contains((entry.Key.StudentProfileId, entry.Key.SessionId));
 
                 return new TimetableItemDto
                 {
@@ -390,9 +405,11 @@ public sealed class GetStudentTimetableQueryHandler(
                     RegistrationId = entry.Value.RegistrationId,
                     Track = entry.Value.Track,
                     IsMakeup = entry.Value.IsMakeup,
-                    AttendanceStatus = attendance?.AttendanceStatus,
-                    AbsenceType = attendance?.AbsenceType,
-                    AttendanceMarkedAt = attendance?.AttendanceMarkedAt
+                    AttendanceStatus = hasApprovedLeave
+                        ? AttendanceStatus.Makeup.ToString()
+                        : attendance?.AttendanceStatus,
+                    AbsenceType = hasApprovedLeave ? null : attendance?.AbsenceType,
+                    AttendanceMarkedAt = hasApprovedLeave ? null : attendance?.AttendanceMarkedAt
                 };
             })
             .OrderBy(s => s.PlannedDatetime)

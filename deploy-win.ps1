@@ -3,8 +3,9 @@ Param(
     [string]$ProjectPath = "C:\Users\Administrator\Desktop\Projects\Kidzgo",
     [string]$PublishPath = "C:\apps\kidzgo-api",
     [string]$ServiceName = "KidzgoAPI",
-    [string]$ApiBindUrl = "http://0.0.0.0:5000",
-    [string]$PublicBaseUrl = "https://rexengswagger.duckdns.org"
+    [string]$ApiBindUrl = "http://127.0.0.1:5000",
+    [string]$PublicBaseUrl = "https://rexengswagger.duckdns.org",
+    [string]$EnvironmentName = "Production"
 )
 
 Write-Host "==== Kidzgo deploy script (Windows) ====" -ForegroundColor Cyan
@@ -67,6 +68,156 @@ function Set-MachineEnvironmentVariable {
     [Environment]::SetEnvironmentVariable($Name, $Value, "Machine")
 }
 
+function Get-EnvironmentLocalConfigFileName {
+    param([string]$Name)
+
+    return "appsettings.$Name.local.json"
+}
+
+function ConvertTo-NormalizedObject {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $result = @{}
+        foreach ($key in $Value.Keys) {
+            $result[$key] = ConvertTo-NormalizedObject -Value $Value[$key]
+        }
+
+        return $result
+    }
+
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        $result = @{}
+        foreach ($property in $Value.PSObject.Properties) {
+            $result[$property.Name] = ConvertTo-NormalizedObject -Value $property.Value
+        }
+
+        return $result
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        $items = @()
+        foreach ($item in $Value) {
+            $items += ,(ConvertTo-NormalizedObject -Value $item)
+        }
+
+        return $items
+    }
+
+    return $Value
+}
+
+function Load-JsonConfig {
+    param([string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return @{}
+    }
+
+    $content = Get-Content -Path $Path -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        return @{}
+    }
+
+    $parsed = $content | ConvertFrom-Json -Depth 50
+    return ConvertTo-NormalizedObject -Value $parsed
+}
+
+function Merge-Config {
+    param(
+        [hashtable]$Base,
+        [hashtable]$Overrides
+    )
+
+    foreach ($key in $Overrides.Keys) {
+        $overrideValue = $Overrides[$key]
+
+        if ($Base.ContainsKey($key) -and
+            $Base[$key] -is [System.Collections.IDictionary] -and
+            $overrideValue -is [System.Collections.IDictionary]) {
+            $Base[$key] = Merge-Config -Base ([hashtable]$Base[$key]) -Overrides ([hashtable]$overrideValue)
+            continue
+        }
+
+        $Base[$key] = $overrideValue
+    }
+
+    return $Base
+}
+
+function Save-JsonConfig {
+    param(
+        [string]$Path,
+        [hashtable]$Config
+    )
+
+    $directory = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    $json = $Config | ConvertTo-Json -Depth 50
+    Set-Content -Path $Path -Value $json -Encoding ASCII
+}
+
+function Copy-IfExists {
+    param(
+        [string]$SourcePath,
+        [string]$DestinationPath
+    )
+
+    if (Test-Path $SourcePath) {
+        Copy-Item -Path $SourcePath -Destination $DestinationPath -Force
+    }
+}
+
+function Sync-InstanceConfigFiles {
+    param(
+        [string]$CurrentPublishPath,
+        [string]$TempPublishPath,
+        [string]$TargetEnvironmentName,
+        [string]$TargetApiBindUrl,
+        [string]$TargetPublicBaseUrl,
+        [string]$TargetServiceName
+    )
+
+    $sharedLocalConfig = "appsettings.Local.json"
+    $environmentLocalConfig = Get-EnvironmentLocalConfigFileName -Name $TargetEnvironmentName
+
+    $currentSharedLocalPath = Join-Path $CurrentPublishPath $sharedLocalConfig
+    $tempSharedLocalPath = Join-Path $TempPublishPath $sharedLocalConfig
+    Copy-IfExists -SourcePath $currentSharedLocalPath -DestinationPath $tempSharedLocalPath
+
+    $currentEnvironmentLocalPath = Join-Path $CurrentPublishPath $environmentLocalConfig
+    $existingEnvironmentConfig = Load-JsonConfig -Path $currentEnvironmentLocalPath
+
+    $overrides = @{
+        Kestrel = @{
+            Endpoints = @{
+                Http = @{
+                    Url = $TargetApiBindUrl
+                }
+            }
+        }
+        ClientSettings = @{
+            ApiUrl = $TargetPublicBaseUrl
+        }
+        Serilog = @{
+            EventLog = @{
+                Source = $TargetServiceName
+            }
+        }
+    }
+
+    $mergedEnvironmentConfig = Merge-Config -Base $existingEnvironmentConfig -Overrides $overrides
+    $tempEnvironmentLocalPath = Join-Path $TempPublishPath $environmentLocalConfig
+    Save-JsonConfig -Path $tempEnvironmentLocalPath -Config $mergedEnvironmentConfig
+}
+
 Assert-AdminSession
 
 Write-Host "`nStep 1/5: Go to project directory" -ForegroundColor Cyan
@@ -75,7 +226,7 @@ Set-Location $ProjectPath
 Write-Host "`nStep 2/5: Pull latest code from branch '$Branch'" -ForegroundColor Cyan
 git fetch origin
 git checkout $Branch
-git pull origin $Branch
+git pull
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: git pull failed, aborting deploy." -ForegroundColor Red
@@ -106,20 +257,26 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+Write-Host "`nStep 4/5: Preserve local config and apply instance overrides" -ForegroundColor Cyan
+Sync-InstanceConfigFiles `
+    -CurrentPublishPath $PublishPath `
+    -TempPublishPath $TempPublishPath `
+    -TargetEnvironmentName $EnvironmentName `
+    -TargetApiBindUrl $ApiBindUrl `
+    -TargetPublicBaseUrl $PublicBaseUrl `
+    -TargetServiceName $ServiceName
+
 Write-Host "Replacing old files with new ones..." -ForegroundColor Yellow
 if (Test-Path $PublishPath) {
     Remove-Item -Path $PublishPath -Recurse -Force -ErrorAction SilentlyContinue
 }
 Move-Item -Path $TempPublishPath -Destination $PublishPath -Force
 
-Write-Host "`nStep 4/5: Configure environment for dual access" -ForegroundColor Cyan
-Set-MachineEnvironmentVariable -Name "ASPNETCORE_URLS" -Value $ApiBindUrl
-Set-MachineEnvironmentVariable -Name "ASPNETCORE_FORWARDEDHEADERS_ENABLED" -Value "true"
-
 Write-Host "`nStep 5/5: Start Windows service '$ServiceName'" -ForegroundColor Cyan
+Set-MachineEnvironmentVariable -Name "ASPNETCORE_FORWARDEDHEADERS_ENABLED" -Value "true"
 Start-ServiceSafe -Name $ServiceName
 
 Write-Host "`nDeploy completed successfully." -ForegroundColor Green
-Write-Host "Kidzgo.API is bound to $ApiBindUrl." -ForegroundColor Green
+Write-Host "Kidzgo.API instance '$ServiceName' is configured for $ApiBindUrl." -ForegroundColor Green
 Write-Host "HTTPS public traffic is available through $PublicBaseUrl" -ForegroundColor Green
-Write-Host "Legacy IP access on port 5000 can remain available if the VPS firewall still allows it." -ForegroundColor Green
+Write-Host "Local instance overrides are stored in $PublishPath\$(Get-EnvironmentLocalConfigFileName -Name $EnvironmentName)" -ForegroundColor Green

@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<StudentEnrollmentScheduleConflictService>();
         services.AddScoped<PauseEnrollmentEligibleClassResolver>();
         services.AddScoped<RegistrationSessionConsumptionService>();
+        services.AddScoped<ApprovedLeaveAttendanceService>();
         services.AddScoped<PauseEnrollmentReactivationService>();
         services.AddScoped<ILevelCalculationService, LevelCalculationService>();
         services.AddScoped<IGamificationService, GamificationService>();

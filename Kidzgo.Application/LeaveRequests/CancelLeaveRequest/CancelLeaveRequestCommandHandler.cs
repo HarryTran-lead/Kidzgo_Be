@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Sessions.Errors;
@@ -7,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.LeaveRequests.CancelLeaveRequest;
 
-public sealed class CancelLeaveRequestCommandHandler(IDbContext context)
+public sealed class CancelLeaveRequestCommandHandler(
+    IDbContext context,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<CancelLeaveRequestCommand>
 {
     public async Task<Result> Handle(CancelLeaveRequestCommand command, CancellationToken cancellationToken)
@@ -57,7 +60,8 @@ public sealed class CancelLeaveRequestCommandHandler(IDbContext context)
             {
                 var makeupCredits = await context.MakeupCredits
                     .Where(mc => mc.StudentProfileId == leaveRequest.StudentProfileId
-                        && mc.SourceSessionId == sourceSession.Id)
+                        && mc.SourceSessionId == sourceSession.Id
+                        && mc.CreatedReason == CreatedReason.ApprovedLeave24H)
                     .Include(mc => mc.MakeupAllocations)
                     .ToListAsync(cancellationToken);
 
@@ -68,6 +72,11 @@ public sealed class CancelLeaveRequestCommandHandler(IDbContext context)
                     // Then remove credits
                     context.MakeupCredits.Remove(credit);
                 }
+
+                await approvedLeaveAttendanceService.ApplyApprovedLeaveDeactivationAsync(
+                    leaveRequest.StudentProfileId,
+                    sourceSession,
+                    cancellationToken);
             }
         }
 

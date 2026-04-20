@@ -18,7 +18,8 @@ public sealed class UpdateAttendanceCommandHandler(
     IUserContext userContext,
     IGamificationService gamificationService,
     SessionParticipantService sessionParticipantService,
-    RegistrationSessionConsumptionService registrationSessionConsumptionService)
+    RegistrationSessionConsumptionService registrationSessionConsumptionService,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<UpdateAttendanceCommand, UpdateAttendanceResponse>
 {
     public async Task<Result<UpdateAttendanceResponse>> Handle(UpdateAttendanceCommand request, CancellationToken cancellationToken)
@@ -32,6 +33,19 @@ public sealed class UpdateAttendanceCommandHandler(
 
         if (attendance is null)
         {
+            if (!request.IsAdmin)
+            {
+                var session = await context.Sessions
+                    .FirstOrDefaultAsync(s => s.Id == request.SessionId, cancellationToken);
+
+                if (session is not null && await approvedLeaveAttendanceService
+                        .HasApprovedLeaveAsync(request.StudentProfileId, session, cancellationToken))
+                {
+                    return Result.Failure<UpdateAttendanceResponse>(
+                        AttendanceErrors.ApprovedLeaveLocked(request.SessionId, request.StudentProfileId));
+                }
+            }
+
             return Result.Failure<UpdateAttendanceResponse>(
                 AttendanceErrors.NotFoundForSessionStudent(request.SessionId, request.StudentProfileId));
         }
@@ -50,6 +64,13 @@ public sealed class UpdateAttendanceCommandHandler(
         {
             return Result.Failure<UpdateAttendanceResponse>(
                 AttendanceErrors.UpdateWindowClosed(attendance.SessionId));
+        }
+
+        if (!request.IsAdmin && await approvedLeaveAttendanceService
+                .HasApprovedLeaveAsync(request.StudentProfileId, attendance.Session, cancellationToken))
+        {
+            return Result.Failure<UpdateAttendanceResponse>(
+                AttendanceErrors.ApprovedLeaveLocked(request.SessionId, request.StudentProfileId));
         }
 
         // Store old values for audit log

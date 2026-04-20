@@ -18,7 +18,8 @@ public sealed class MarkAttendanceCommandHandler(
     IUserContext userContext,
     IGamificationService gamificationService,
     SessionParticipantService sessionParticipantService,
-    RegistrationSessionConsumptionService registrationSessionConsumptionService)
+    RegistrationSessionConsumptionService registrationSessionConsumptionService,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<MarkAttendanceCommand, MarkAttendanceResponse>
 {
     public async Task<Result<MarkAttendanceResponse>> Handle(MarkAttendanceCommand command, CancellationToken cancellationToken)
@@ -41,6 +42,19 @@ public sealed class MarkAttendanceCommandHandler(
         var studentsWithClassAttendanceMissionChanges = new HashSet<Guid>();
         var participants = await sessionParticipantService.GetParticipantsAsync(command.SessionId, cancellationToken);
         var participantsByStudent = participants.ToDictionary(p => p.StudentProfileId);
+        var requestedStudentIds = command.Attendances
+            .Select(x => x.StudentProfileId)
+            .Distinct()
+            .ToList();
+        var existingAttendances = await context.Attendances
+            .Where(a => a.SessionId == command.SessionId && requestedStudentIds.Contains(a.StudentProfileId))
+            .ToDictionaryAsync(a => a.StudentProfileId, cancellationToken);
+        var studentsWithApprovedLeave = command.IsAdmin
+            ? new HashSet<Guid>()
+            : await approvedLeaveAttendanceService.GetApprovedLeaveStudentIdsForSessionAsync(
+                session,
+                requestedStudentIds,
+                cancellationToken);
 
         foreach (var item in command.Attendances)
         {
@@ -51,9 +65,23 @@ public sealed class MarkAttendanceCommandHandler(
                     $"Student '{item.StudentProfileId}' is not assigned to session '{command.SessionId}'."));
             }
 
-            var attendance = await context.Attendances
-                .FirstOrDefaultAsync(a => a.SessionId == command.SessionId && a.StudentProfileId == item.StudentProfileId,
-                    cancellationToken);
+            existingAttendances.TryGetValue(item.StudentProfileId, out var attendance);
+
+            if (studentsWithApprovedLeave.Contains(item.StudentProfileId))
+            {
+                results.Add(new AttendanceResultItem
+                {
+                    Id = attendance?.Id ?? Guid.Empty,
+                    SessionId = command.SessionId,
+                    StudentProfileId = item.StudentProfileId,
+                    AttendanceStatus = AttendanceStatus.Makeup.ToString(),
+                    AbsenceType = null,
+                    MarkedAt = null,
+                    Note = attendance?.Note
+                });
+
+                continue;
+            }
 
             var previousStatus = attendance?.AttendanceStatus;
             var previousAbsenceType = attendance?.AbsenceType;
@@ -68,6 +96,7 @@ public sealed class MarkAttendanceCommandHandler(
                     StudentProfileId = item.StudentProfileId,
                 };
                 context.Attendances.Add(attendance);
+                existingAttendances[item.StudentProfileId] = attendance;
             }
 
             if (item.Note is not null)

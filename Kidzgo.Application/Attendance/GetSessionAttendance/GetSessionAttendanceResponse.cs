@@ -14,6 +14,7 @@ public sealed class GetSessionAttendanceResponse
     public string AttendanceStatus { get; set; } = null!;
     public string? AbsenceType { get; set; }
     public bool HasMakeupCredit { get; set; }
+    public bool HasApprovedLeave { get; set; }
     public string? Note { get; set; }
     public DateTime? MarkedAt { get; set; }
 }

@@ -11,7 +11,8 @@ namespace Kidzgo.Application.Attendance.GetSessionAttendance;
 
 public sealed class GetSessionAttendanceQueryHandler(
     IDbContext context,
-    SessionParticipantService sessionParticipantService)
+    SessionParticipantService sessionParticipantService,
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : IQueryHandler<GetSessionAttendanceQuery, GetSessionAttendanceListResponse>
 {
     public async Task<Result<GetSessionAttendanceListResponse>> Handle(GetSessionAttendanceQuery request, CancellationToken cancellationToken)
@@ -59,11 +60,15 @@ public sealed class GetSessionAttendanceQueryHandler(
             .Distinct()
             .ToHashSetAsync(cancellationToken);
 
+        var studentsWithApprovedLeave = await approvedLeaveAttendanceService
+            .GetApprovedLeaveStudentIdsForSessionAsync(session, studentIds, cancellationToken);
+
         var data = participants
             .Where(p => students.ContainsKey(p.StudentProfileId))
             .Select(p =>
             {
                 attendances.TryGetValue(p.StudentProfileId, out var attendance);
+                var hasApprovedLeave = studentsWithApprovedLeave.Contains(p.StudentProfileId);
                 return new GetSessionAttendanceResponse
                 {
                     Id = attendance?.Id ?? Guid.Empty,
@@ -73,11 +78,14 @@ public sealed class GetSessionAttendanceQueryHandler(
                     RegistrationId = p.RegistrationId,
                     Track = p.Track.HasValue ? RegistrationTrackHelper.ToTrackName(p.Track.Value) : null,
                     IsMakeup = p.IsMakeup,
-                    AttendanceStatus = attendance?.AttendanceStatus.ToString() ?? "NotMarked",
-                    AbsenceType = attendance?.AbsenceType?.ToString(),
+                    AttendanceStatus = hasApprovedLeave
+                        ? AttendanceStatus.Makeup.ToString()
+                        : attendance?.AttendanceStatus.ToString() ?? AttendanceStatus.NotMarked.ToString(),
+                    AbsenceType = hasApprovedLeave ? null : attendance?.AbsenceType?.ToString(),
                     HasMakeupCredit = studentsWithCredit.Contains(p.StudentProfileId),
+                    HasApprovedLeave = hasApprovedLeave,
                     Note = attendance?.Note,
-                    MarkedAt = attendance?.MarkedAt
+                    MarkedAt = hasApprovedLeave ? null : attendance?.MarkedAt
                 };
             })
             .OrderBy(x => x.StudentName)

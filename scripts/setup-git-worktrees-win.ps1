@@ -3,10 +3,12 @@ Param(
     [string]$WorktreeRoot = "C:\Users\Administrator\Desktop\Projects\Kidzgo.Worktrees",
     [string]$MainRemoteBranch = "main",
     [string]$DevRemoteBranch = "dev",
+    [string]$DevSeedRemoteBranch = "main",
     [string]$MainLocalBranch = "vps-main",
     [string]$DevLocalBranch = "vps-dev",
     [string]$MainFolderName = "main",
-    [string]$DevFolderName = "dev"
+    [string]$DevFolderName = "dev",
+    [switch]$CreateMissingRemoteBranches
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,6 +81,64 @@ function Ensure-Worktree {
     Write-Host "Worktree ready: $TargetPath ($LocalBranch -> origin/$RemoteBranch)" -ForegroundColor Green
 }
 
+function Test-RemoteBranchExists {
+    param(
+        [string]$RepoPath,
+        [string]$RemoteBranch
+    )
+
+    Push-Location $RepoPath
+    try {
+        $result = & git ls-remote --heads origin $RemoteBranch
+        return -not [string]::IsNullOrWhiteSpace(($result | Out-String))
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Ensure-RemoteBranch {
+    param(
+        [string]$RepoPath,
+        [string]$RemoteBranch,
+        [string]$SeedRemoteBranch,
+        [switch]$AllowCreate
+    )
+
+    if (Test-RemoteBranchExists -RepoPath $RepoPath -RemoteBranch $RemoteBranch) {
+        return
+    }
+
+    if (-not (Test-RemoteBranchExists -RepoPath $RepoPath -RemoteBranch $SeedRemoteBranch)) {
+        throw "Remote branch 'origin/$RemoteBranch' does not exist, and seed branch 'origin/$SeedRemoteBranch' was also not found."
+    }
+
+    if (-not $AllowCreate) {
+        throw @"
+Remote branch 'origin/$RemoteBranch' does not exist.
+
+Choose one of these options:
+1. Create branch '$RemoteBranch' on GitHub, then rerun this script.
+2. Rerun this script with -CreateMissingRemoteBranches to create '$RemoteBranch' from 'origin/$SeedRemoteBranch'.
+
+Example:
+.\scripts\setup-git-worktrees-win.ps1 -CreateMissingRemoteBranches
+"@
+    }
+
+    Push-Location $RepoPath
+    try {
+        Write-Host "Creating remote branch 'origin/$RemoteBranch' from 'origin/$SeedRemoteBranch'..." -ForegroundColor Yellow
+        & git push origin "refs/remotes/origin/$($SeedRemoteBranch):refs/heads/$($RemoteBranch)"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create remote branch '$RemoteBranch' from '$SeedRemoteBranch'."
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 Assert-GitRepository -Path $RepositoryPath
 
 New-Item -ItemType Directory -Path $WorktreeRoot -Force | Out-Null
@@ -94,6 +154,18 @@ try {
 finally {
     Pop-Location
 }
+
+Ensure-RemoteBranch `
+    -RepoPath $RepositoryPath `
+    -RemoteBranch $MainRemoteBranch `
+    -SeedRemoteBranch $MainRemoteBranch `
+    -AllowCreate:$false
+
+Ensure-RemoteBranch `
+    -RepoPath $RepositoryPath `
+    -RemoteBranch $DevRemoteBranch `
+    -SeedRemoteBranch $DevSeedRemoteBranch `
+    -AllowCreate:$CreateMissingRemoteBranches
 
 $mainPath = Join-Path $WorktreeRoot $MainFolderName
 $devPath = Join-Path $WorktreeRoot $DevFolderName

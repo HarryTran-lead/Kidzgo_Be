@@ -19,5 +19,9 @@ public static class AttendanceErrors
     public static Error FutureSessionNotAllowed(Guid sessionId) => Error.Validation(
         "Attendance.FutureSessionNotAllowed",
         $"Teachers cannot mark attendance for future session '{sessionId}'.");
+
+    public static Error ApprovedLeaveLocked(Guid sessionId, Guid studentProfileId) => Error.Validation(
+        "Attendance.ApprovedLeaveLocked",
+        $"Attendance for student '{studentProfileId}' in session '{sessionId}' is locked because the leave request was approved.");
 }
 

@@ -35,7 +35,8 @@ public class LocalFileStorageService : IFileStorageService
         _allowedExtensions = new Dictionary<string, string[]>
         {
             ["image"] = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" },
-            ["video"] = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv" },
+            ["video"] = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv", ".hevc" },
+            ["audio"] = new[] { ".mp3", ".wav" },
             ["document"] = new[] { ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt" },
             ["excel"] = new[] { ".xlsx", ".xls", ".csv" }
         };
@@ -43,7 +44,8 @@ public class LocalFileStorageService : IFileStorageService
         _allowedMimeTypes = new Dictionary<string, string[]>
         {
             ["image"] = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml" },
-            ["video"] = new[] { "video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/x-matroska" },
+            ["video"] = new[] { "video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/x-matroska", "video/hevc", "video/h265" },
+            ["audio"] = new[] { "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave" },
             ["document"] = new[] { 
                 "application/pdf",
                 "application/msword",
@@ -194,7 +196,8 @@ public class LocalFileStorageService : IFileStorageService
         return extension switch
         {
             ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" => "image",
-            ".mp4" or ".mov" or ".avi" or ".webm" or ".mkv" => "video",
+            ".mp4" or ".mov" or ".avi" or ".webm" or ".mkv" or ".hevc" => "video",
+            ".mp3" or ".wav" => "audio",
             ".pdf" or ".doc" or ".docx" or ".ppt" or ".pptx" or ".txt" => "document",
             ".xlsx" or ".xls" or ".csv" => "excel",
             _ => "document" // Default to document

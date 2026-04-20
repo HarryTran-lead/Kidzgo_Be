@@ -1,13 +1,13 @@
 namespace Kidzgo.Application.Abstraction.Storage;
 
-/// Service for uploading files (images and videos) to cloud storage
+/// Service for uploading files to storage
 public interface IFileStorageService
 {
-    /// Upload a file (image or video) and return the public URL
+    /// Upload a file and return the public URL
     /// <param name="fileStream">File stream</param>
     /// <param name="fileName">Original file name</param>
     /// <param name="folder">Folder path in storage (e.g., "tickets", "media", "blog")</param>
-    /// <param name="resourceType">Resource type: "image" or "video"</param>
+    /// <param name="resourceType">Resource type such as "image", "video", "audio", "document", or "excel"</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Public URL of the uploaded file</returns>
     Task<string> UploadFileAsync(

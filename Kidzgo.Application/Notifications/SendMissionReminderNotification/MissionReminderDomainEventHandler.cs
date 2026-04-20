@@ -1,90 +1,73 @@
-using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Domain.Notifications;
 using Kidzgo.Domain.Notifications.Events;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace Kidzgo.Application.Notifications.SendMissionReminderNotification;
 
 public sealed class MissionReminderDomainEventHandler(
-    IDbContext context,
-    IMailService mailService,
-    ITemplateRenderer templateRenderer
+    IDbContext context
 ) : INotificationHandler<MissionReminderDomainEvent>
 {
-    private const string TemplateCode = "MISSION_REMINDER";
-
     public async Task Handle(MissionReminderDomainEvent notification, CancellationToken cancellationToken)
     {
-        var user = await context.Users
-            .FirstOrDefaultAsync(u => u.Id == notification.RecipientUserId, cancellationToken);
+        var userExists = await context.Users
+            .AnyAsync(u => u.Id == notification.RecipientUserId, cancellationToken);
 
-        if (user is null || string.IsNullOrWhiteSpace(user.Email))
+        if (!userExists)
         {
             return;
         }
 
-        var template = await context.NotificationTemplates
-            .Where(t => t.Code == TemplateCode && t.Channel == NotificationChannel.Email && t.IsActive && !t.IsDeleted)
-            .FirstOrDefaultAsync(cancellationToken);
+        var dueDateText = notification.DueDate?.ToString("dd/MM/yyyy HH:mm") ?? "sớm";
+        var missionTitle = string.IsNullOrWhiteSpace(notification.MissionTitle) ? "nhiệm vụ" : notification.MissionTitle;
+        var className = string.IsNullOrWhiteSpace(notification.ClassName) ? "lớp học" : notification.ClassName;
+        var studentName = string.IsNullOrWhiteSpace(notification.StudentName) ? "học sinh" : notification.StudentName;
+        var title = $"Nhắc nhở: Nhiệm vụ {missionTitle} sắp kết thúc";
+        var content =
+            $"Học sinh {studentName} có nhiệm vụ {missionTitle} của {className} cần hoàn thành trước {dueDateText}.";
+        var deeplink = $"/missions/{notification.MissionId}";
+        var now = VietnamTime.UtcNow();
 
-        if (template is null)
+        var notifications = new List<Notification>
         {
-            return;
-        }
-
-        var placeholders = new Dictionary<string, string>
-        {
-            ["mission_title"] = notification.MissionTitle,
-            ["due_date"] = notification.DueDate?.ToString("dd/MM/yyyy HH:mm") ?? "",
-            ["class_name"] = notification.ClassName ?? "",
-            ["student_name"] = notification.StudentName ?? ""
+            CreateNotification(NotificationChannel.InApp),
+            CreateNotification(NotificationChannel.Push)
         };
 
-        if (!string.IsNullOrWhiteSpace(template.Placeholders))
-        {
-            try
-            {
-                var templatePlaceholders = JsonSerializer.Deserialize<Dictionary<string, string>>(template.Placeholders);
-                if (templatePlaceholders != null)
-                {
-                    foreach (var kvp in templatePlaceholders)
-                    {
-                        placeholders[kvp.Key] = kvp.Value;
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore JSON parse errors
-            }
-        }
-
-        string subject = templateRenderer.Render(template.Title, placeholders);
-        string body = templateRenderer.Render(template.Content ?? string.Empty, placeholders);
-
-        await mailService.SendEmailAsync(user.Email, subject, body, cancellationToken);
-
-        // Store mission ID in TemplateId to track which mission this reminder is for
-        var notificationRecord = new Notification
-        {
-            Id = Guid.NewGuid(),
-            RecipientUserId = notification.RecipientUserId,
-            RecipientProfileId = notification.RecipientProfileId,
-            Channel = NotificationChannel.Email,
-            Title = subject,
-            Content = body,
-            Status = NotificationStatus.Sent,
-            SentAt = VietnamTime.UtcNow(),
-            NotificationTemplateId = template.Id,
-            TemplateId = notification.MissionId.ToString(),
-            CreatedAt = VietnamTime.UtcNow()
-        };
-
-        context.Notifications.Add(notificationRecord);
+        context.Notifications.AddRange(notifications);
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var notificationRecord in notifications.Where(n => n.Channel != NotificationChannel.InApp))
+        {
+            notificationRecord.Raise(new NotificationCreatedDomainEvent(notificationRecord.Id, notificationRecord.Channel));
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        Notification CreateNotification(NotificationChannel channel)
+        {
+            return new Notification
+            {
+                Id = Guid.NewGuid(),
+                RecipientUserId = notification.RecipientUserId,
+                RecipientProfileId = notification.RecipientProfileId,
+                Channel = channel,
+                Title = title,
+                Content = content,
+                Deeplink = deeplink,
+                Status = NotificationStatus.Pending,
+                TemplateId = notification.MissionId.ToString(),
+                CreatedAt = now,
+                TargetRole = "Student",
+                Kind = "mission_reminder",
+                Priority = "normal",
+                SenderRole = "System",
+                SenderName = "KidzGo Centre",
+                ScopeStudentProfileId = notification.RecipientProfileId
+            };
+        }
     }
 }
 

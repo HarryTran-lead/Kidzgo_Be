@@ -20,7 +20,8 @@ public sealed class UploadFileCommandHandler(
     private static readonly Dictionary<string, string[]> AllowedExtensions = new()
     {
         ["image"] = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" },
-        ["video"] = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv" },
+        ["video"] = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv", ".hevc" },
+        ["audio"] = new[] { ".mp3", ".wav" },
         ["document"] = new[] { ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt" },
         ["excel"] = new[] { ".xlsx", ".xls", ".csv" }
     };
@@ -29,6 +30,7 @@ public sealed class UploadFileCommandHandler(
     {
         ["image"] = 10 * 1024 * 1024,      // 10MB
         ["video"] = 100 * 1024 * 1024,     // 100MB
+        ["audio"] = 50 * 1024 * 1024,      // 50MB
         ["document"] = 50 * 1024 * 1024,   // 50MB
         ["excel"] = 20 * 1024 * 1024       // 20MB
     };
@@ -218,7 +220,8 @@ public sealed class UploadFileCommandHandler(
         return extension switch
         {
             ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" => "image",
-            ".mp4" or ".mov" or ".avi" or ".webm" or ".mkv" => "video",
+            ".mp4" or ".mov" or ".avi" or ".webm" or ".mkv" or ".hevc" => "video",
+            ".mp3" or ".wav" => "audio",
             ".pdf" or ".doc" or ".docx" or ".ppt" or ".pptx" or ".txt" => "document",
             ".xlsx" or ".xls" or ".csv" => "excel",
             _ => "document"

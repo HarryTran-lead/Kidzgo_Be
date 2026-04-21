@@ -132,7 +132,7 @@ public sealed class SessionParticipantService(
                 false))
             .ToListAsync(cancellationToken);
 
-        var activeEnrollDatesByClass = await context.ClassEnrollments
+        var activeEnrollments = await context.ClassEnrollments
             .AsNoTracking()
             .Where(ce => ce.StudentProfileId == studentProfileId
                 && ce.Status == Domain.Classes.EnrollmentStatus.Active)
@@ -140,37 +140,67 @@ public sealed class SessionParticipantService(
             {
                 ce.Id,
                 ce.ClassId,
-                ce.EnrollDate
             })
             .ToListAsync(cancellationToken);
 
-        var pauseLookup = EnrollmentPauseWindowHelper.BuildLookup(
-            await context.PauseEnrollmentRequestHistories
-                .AsNoTracking()
-                .Where(history => history.EnrollmentId.HasValue
-                    && activeEnrollDatesByClass.Select(ce => ce.Id).Contains(history.EnrollmentId.Value)
-                    && history.NewStatus == Domain.Classes.EnrollmentStatus.Paused)
-                .Select(history => new EnrollmentPauseWindow(
-                    history.EnrollmentId!.Value,
-                    history.PauseFrom,
-                    history.PauseTo))
-                .ToListAsync(cancellationToken));
+        var activeClassIds = activeEnrollments
+            .Select(ce => ce.ClassId)
+            .Distinct()
+            .ToList();
 
-        var legacySessions = await context.Sessions
+        var directlyAssignedSessionIds = await context.StudentSessionAssignments
             .AsNoTracking()
-            .Where(s => s.Status == SessionStatus.Scheduled
-                && s.PlannedDatetime >= fromUtc
-                && s.PlannedDatetime <= toUtc
-                && !context.StudentSessionAssignments.Any(a => a.SessionId == s.Id))
-            .Select(s => new
-            {
-                s.ClassId,
-                s.Class.Code,
-                s.Class.Title,
-                Start = s.PlannedDatetime,
-                End = s.PlannedDatetime.AddMinutes(s.DurationMinutes)
-            })
+            .Where(a => a.StudentProfileId == studentProfileId
+                && a.Status == StudentSessionAssignmentStatus.Assigned
+                && a.Session.Status == SessionStatus.Scheduled
+                && a.Session.PlannedDatetime >= fromUtc
+                && a.Session.PlannedDatetime <= toUtc)
+            .Select(a => a.SessionId)
+            .Distinct()
             .ToListAsync(cancellationToken);
+
+        var derivedRegularSlots = new List<StudentBookedSlot>();
+        if (activeClassIds.Count > 0)
+        {
+            var candidateSessions = await context.Sessions
+                .AsNoTracking()
+                .Where(s => s.Status == SessionStatus.Scheduled
+                    && activeClassIds.Contains(s.ClassId)
+                    && s.PlannedDatetime >= fromUtc
+                    && s.PlannedDatetime <= toUtc
+                    && !directlyAssignedSessionIds.Contains(s.Id))
+                .Select(s => new
+                {
+                    s.Id,
+                    s.ClassId,
+                    s.Class.Code,
+                    s.Class.Title,
+                    Start = s.PlannedDatetime,
+                    End = s.PlannedDatetime.AddMinutes(s.DurationMinutes)
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var session in candidateSessions)
+            {
+                var participant = (await studentSessionAssignmentService
+                        .GetRegularParticipantsAsync(session.Id, cancellationToken))
+                    .FirstOrDefault(p => p.StudentProfileId == studentProfileId);
+
+                if (participant.StudentProfileId == Guid.Empty)
+                {
+                    continue;
+                }
+
+                derivedRegularSlots.Add(new StudentBookedSlot(
+                    session.Start,
+                    session.End,
+                    participant.ClassEnrollmentId,
+                    session.ClassId,
+                    session.Code,
+                    session.Title,
+                    false));
+            }
+        }
 
         var makeupSlots = await context.MakeupAllocations
             .AsNoTracking()
@@ -189,26 +219,8 @@ public sealed class SessionParticipantService(
                 true))
             .ToListAsync(cancellationToken);
 
-        var filteredLegacySessions = legacySessions
-            .SelectMany(session => activeEnrollDatesByClass
-                .Where(enrollment =>
-                    enrollment.ClassId == session.ClassId &&
-                    enrollment.EnrollDate <= VietnamTime.ToVietnamDateOnly(session.Start) &&
-                    !EnrollmentPauseWindowHelper.IsPausedOn(
-                        enrollment.Id,
-                        VietnamTime.ToVietnamDateOnly(session.Start),
-                        pauseLookup))
-                .Select(_ => new StudentBookedSlot(
-                    session.Start,
-                    session.End,
-                    null,
-                    session.ClassId,
-                    session.Code,
-                    session.Title,
-                    false)));
-
         return regularAssignments
-            .Concat(filteredLegacySessions)
+            .Concat(derivedRegularSlots)
             .Concat(makeupSlots)
             .Distinct()
             .ToList();

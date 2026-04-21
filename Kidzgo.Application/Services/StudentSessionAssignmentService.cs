@@ -14,6 +14,11 @@ public readonly record struct RegularSessionParticipant(
     Guid? RegistrationId,
     RegistrationTrackType Track);
 
+public readonly record struct AssignmentSyncSummary(
+    int CreatedAssignments,
+    int ReactivatedAssignments,
+    int CancelledAssignments);
+
 public sealed class StudentSessionAssignmentService(
     IDbContext context,
     ISchedulePatternParser patternParser)
@@ -159,7 +164,7 @@ public sealed class StudentSessionAssignmentService(
         return Result.Success();
     }
 
-    public async Task SyncAssignmentsForEnrollmentAsync(
+    public async Task<AssignmentSyncSummary> SyncAssignmentsForEnrollmentAsync(
         ClassEnrollment enrollment,
         CancellationToken cancellationToken)
     {
@@ -176,6 +181,9 @@ public sealed class StudentSessionAssignmentService(
 
         var assignmentsBySessionId = existingAssignments.ToDictionary(a => a.SessionId);
         var now = VietnamTime.UtcNow();
+        var createdAssignments = 0;
+        var reactivatedAssignments = 0;
+        var cancelledAssignments = 0;
 
         foreach (var session in sessions)
         {
@@ -208,9 +216,15 @@ public sealed class StudentSessionAssignmentService(
                         CreatedAt = now,
                         UpdatedAt = now
                     });
+                    createdAssignments++;
                 }
                 else
                 {
+                    if (assignment.Status != StudentSessionAssignmentStatus.Assigned)
+                    {
+                        reactivatedAssignments++;
+                    }
+
                     assignment.StudentProfileId = enrollment.StudentProfileId;
                     assignment.RegistrationId = enrollment.RegistrationId;
                     assignment.Track = enrollment.Track;
@@ -222,8 +236,14 @@ public sealed class StudentSessionAssignmentService(
             {
                 assignment.Status = StudentSessionAssignmentStatus.Cancelled;
                 assignment.UpdatedAt = now;
+                cancelledAssignments++;
             }
         }
+
+        return new AssignmentSyncSummary(
+            createdAssignments,
+            reactivatedAssignments,
+            cancelledAssignments);
     }
 
     public async Task RestoreAssignmentsForEnrollmentAsync(
@@ -470,21 +490,6 @@ public sealed class StudentSessionAssignmentService(
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var hasAssignments = await HasRegularAssignmentsAsync(sessionId, cancellationToken);
-
-        if (hasAssignments)
-        {
-            return await context.StudentSessionAssignments
-                .AsNoTracking()
-                .Where(a => a.SessionId == sessionId && a.Status == StudentSessionAssignmentStatus.Assigned)
-                .Select(a => new RegularSessionParticipant(
-                    a.StudentProfileId,
-                    a.ClassEnrollmentId,
-                    a.RegistrationId,
-                    a.Track))
-                .ToListAsync(cancellationToken);
-        }
-
         var sessionInfo = await context.Sessions
             .AsNoTracking()
             .Where(s => s.Id == sessionId)
@@ -500,38 +505,81 @@ public sealed class StudentSessionAssignmentService(
             return new List<RegularSessionParticipant>();
         }
 
-        var sessionDate = VietnamTime.ToVietnamDateOnly(sessionInfo.PlannedDatetime);
-        var pauseLookup = await GetPauseLookupAsync(
-            await context.ClassEnrollments
-                .AsNoTracking()
-                .Where(e => e.ClassId == sessionInfo.ClassId
-                    && e.Status == EnrollmentStatus.Active
-                    && e.EnrollDate <= sessionDate)
-                .Select(e => e.Id)
-                .ToListAsync(cancellationToken),
-            cancellationToken);
+        var assignmentRows = await context.StudentSessionAssignments
+            .AsNoTracking()
+            .Where(a => a.SessionId == sessionId)
+            .Select(a => new
+            {
+                a.StudentProfileId,
+                a.ClassEnrollmentId,
+                a.RegistrationId,
+                a.Track,
+                a.Status
+            })
+            .ToListAsync(cancellationToken);
 
+        var participants = assignmentRows
+            .Where(a => a.Status == StudentSessionAssignmentStatus.Assigned)
+            .GroupBy(a => a.ClassEnrollmentId)
+            .Select(group => group.OrderByDescending(a => a.RegistrationId.HasValue).First())
+            .ToDictionary(
+                a => a.ClassEnrollmentId,
+                a => new RegularSessionParticipant(
+                    a.StudentProfileId,
+                    a.ClassEnrollmentId,
+                    a.RegistrationId,
+                    a.Track));
+
+        var assignmentEnrollmentIds = assignmentRows
+            .Select(a => a.ClassEnrollmentId)
+            .ToHashSet();
+
+        var sessionDate = VietnamTime.ToVietnamDateOnly(sessionInfo.PlannedDatetime);
         var activeEnrollments = await context.ClassEnrollments
             .AsNoTracking()
             .Where(e => e.ClassId == sessionInfo.ClassId
                 && e.Status == EnrollmentStatus.Active
                 && e.EnrollDate <= sessionDate)
             .ToListAsync(cancellationToken);
+
+        if (activeEnrollments.Count == 0)
+        {
+            return participants.Values.ToList();
+        }
+
+        var pauseLookup = await GetPauseLookupAsync(
+            activeEnrollments.Select(e => e.Id),
+            cancellationToken);
         var scheduleSegmentLookup = await GetEnrollmentScheduleSegmentLookupAsync(
             activeEnrollments.Select(e => e.Id),
             cancellationToken);
 
-        return activeEnrollments
-            .Where(e => !EnrollmentPauseWindowHelper.IsPausedOn(e.Id, sessionDate, pauseLookup) &&
+        foreach (var enrollment in activeEnrollments)
+        {
+            if (assignmentEnrollmentIds.Contains(enrollment.Id))
+            {
+                continue;
+            }
+
+            var isEligible =
+                !EnrollmentPauseWindowHelper.IsPausedOn(enrollment.Id, sessionDate, pauseLookup) &&
                 MatchesSelectionPattern(
                     new Session { PlannedDatetime = sessionInfo.PlannedDatetime },
-                    ResolveSessionSelectionPattern(e, sessionDate, scheduleSegmentLookup)))
-            .Select(e => new RegularSessionParticipant(
-                e.StudentProfileId,
-                e.Id,
-                e.RegistrationId,
-                e.Track))
-            .ToList();
+                    ResolveSessionSelectionPattern(enrollment, sessionDate, scheduleSegmentLookup));
+
+            if (!isEligible)
+            {
+                continue;
+            }
+
+            participants[enrollment.Id] = new RegularSessionParticipant(
+                enrollment.StudentProfileId,
+                enrollment.Id,
+                enrollment.RegistrationId,
+                enrollment.Track);
+        }
+
+        return participants.Values.ToList();
     }
 
     private async Task<Dictionary<Guid, List<EnrollmentPauseWindow>>> GetPauseLookupAsync(

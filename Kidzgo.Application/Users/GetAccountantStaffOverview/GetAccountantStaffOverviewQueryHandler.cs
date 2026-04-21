@@ -19,6 +19,7 @@ public sealed class GetAccountantStaffOverviewQueryHandler(
     {
         var userId = userContext.UserId;
         var now = VietnamTime.UtcNow();
+        var todayInVietnam = VietnamTime.ToVietnamDateOnly(now);
         var fromDate = query.FromDate ?? now.AddMonths(-1);
         var toDate = query.ToDate ?? now.AddMonths(1);
 
@@ -102,7 +103,9 @@ public sealed class GetAccountantStaffOverviewQueryHandler(
                 StudentName = i.StudentProfile.DisplayName,
                 Amount = i.Amount,
                 PaymentStatus = i.Status.ToString(),
-                DueDate = i.DueDate.HasValue ? i.DueDate.Value.ToDateTime(TimeOnly.MinValue) : null,
+                DueDate = i.DueDate.HasValue
+                    ? VietnamTime.TreatAsVietnamLocal(i.DueDate.Value.ToDateTime(TimeOnly.MinValue))
+                    : null,
                 IssuedAt = i.IssuedAt
             })
             .ToListAsync(cancellationToken);
@@ -119,7 +122,9 @@ public sealed class GetAccountantStaffOverviewQueryHandler(
                 StudentName = i.StudentProfile.DisplayName,
                 Amount = i.Amount,
                 PaymentStatus = i.Status.ToString(),
-                DueDate = i.DueDate.HasValue ? i.DueDate.Value.ToDateTime(TimeOnly.MinValue) : null,
+                DueDate = i.DueDate.HasValue
+                    ? VietnamTime.TreatAsVietnamLocal(i.DueDate.Value.ToDateTime(TimeOnly.MinValue))
+                    : null,
                 IssuedAt = i.IssuedAt
             })
             .ToListAsync(cancellationToken);
@@ -150,7 +155,7 @@ public sealed class GetAccountantStaffOverviewQueryHandler(
                 StudentName = g.Key.DisplayName,
                 TotalDebt = g.Sum(i => i.Amount),
                 OverdueDays = g.Where(i => i.Status == InvoiceStatus.Overdue && i.DueDate.HasValue)
-                    .Select(i => (int?)(now.Date - i.DueDate.Value.ToDateTime(TimeOnly.MinValue).Date).Days)
+                    .Select(i => (int?)(todayInVietnam.DayNumber - i.DueDate!.Value.DayNumber))
                     .Max() ?? 0,
                 InvoiceCount = g.Count()
             })
@@ -186,7 +191,7 @@ public sealed class GetAccountantStaffOverviewQueryHandler(
                 Type = cb.Type.ToString(),
                 Amount = cb.Amount,
                 Description = cb.Description ?? "",
-                TransactionDate = cb.EntryDate.ToDateTime(TimeOnly.MinValue)
+                TransactionDate = VietnamTime.TreatAsVietnamLocal(cb.EntryDate.ToDateTime(TimeOnly.MinValue))
             })
             .ToListAsync(cancellationToken);
 

@@ -2,6 +2,7 @@ using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.Enrollments.AddEnrollmentScheduleSegment;
 using Kidzgo.Application.Enrollments.AssignTuitionPlan;
+using Kidzgo.Application.Enrollments.BackfillStudentSessionAssignments;
 using Kidzgo.Application.Enrollments.CreateEnrollment;
 using Kidzgo.Application.Enrollments.DropEnrollment;
 using Kidzgo.Application.Enrollments.GetEnrollmentById;
@@ -47,6 +48,24 @@ public class EnrollmentController : ControllerBase
 
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchCreated(e => $"/api/enrollments/{e.Id}");
+    }
+
+    [HttpPost("backfill-session-assignments")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> BackfillStudentSessionAssignments(
+        [FromBody] BackfillStudentSessionAssignmentsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new BackfillStudentSessionAssignmentsCommand
+        {
+            EnrollmentId = request.EnrollmentId,
+            ClassId = request.ClassId,
+            StudentProfileId = request.StudentProfileId,
+            BatchSize = request.BatchSize
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
     }
 
     /// Add a dated schedule segment for a supplementary enrollment.

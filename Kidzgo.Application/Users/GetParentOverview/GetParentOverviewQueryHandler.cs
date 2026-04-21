@@ -26,6 +26,7 @@ public sealed class GetParentOverviewQueryHandler(
         var now = VietnamTime.UtcNow();
         var fromDate = query.FromDate ?? now.AddMonths(-1);
         var toDate = query.ToDate ?? now.AddMonths(1);
+        var fromDateInVietnam = VietnamTime.ToVietnamDateOnly(fromDate);
 
         // Get parent profile
         var parentProfile = await context.Profiles
@@ -266,7 +267,7 @@ public sealed class GetParentOverviewQueryHandler(
         var recentExams = await context.ExamResults
             .AsNoTracking()
             .Where(er => studentProfileIds.Contains(er.StudentProfileId) &&
-                        er.Exam.Date >= DateOnly.FromDateTime(fromDate))
+                        er.Exam.Date >= fromDateInVietnam)
             .OrderByDescending(er => er.Exam.Date)
             .Take(20)
             .Select(er => new ExamSummaryDto
@@ -276,7 +277,7 @@ public sealed class GetParentOverviewQueryHandler(
                 ClassId = er.Exam.ClassId,
                 ClassCode = er.Exam.Class.Code,
                 StudentProfileId = er.StudentProfileId,
-                ExamDate = er.Exam.Date.ToDateTime(TimeOnly.MinValue),
+                ExamDate = VietnamTime.TreatAsVietnamLocal(er.Exam.Date.ToDateTime(TimeOnly.MinValue)),
                 Score = er.Score
             })
             .ToListAsync(cancellationToken);
@@ -293,7 +294,7 @@ public sealed class GetParentOverviewQueryHandler(
                 Id = r.Id,
                 StudentProfileId = r.StudentProfileId,
                 ClassCode = r.Class != null ? r.Class.Code : "",
-                ReportMonth = new DateTime(r.Year, r.Month, 1),
+                ReportMonth = VietnamTime.TreatAsVietnamLocal(new DateTime(r.Year, r.Month, 1)),
                 Status = r.Status.ToString()
             })
             .ToListAsync(cancellationToken);
@@ -312,7 +313,9 @@ public sealed class GetParentOverviewQueryHandler(
                 StudentProfileId = i.StudentProfileId,
                 Amount = i.Amount,
                 PaymentStatus = i.Status.ToString(),
-                DueDate = i.DueDate.HasValue ? i.DueDate.Value.ToDateTime(TimeOnly.MinValue) : null
+                DueDate = i.DueDate.HasValue
+                    ? VietnamTime.TreatAsVietnamLocal(i.DueDate.Value.ToDateTime(TimeOnly.MinValue))
+                    : null
             })
             .ToListAsync(cancellationToken);
 
@@ -344,7 +347,9 @@ public sealed class GetParentOverviewQueryHandler(
             .OrderBy(i => i.DueDate)
             .Select(i => i.DueDate)
             .FirstOrDefault();
-        var nextDueDate = nextDueDateOnly?.ToDateTime(TimeOnly.MinValue);
+        DateTime? nextDueDate = nextDueDateOnly.HasValue
+            ? VietnamTime.TreatAsVietnamLocal(nextDueDateOnly.Value.ToDateTime(TimeOnly.MinValue))
+            : null;
         var daysUntilDue = nextDueDateOnly.HasValue
             ? nextDueDateOnly.Value.DayNumber - VietnamTime.ToVietnamDateOnly(now).DayNumber
             : (int?)null;

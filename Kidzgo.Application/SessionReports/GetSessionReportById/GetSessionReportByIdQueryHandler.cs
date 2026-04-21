@@ -42,10 +42,6 @@ public sealed class GetSessionReportByIdQueryHandler(
                 Error.NotFound("User.NotFound", "User not found"));
         }
 
-        // Check if user has Student profile type
-        var userProfile = await context.Profiles
-            .FirstOrDefaultAsync(p => p.UserId == currentUser.Id, cancellationToken);
-
         // Authorization check based on user role
         if (currentUser.Role == UserRole.Teacher)
         {
@@ -63,8 +59,12 @@ public sealed class GetSessionReportByIdQueryHandler(
         }
         else if (currentUser.Role == UserRole.Parent)
         {
-            // Get parent's profile
-            var parentProfile = userProfile;
+            var parentProfile = await context.Profiles
+                .FirstOrDefaultAsync(
+                    p => p.UserId == currentUser.Id &&
+                         p.ProfileType == ProfileType.Parent &&
+                         p.IsActive,
+                    cancellationToken);
 
             if (parentProfile is null)
             {
@@ -91,10 +91,23 @@ public sealed class GetSessionReportByIdQueryHandler(
                     Error.Validation("SessionReport.NotPublished", "This report is not published yet"));
             }
         }
-        else if (userProfile != null && userProfile.ProfileType == ProfileType.Student)
+        else if (currentUser.Role == UserRole.Student)
         {
+            var studentProfile = await context.Profiles
+                .FirstOrDefaultAsync(
+                    p => p.UserId == currentUser.Id &&
+                         p.ProfileType == ProfileType.Student &&
+                         p.IsActive,
+                    cancellationToken);
+
+            if (studentProfile is null)
+            {
+                return Result.Failure<GetSessionReportByIdResponse>(
+                    Error.NotFound("SessionReport.Unauthorized", "Student profile not found"));
+            }
+
             // Student can only see their own published reports
-            if (sessionReport.StudentProfileId != userProfile.Id)
+            if (sessionReport.StudentProfileId != studentProfile.Id)
             {
                 return Result.Failure<GetSessionReportByIdResponse>(
                     Error.Validation("SessionReport.Unauthorized", "You can only view your own reports"));

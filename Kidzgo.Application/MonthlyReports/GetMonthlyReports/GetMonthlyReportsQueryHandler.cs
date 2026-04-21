@@ -63,9 +63,13 @@ public sealed class GetMonthlyReportsQueryHandler(
         }
         else if (currentUser.Role == UserRole.Parent)
         {
-            // Get user's profile
+            // Parent must resolve against the parent profile used by ParentStudentLinks.
             var parentProfile = await context.Profiles
-                .FirstOrDefaultAsync(p => p.UserId == currentUser.Id, cancellationToken);
+                .FirstOrDefaultAsync(
+                    p => p.UserId == currentUser.Id &&
+                         p.ProfileType == ProfileType.Parent &&
+                         p.IsActive,
+                    cancellationToken);
 
             if (parentProfile is null)
             {
@@ -95,19 +99,21 @@ public sealed class GetMonthlyReportsQueryHandler(
                 .Where(r => studentProfileIds.Contains(r.StudentProfileId) && r.Status == ReportStatus.Published);
         }
         
-        // Check if user has Student profile type (Student is ProfileType, not UserRole)
-        // This check applies to all users (including Staff/Admin who might also have Student profile)
-        var userProfile = await context.Profiles
-            .FirstOrDefaultAsync(p => p.UserId == currentUser.Id, cancellationToken);
-
-        if (userProfile != null && userProfile.ProfileType == ProfileType.Student)
+        // Student-only restriction should only apply to student users, not parent users
+        // who may also have a student profile under the same login.
+        if (currentUser.Role == UserRole.Student)
         {
-            // Student can only see their own published reports
-            // This overrides any previous filters for non-Staff/Admin users
-            if (currentUser.Role != UserRole.Admin && currentUser.Role != UserRole.ManagementStaff)
+            var studentProfile = await context.Profiles
+                .FirstOrDefaultAsync(
+                    p => p.UserId == currentUser.Id &&
+                         p.ProfileType == ProfileType.Student &&
+                         p.IsActive,
+                    cancellationToken);
+
+            if (studentProfile != null)
             {
                 reportsQuery = reportsQuery
-                    .Where(r => r.StudentProfileId == userProfile.Id && r.Status == ReportStatus.Published);
+                    .Where(r => r.StudentProfileId == studentProfile.Id && r.Status == ReportStatus.Published);
             }
         }
         // Staff/Admin can view all reports (no additional filter)

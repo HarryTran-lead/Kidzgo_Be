@@ -15,7 +15,8 @@ namespace Kidzgo.Application.Sessions.GetStudentTimetable;
 public sealed class GetStudentTimetableQueryHandler(
     IDbContext context,
     IUserContext userContext,
-    ApprovedLeaveAttendanceService approvedLeaveAttendanceService
+    ApprovedLeaveAttendanceService approvedLeaveAttendanceService,
+    StudentSessionAssignmentService studentSessionAssignmentService
 ) : IQueryHandler<GetStudentTimetableQuery, GetStudentTimetableResponse>
 {
     public async Task<Result<GetStudentTimetableResponse>> Handle(GetStudentTimetableQuery query, CancellationToken cancellationToken)
@@ -159,83 +160,56 @@ public sealed class GetStudentTimetableQueryHandler(
                 regularPauseLookup))
             .ToList();
 
-        var studentActiveEnrollmentsQuery = context.ClassEnrollments
+        var studentActiveEnrollments = await context.ClassEnrollments
             .AsNoTracking()
             .Where(ce => studentIds.Contains(ce.StudentProfileId)
-                && ce.Status == EnrollmentStatus.Active);
-
-        var enrollmentsWithAssignmentIds = await context.StudentSessionAssignments
-            .AsNoTracking()
-            .Where(a => studentIds.Contains(a.StudentProfileId))
-            .Select(a => a.ClassEnrollmentId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var enrollmentsWithAssignmentIdSet = enrollmentsWithAssignmentIds.ToHashSet();
-
-        var legacyEnrollments = await studentActiveEnrollmentsQuery
-            .Where(ce => !enrollmentsWithAssignmentIdSet.Contains(ce.Id))
+                && ce.Status == EnrollmentStatus.Active)
             .Select(ce => new
             {
-                ce.Id,
                 ce.StudentProfileId,
-                ce.ClassId,
-                ce.EnrollDate,
-                ce.RegistrationId,
-                ce.Track
+                ce.ClassId
             })
             .ToListAsync(cancellationToken);
 
-        var legacyClassIds = legacyEnrollments
+        var fallbackClassIds = studentActiveEnrollments
             .Select(ce => ce.ClassId)
             .Distinct()
             .ToList();
-        var legacyPauseLookup = await BuildPauseLookupAsync(
-            legacyEnrollments.Select(ce => ce.Id),
-            cancellationToken);
 
-        var legacySessions = new List<Session>();
-        if (legacyClassIds.Count > 0)
+        var fallbackAssignments = new List<SessionMetadataAssignment>();
+        if (fallbackClassIds.Count > 0)
         {
-            var legacySessionsQuery = context.Sessions
+            var fallbackSessionsQuery = context.Sessions
                 .AsNoTracking()
                 .Where(s => s.Status != SessionStatus.Cancelled
-                    && legacyClassIds.Contains(s.ClassId));
+                    && fallbackClassIds.Contains(s.ClassId));
 
             if (fromUtc.HasValue)
             {
-                legacySessionsQuery = legacySessionsQuery.Where(s => s.PlannedDatetime >= fromUtc.Value);
+                fallbackSessionsQuery = fallbackSessionsQuery.Where(s => s.PlannedDatetime >= fromUtc.Value);
             }
 
             if (toUtc.HasValue)
             {
-                legacySessionsQuery = legacySessionsQuery.Where(s => s.PlannedDatetime <= toUtc.Value);
+                fallbackSessionsQuery = fallbackSessionsQuery.Where(s => s.PlannedDatetime <= toUtc.Value);
             }
 
-            legacySessions = await legacySessionsQuery.ToListAsync(cancellationToken);
-        }
+            var fallbackSessions = await fallbackSessionsQuery.ToListAsync(cancellationToken);
 
-        var legacyAssignments = legacySessions
-            .SelectMany(session => legacyEnrollments
-                .Where(enrollment =>
-                    enrollment.ClassId == session.ClassId &&
-                    enrollment.EnrollDate <= VietnamTime.ToVietnamDateOnly(session.PlannedDatetime) &&
-                    !EnrollmentPauseWindowHelper.IsPausedOn(
-                        enrollment.Id,
-                        VietnamTime.ToVietnamDateOnly(session.PlannedDatetime),
-                        legacyPauseLookup))
-                .Select(enrollment => new
-                {
-                    enrollment.StudentProfileId,
-                    SessionId = session.Id,
-                    enrollment.RegistrationId,
-                    enrollment.Track
-                }))
-            .GroupBy(x => new { x.StudentProfileId, x.SessionId })
-            .Select(group => group
-                .OrderByDescending(x => x.RegistrationId.HasValue)
-                .First())
-            .ToList();
+            foreach (var session in fallbackSessions)
+            {
+                var participants = await studentSessionAssignmentService
+                    .GetRegularParticipantsAsync(session.Id, cancellationToken);
+
+                fallbackAssignments.AddRange(participants
+                    .Where(participant => studentIds.Contains(participant.StudentProfileId))
+                    .Select(participant => new SessionMetadataAssignment(
+                        participant.StudentProfileId,
+                        session.Id,
+                        participant.RegistrationId,
+                        participant.Track)));
+            }
+        }
 
         var makeupAssignmentsQuery = context.MakeupAllocations
             .AsNoTracking()
@@ -273,13 +247,13 @@ public sealed class GetStudentTimetableQueryHandler(
                 false);
         }
 
-        foreach (var legacyAssignment in legacyAssignments)
+        foreach (var fallbackAssignment in fallbackAssignments)
         {
             sessionMetadata.TryAdd(
-                (legacyAssignment.StudentProfileId, legacyAssignment.SessionId),
+                (fallbackAssignment.StudentProfileId, fallbackAssignment.SessionId),
                 new SessionMetadata(
-                    legacyAssignment.RegistrationId,
-                    RegistrationTrackHelper.ToTrackName(legacyAssignment.Track),
+                    fallbackAssignment.RegistrationId,
+                    RegistrationTrackHelper.ToTrackName(fallbackAssignment.Track),
                     false));
         }
 
@@ -476,5 +450,11 @@ public sealed class GetStudentTimetableQueryHandler(
         Guid? RegistrationId,
         string? Track,
         bool IsMakeup);
+
+    private sealed record SessionMetadataAssignment(
+        Guid StudentProfileId,
+        Guid SessionId,
+        Guid? RegistrationId,
+        Domain.Registrations.RegistrationTrackType Track);
 }
 

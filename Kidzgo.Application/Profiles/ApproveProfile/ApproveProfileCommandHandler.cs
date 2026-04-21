@@ -34,7 +34,6 @@ public sealed class ApproveProfileCommandHandler(IDbContext context, IPublisher 
                 p.Name,
                 p.Gender,
                 p.DateOfBirth,
-                p.ZaloId,
                 p.CreatedAt,
                 UserName = p.User.Name,
                 UserEmail = p.User.Email,
@@ -100,9 +99,7 @@ public sealed class ApproveProfileCommandHandler(IDbContext context, IPublisher 
                         profile.DisplayName,
                         profile.Name ?? string.Empty,
                         VietnameseEnumText.ForGender(profile.Gender),
-                        profile.DateOfBirth?.ToString("yyyy-MM-dd") ?? string.Empty,
-                        profile.ZaloId ?? string.Empty,
-                        profile.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        profile.DateOfBirth?.ToString("yyyy-MM-dd") ?? string.Empty
                     ))
                     .ToList();
 

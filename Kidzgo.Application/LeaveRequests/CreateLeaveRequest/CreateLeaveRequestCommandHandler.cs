@@ -236,35 +236,32 @@ public sealed class CreateLeaveRequestCommandHandler(
             .Select(a => a.Session)
             .ToListAsync(cancellationToken);
 
-        if (assignedSessions.Count > 0)
-        {
-            return assignedSessions;
-        }
-
-        var activeEnrollDates = await context.ClassEnrollments
-            .AsNoTracking()
-            .Where(ce => ce.ClassId == classId
-                && ce.StudentProfileId == studentProfileId
-                && ce.Status == EnrollmentStatus.Active)
-            .Select(ce => ce.EnrollDate)
-            .ToListAsync(cancellationToken);
+        var assignedSessionIds = assignedSessions
+            .Select(session => session.Id)
+            .ToHashSet();
 
         var candidateSessions = await context.Sessions
             .AsNoTracking()
             .Where(s => s.ClassId == classId
                 && s.Status != SessionStatus.Cancelled
-                && !context.StudentSessionAssignments.Any(a => a.SessionId == s.Id)
                 && s.PlannedDatetime >= fromUtc
-                && s.PlannedDatetime <= toUtc)
+                && s.PlannedDatetime <= toUtc
+                && !assignedSessionIds.Contains(s.Id))
             .ToListAsync(cancellationToken);
 
-        return candidateSessions
-            .Where(s =>
+        var sessionsInRange = new List<Session>(assignedSessions);
+        foreach (var session in candidateSessions)
+        {
+            var assignmentCheck = await sessionParticipantService
+                .EnsureStudentAssignedToSessionAsync(session.Id, studentProfileId, cancellationToken);
+
+            if (assignmentCheck.IsSuccess)
             {
-                var sessionDate = VietnamTime.ToVietnamDateOnly(s.PlannedDatetime);
-                return activeEnrollDates.Any(enrollDate => enrollDate <= sessionDate);
-            })
-            .ToList();
+                sessionsInRange.Add(session);
+            }
+        }
+
+        return sessionsInRange;
     }
 
     private static string GetLeaveKey(LeaveRequest leave)
@@ -277,29 +274,19 @@ public sealed class CreateLeaveRequestCommandHandler(
         return session.Id.ToString();
     }
 
-    private static async Task<int> GetScheduledParticipantCountAsync(
-        IDbContext context,
+    private async Task<int> GetScheduledParticipantCountAsync(
+        SessionParticipantService sessionParticipantService,
         Session session,
         CancellationToken cancellationToken)
     {
-        var hasAssignments = await context.StudentSessionAssignments
-            .AnyAsync(a => a.SessionId == session.Id, cancellationToken);
-
-        var regularCount = hasAssignments
-            ? await context.StudentSessionAssignments
-                .CountAsync(a => a.SessionId == session.Id && a.Status == StudentSessionAssignmentStatus.Assigned, cancellationToken)
-            : await context.ClassEnrollments
-                .Where(e => e.ClassId == session.ClassId
-                    && e.Status == EnrollmentStatus.Active)
-                .CountAsync(e => e.EnrollDate <= VietnamTime.ToVietnamDateOnly(session.PlannedDatetime), cancellationToken);
-
-        var makeupCount = await context.MakeupAllocations
-            .CountAsync(a => a.TargetSessionId == session.Id && a.Status != MakeupAllocationStatus.Cancelled, cancellationToken);
+        var participantCount = (await sessionParticipantService
+                .GetParticipantsAsync(session.Id, cancellationToken))
+            .Count;
 
         var pendingTrackedMakeupCount = context.MakeupAllocations.Local
             .Count(a => a.TargetSessionId == session.Id && a.Status != MakeupAllocationStatus.Cancelled);
 
-        return regularCount + makeupCount + pendingTrackedMakeupCount;
+        return participantCount + pendingTrackedMakeupCount;
     }
 
     private async Task ScheduleMakeupSessionAsync(
@@ -348,7 +335,10 @@ public sealed class CreateLeaveRequestCommandHandler(
                 continue;
             }
 
-            var participantCount = await GetScheduledParticipantCountAsync(context, makeupSession, cancellationToken);
+            var participantCount = await GetScheduledParticipantCountAsync(
+                sessionParticipantService,
+                makeupSession,
+                cancellationToken);
             if (participantCount < makeupSession.Class.Capacity)
             {
                 availableSessions.Add(makeupSession);

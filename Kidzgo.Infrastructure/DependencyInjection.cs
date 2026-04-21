@@ -181,6 +181,25 @@ public static class DependencyInjection
                         .RepeatForever());
                 }
             });
+
+            var backfillStudentSessionAssignmentsCron =
+                configuration["Quartz:Schedules:BackfillStudentSessionAssignmentsJob"];
+
+            if (!string.IsNullOrWhiteSpace(backfillStudentSessionAssignmentsCron))
+            {
+                var backfillJobKey = new JobKey(nameof(BackfillStudentSessionAssignmentsJob));
+
+                q.AddJob<BackfillStudentSessionAssignmentsJob>(opts => opts.WithIdentity(backfillJobKey));
+
+                q.AddTrigger(opts =>
+                {
+                    opts.ForJob(backfillJobKey)
+                        .WithIdentity($"{nameof(BackfillStudentSessionAssignmentsJob)}.trigger")
+                        .WithCronSchedule(
+                            backfillStudentSessionAssignmentsCron,
+                            x => x.WithMisfireHandlingInstructionDoNothing());
+                });
+            }
         });
 
         services.AddQuartzHostedService(options =>

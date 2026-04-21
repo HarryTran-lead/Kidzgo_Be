@@ -1,5 +1,4 @@
 using Kidzgo.Application.Abstraction.Data;
-using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
@@ -9,7 +8,7 @@ namespace Kidzgo.Application.Services;
 
 public sealed class PauseEnrollmentEligibleClassResolver(
     IDbContext context,
-    ISchedulePatternParser patternParser)
+    StudentSessionAssignmentService studentSessionAssignmentService)
 {
     public async Task<List<Guid>> GetEligibleClassIdsAsync(
         Guid studentProfileId,
@@ -22,9 +21,7 @@ public sealed class PauseEnrollmentEligibleClassResolver(
             .Where(e => e.StudentProfileId == studentProfileId && e.Status == EnrollmentStatus.Active)
             .Select(e => new ActiveEnrollmentSnapshot(
                 e.Id,
-                e.ClassId,
-                e.EnrollDate,
-                e.SessionSelectionPattern))
+                e.ClassId))
             .ToListAsync(cancellationToken);
 
         if (activeEnrollments.Count == 0)
@@ -57,64 +54,50 @@ public sealed class PauseEnrollmentEligibleClassResolver(
             .Distinct()
             .ToList();
 
-        var pauseLookup = EnrollmentPauseWindowHelper.BuildLookup(
-            await context.PauseEnrollmentRequestHistories
-                .AsNoTracking()
-                .Where(history => history.EnrollmentId.HasValue
-                    && activeEnrollmentIds.Contains(history.EnrollmentId.Value)
-                    && history.NewStatus == EnrollmentStatus.Paused)
-                .Select(history => new EnrollmentPauseWindow(
-                    history.EnrollmentId!.Value,
-                    history.PauseFrom,
-                    history.PauseTo))
-                .ToListAsync(cancellationToken));
+        var candidateClassIds = activeClassIds
+            .Except(assignedClassIds)
+            .ToList();
 
-        var legacySessions = await context.Sessions
+        if (candidateClassIds.Count == 0)
+        {
+            return assignedClassIds;
+        }
+
+        var candidateSessions = await context.Sessions
             .AsNoTracking()
-            .Where(s => activeClassIds.Contains(s.ClassId)
+            .Where(s => candidateClassIds.Contains(s.ClassId)
                 && s.Status != SessionStatus.Cancelled
-                && !context.StudentSessionAssignments.Any(a => a.SessionId == s.Id)
                 && s.PlannedDatetime >= pauseFromUtc
                 && s.PlannedDatetime <= pauseToUtc)
-            .Select(s => new LegacySessionSnapshot(
-                s.ClassId,
-                s.PlannedDatetime))
+            .Select(s => new CandidateSessionSnapshot(
+                s.Id,
+                s.ClassId))
             .ToListAsync(cancellationToken);
 
-        var legacyClassIds = legacySessions
-            .SelectMany(session => activeEnrollments
-                .Where(enrollment =>
-                    enrollment.ClassId == session.ClassId &&
-                    enrollment.EnrollDate <= VietnamTime.ToVietnamDateOnly(session.PlannedDatetime) &&
-                    !EnrollmentPauseWindowHelper.IsPausedOn(
-                        enrollment.Id,
-                        VietnamTime.ToVietnamDateOnly(session.PlannedDatetime),
-                        pauseLookup) &&
-                    MatchesSelectionPattern(session.PlannedDatetime, enrollment.SessionSelectionPattern))
-                .Select(enrollment => enrollment.ClassId))
-            .Distinct()
-            .ToList();
+        var derivedClassIds = new HashSet<Guid>(assignedClassIds);
+        foreach (var session in candidateSessions)
+        {
+            var isAssigned = await studentSessionAssignmentService
+                .IsStudentRegularlyAssignedToSessionAsync(
+                    session.Id,
+                    studentProfileId,
+                    cancellationToken);
 
-        return assignedClassIds
-            .Union(legacyClassIds)
-            .ToList();
-    }
+            if (isAssigned)
+            {
+                derivedClassIds.Add(session.ClassId);
+            }
+        }
 
-    private bool MatchesSelectionPattern(DateTime sessionPlannedDatetime, string? sessionSelectionPattern)
-    {
-        return ScheduleSelectionPatternMatcher.Matches(
-            sessionPlannedDatetime,
-            sessionSelectionPattern,
-            patternParser);
+        return derivedClassIds
+            .ToList();
     }
 
     private sealed record ActiveEnrollmentSnapshot(
         Guid Id,
-        Guid ClassId,
-        DateOnly EnrollDate,
-        string? SessionSelectionPattern);
+        Guid ClassId);
 
-    private sealed record LegacySessionSnapshot(
-        Guid ClassId,
-        DateTime PlannedDatetime);
+    private sealed record CandidateSessionSnapshot(
+        Guid Id,
+        Guid ClassId);
 }

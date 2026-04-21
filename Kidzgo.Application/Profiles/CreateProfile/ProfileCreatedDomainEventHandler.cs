@@ -65,8 +65,6 @@ public sealed class ProfileCreatedDomainEventHandler(
                 ["full_name"] = firstProfile.FullName,
                 ["gender"] = firstProfile.Gender,
                 ["birth_day"] = firstProfile.Birthday,
-                ["zalo_id"] = firstProfile.ZaloId,
-                ["created_at"] = firstProfile.CreatedAt,
                 ["update_link"] = verifyLink
             };
 
@@ -109,9 +107,7 @@ public sealed class ProfileCreatedDomainEventHandler(
                         <p style="margin:0 0 6px 0;font-size:14px;"><strong>Họ tên:</strong> {{Encode(profile.FullName)}}</p>
                         <p style="margin:0 0 6px 0;font-size:14px;"><strong>Loại hồ sơ:</strong> {{Encode(profile.ProfileType)}}</p>
                         <p style="margin:0 0 6px 0;font-size:14px;"><strong>Giới tính:</strong> {{Encode(profile.Gender)}}</p>
-                        <p style="margin:0 0 6px 0;font-size:14px;"><strong>Ngày sinh:</strong> {{Encode(profile.Birthday)}}</p>
-                        <p style="margin:0 0 6px 0;font-size:14px;"><strong>Zalo ID:</strong> {{Encode(profile.ZaloId)}}</p>
-                        <p style="margin:0;font-size:14px;"><strong>Thời gian tạo hồ sơ:</strong> {{Encode(profile.CreatedAt)}}</p>
+                        <p style="margin:0;font-size:14px;"><strong>Ngày sinh:</strong> {{Encode(profile.Birthday)}}</p>
                       </td>
                     </tr>
                   </table>

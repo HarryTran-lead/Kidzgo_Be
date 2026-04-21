@@ -64,6 +64,10 @@ public static class RegistrationErrors
         "Registration.InvalidUpgradeTuitionPlan",
         "New tuition plan must be different from current plan");
 
+    public static Error InvalidEntryType(string? entryType) => Error.Validation(
+        "Registration.InvalidEntryType",
+        $"Invalid entry type: {entryType}. Allowed values are immediate, wait, retake.");
+
     public static Error AlreadyPaused() => Error.Validation(
         "Registration.AlreadyPaused",
         "Registration is already paused");

@@ -28,14 +28,35 @@ internal static class RegistrationTrackHelper
             : PrimaryTrack;
     }
 
-    internal static EntryType ParseEntryType(string? entryType)
+    internal static bool TryParseEntryType(string? entryType, out EntryType parsedEntryType)
     {
-        return entryType?.ToLowerInvariant() switch
+        switch (entryType?.Trim().ToLowerInvariant())
         {
-            "makeup" => EntryType.Makeup,
-            "wait" => EntryType.Wait,
-            "retake" => EntryType.Retake,
-            _ => EntryType.Immediate
+            case null:
+            case "":
+            case "immediate":
+                parsedEntryType = EntryType.Immediate;
+                return true;
+            case "wait":
+                parsedEntryType = EntryType.Wait;
+                return true;
+            case "retake":
+                parsedEntryType = EntryType.Retake;
+                return true;
+            default:
+                parsedEntryType = default;
+                return false;
+        }
+    }
+
+    internal static string? ToApiEntryType(EntryType? entryType)
+    {
+        return entryType switch
+        {
+            null => null,
+            EntryType.Wait => nameof(EntryType.Wait),
+            EntryType.Retake => nameof(EntryType.Retake),
+            _ => nameof(EntryType.Immediate)
         };
     }
 
@@ -51,10 +72,10 @@ internal static class RegistrationTrackHelper
         }
 
         var hasAssignedTrack =
-            HasAssignedTrack(registration.ClassId, registration.EntryType, EntryType.Makeup) ||
-            HasAssignedTrack(registration.SecondaryClassId, registration.SecondaryEntryType, EntryType.Makeup) ||
             HasAssignedTrack(registration.ClassId, registration.EntryType, EntryType.Retake) ||
-            HasAssignedTrack(registration.SecondaryClassId, registration.SecondaryEntryType, EntryType.Retake);
+            HasAssignedTrack(registration.SecondaryClassId, registration.SecondaryEntryType, EntryType.Retake) ||
+            HasAssignedTrack(registration.ClassId, registration.EntryType, EntryType.Makeup) ||
+            HasAssignedTrack(registration.SecondaryClassId, registration.SecondaryEntryType, EntryType.Makeup);
 
         if (hasAssignedTrack)
         {

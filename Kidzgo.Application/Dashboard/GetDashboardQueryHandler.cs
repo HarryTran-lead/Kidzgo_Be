@@ -176,8 +176,8 @@ public sealed class GetDashboardQueryHandler(
 
     private async Task<LeaveStats> GetLeaveStats(Guid? branchId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
-        var startDateOnly = DateOnly.FromDateTime(startDate);
-        var endDateOnly = DateOnly.FromDateTime(endDate);
+        var startDateOnly = VietnamTime.ToVietnamDateOnly(startDate);
+        var endDateOnly = VietnamTime.ToVietnamDateOnly(endDate);
 
         var query = context.LeaveRequests
             .Where(l => l.RequestedAt >= startDate && l.RequestedAt <= endDate)
@@ -293,7 +293,8 @@ public sealed class GetDashboardQueryHandler(
         }
 
         var students = await query.ToListAsync(cancellationToken);
-        var thisMonth = new DateTime(VietnamTime.NowInVietnam().Year, VietnamTime.NowInVietnam().Month, 1);
+        var vietnamNow = VietnamTime.NowInVietnam();
+        var thisMonth = VietnamTime.TreatAsVietnamLocal(new DateTime(vietnamNow.Year, vietnamNow.Month, 1));
         var total = students.Count;
         var active = students.Count(p => p.IsActive);
         var inactive = students.Count(p => !p.IsActive);
@@ -326,7 +327,8 @@ public sealed class GetDashboardQueryHandler(
         }
 
         var enrollments = await query.ToListAsync(cancellationToken);
-        var thisMonth = new DateTime(VietnamTime.NowInVietnam().Year, VietnamTime.NowInVietnam().Month, 1);
+        var vietnamNow = VietnamTime.NowInVietnam();
+        var thisMonth = VietnamTime.TreatAsVietnamLocal(new DateTime(vietnamNow.Year, vietnamNow.Month, 1));
         var total = enrollments.Count;
         var active = enrollments.Count(e => e.Status == EnrollmentStatus.Active);
         var paused = enrollments.Count(e => e.Status == EnrollmentStatus.Paused);

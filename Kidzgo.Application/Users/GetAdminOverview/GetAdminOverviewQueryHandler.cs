@@ -161,7 +161,7 @@ public sealed class GetAdminOverviewQueryHandler(
                 Id = ce.Id,
                 ClassCode = ce.Class.Code,
                 StudentName = ce.StudentProfile.DisplayName,
-                EnrollDate = ce.EnrollDate.ToDateTime(TimeOnly.MinValue),
+                EnrollDate = VietnamTime.TreatAsVietnamLocal(ce.EnrollDate.ToDateTime(TimeOnly.MinValue)),
                 Status = ce.Status.ToString()
             })
             .ToListAsync(cancellationToken);
@@ -178,7 +178,9 @@ public sealed class GetAdminOverviewQueryHandler(
                 StudentName = i.StudentProfile.DisplayName,
                 Amount = i.Amount,
                 PaymentStatus = i.Status.ToString(),
-                DueDate = i.DueDate.HasValue ? i.DueDate.Value.ToDateTime(TimeOnly.MinValue) : null
+                DueDate = i.DueDate.HasValue
+                    ? VietnamTime.TreatAsVietnamLocal(i.DueDate.Value.ToDateTime(TimeOnly.MinValue))
+                    : null
             })
             .ToListAsync(cancellationToken);
 
@@ -193,7 +195,7 @@ public sealed class GetAdminOverviewQueryHandler(
                 StudentName = r.StudentProfile.DisplayName,
                 ClassCode = r.Class != null ? r.Class.Code : "",
                 Status = r.Status.ToString(),
-                ReportMonth = new DateTime(r.Year, r.Month, 1)
+                ReportMonth = VietnamTime.TreatAsVietnamLocal(new DateTime(r.Year, r.Month, 1))
             })
             .ToListAsync(cancellationToken);
 

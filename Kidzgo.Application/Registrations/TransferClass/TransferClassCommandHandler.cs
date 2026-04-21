@@ -22,6 +22,7 @@ public sealed class TransferClassCommandHandler(
         CancellationToken cancellationToken)
     {
         var now = VietnamTime.UtcNow();
+        var effectiveDate = VietnamTime.ToVietnamDateOnly(command.EffectiveDate);
         var track = RegistrationTrackHelper.NormalizeTrack(command.Track);
         var isSecondaryTrack = track == RegistrationTrackHelper.SecondaryTrack;
 
@@ -120,7 +121,7 @@ public sealed class TransferClassCommandHandler(
         var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
             registration.StudentProfileId,
             newClass.Id,
-            DateOnly.FromDateTime(command.EffectiveDate),
+            effectiveDate,
             command.SessionSelectionPattern,
             cancellationToken,
             excludeEnrollmentId: oldEnrollment?.Id,
@@ -149,7 +150,7 @@ public sealed class TransferClassCommandHandler(
             Id = Guid.NewGuid(),
             ClassId = command.NewClassId,
             StudentProfileId = registration.StudentProfileId,
-            EnrollDate = DateOnly.FromDateTime(command.EffectiveDate),
+            EnrollDate = effectiveDate,
             Status = EnrollmentStatus.Active,
             TuitionPlanId = registration.TuitionPlanId,
             RegistrationId = registration.Id,

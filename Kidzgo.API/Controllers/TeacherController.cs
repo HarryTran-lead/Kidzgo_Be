@@ -267,8 +267,13 @@ public class TeacherController : ControllerBase
 
         if (year.HasValue)
         {
+            var yearStartUtc = VietnamTime.TreatAsVietnamLocal(new DateTime(year.Value, 1, 1, 0, 0, 0));
+            var yearEndUtc = VietnamTime.EndOfVietnamDayUtc(
+                VietnamTime.TreatAsVietnamLocal(new DateTime(year.Value, 12, 31, 0, 0, 0)));
+
             sessionsQuery = sessionsQuery.Where(s =>
-                (s.ActualDatetime.HasValue ? s.ActualDatetime.Value.Year : s.PlannedDatetime.Year) == year.Value);
+                (s.ActualDatetime ?? s.PlannedDatetime) >= yearStartUtc &&
+                (s.ActualDatetime ?? s.PlannedDatetime) <= yearEndUtc);
         }
 
         var teacherSessions = await sessionsQuery
@@ -322,6 +327,7 @@ public class TeacherController : ControllerBase
         var sessionSummaries = teacherSessions
             .Select(session =>
             {
+                var occurredAtInVietnam = VietnamTime.ToVietnamDateTime(session.OccurredAt);
                 roleOverridesLookup.TryGetValue(session.Id, out var sessionOverrides);
                 var sessionRoleOverride = SelectMatchingSessionRole(session.IsAssistant, sessionOverrides);
 
@@ -330,7 +336,9 @@ public class TeacherController : ControllerBase
                     effectiveTeacherType,
                     compensationSettings);
 
-                var contractHourlyRate = ResolveContractHourlyRate(contracts, DateOnly.FromDateTime(session.OccurredAt));
+                var contractHourlyRate = ResolveContractHourlyRate(
+                    contracts,
+                    VietnamTime.ToVietnamDateOnly(session.OccurredAt));
                 var fallbackSessionRate = contractHourlyRate.HasValue
                     ? Math.Round(contractHourlyRate.Value * standardSessionDurationMinutes / 60m, 2)
                     : 0m;
@@ -346,6 +354,7 @@ public class TeacherController : ControllerBase
                 return new
                 {
                     session.OccurredAt,
+                    OccurredAtInVietnam = occurredAtInVietnam,
                     session.DurationMinutes,
                     SessionRate = effectiveSessionRate,
                     Income = proratedIncome + allowance
@@ -354,7 +363,7 @@ public class TeacherController : ControllerBase
             .ToList();
 
         var sessionMonthLookup = sessionSummaries
-            .GroupBy(x => GetMonthKey(x.OccurredAt.Year, x.OccurredAt.Month))
+            .GroupBy(x => GetMonthKey(x.OccurredAtInVietnam.Year, x.OccurredAtInVietnam.Month))
             .ToDictionary(
                 x => x.Key,
                 x => new

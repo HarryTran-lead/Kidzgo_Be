@@ -41,7 +41,7 @@ public sealed class GetHomeworkAssignmentByIdQueryHandler(
             ClassTitle = homework.Class.Title,
             SessionId = homework.SessionId,
             SessionTitle = homework.Session != null 
-                ? $"Session {homework.Session.PlannedDatetime:dd/MM/yyyy HH:mm}" 
+                ? $"Session {VietnamTime.FormatInVietnam(homework.Session.PlannedDatetime, "dd/MM/yyyy HH:mm")}" 
                 : null,
             Title = homework.Title,
             Description = homework.Description,

@@ -4,10 +4,13 @@ using Kidzgo.Application.Registrations.AssignClass;
 using Kidzgo.Application.Registrations.CancelRegistration;
 using Kidzgo.Application.Registrations.CreateRegistration;
 using Kidzgo.Application.Registrations.GenerateEnrollmentConfirmationPdf;
+using Kidzgo.Application.Registrations.GetEnrollmentConfirmationPdfHistory;
+using Kidzgo.Application.Registrations.GetEnrollmentConfirmationPdfPreview;
 using Kidzgo.Application.Registrations.GetEnrollmentConfirmationPaymentSetting;
 using Kidzgo.Application.Registrations.GetRegistrationById;
 using Kidzgo.Application.Registrations.GetRegistrations;
 using Kidzgo.Application.Registrations.GetWaitingList;
+using Kidzgo.Application.Registrations.ImportActiveRegistration;
 using Kidzgo.Application.Registrations.SuggestClasses;
 using Kidzgo.Application.Registrations.TransferClass;
 using Kidzgo.Application.Registrations.UpdateEnrollmentConfirmationPaymentSetting;
@@ -48,6 +51,32 @@ public class RegistrationController : ControllerBase
             ExpectedStartDate = request.ExpectedStartDate,
             PreferredSchedule = request.PreferredSchedule,
             Note = request.Note
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchCreated(r => $"/api/registrations/{r.Id}");
+    }
+
+    /// Import hoc sinh dang hoc giua chung voi so buoi da hoc/con lai tu he thong cu.
+    /// Sau khi import, FE tiep tuc goi assign-class de bat dau theo doi tu buoi sap toi.
+    [HttpPost("import-active")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> ImportActiveRegistration(
+        [FromBody] ImportActiveRegistrationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new ImportActiveRegistrationCommand
+        {
+            StudentProfileId = request.StudentProfileId,
+            BranchId = request.BranchId,
+            ProgramId = request.ProgramId,
+            TuitionPlanId = request.TuitionPlanId,
+            ExpectedStartDate = request.ExpectedStartDate,
+            ActualStartDate = request.ActualStartDate,
+            PreferredSchedule = request.PreferredSchedule,
+            Note = request.Note,
+            UsedSessions = request.UsedSessions,
+            RemainingSessions = request.RemainingSessions
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -167,6 +196,50 @@ public class RegistrationController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Xuat phieu xac nhan nhap hoc PDF sau khi hoc vien duoc xep lop
+    [HttpGet("{id:guid}/enrollment-confirmation-pdf")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetEnrollmentConfirmationPdfPreview(
+        Guid id,
+        [FromQuery] string track = "primary",
+        [FromQuery] string formType = "auto",
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetEnrollmentConfirmationPdfPreviewQuery
+        {
+            RegistrationId = id,
+            Track = track,
+            FormType = formType
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Xem lich su cac file PDF xac nhan nhap hoc da generate
+    [HttpGet("{id:guid}/enrollment-confirmation-pdf/history")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetEnrollmentConfirmationPdfHistory(
+        Guid id,
+        [FromQuery] string? track,
+        [FromQuery] string? formType,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetEnrollmentConfirmationPdfHistoryQuery
+        {
+            RegistrationId = id,
+            Track = track,
+            FormType = formType,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
         return result.MatchOk();
     }
 

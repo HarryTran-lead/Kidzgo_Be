@@ -3,15 +3,15 @@ namespace Kidzgo.API.Requests;
 public sealed class AssignClassRequest
 {
     /// <summary>
-     /// Class ID to assign. Required for immediate/makeup, optional for wait.
+    /// Class ID to assign. Required for immediate/retake, optional for wait.
     /// </summary>
     public Guid? ClassId { get; set; }
-    
+
     /// <summary>
-    /// Entry type: "immediate" | "makeup" | "wait"
-    /// - immediate: Vào học ngay, tham gia các buổi còn lại
-    /// - makeup: Đã có lớp nhưng cần học bổ trước khi vào lớp
-    /// - wait: Chờ lớp mới, chưa xếp lớp
+    /// Entry type: "immediate" | "wait" | "retake"
+    /// - immediate: Vao hoc ngay, tham gia cac buoi con lai
+    /// - wait: Cho lop moi, chua xep lop
+    /// - retake: Thi lai / cho xep lop sau placement test retake
     /// </summary>
     public string EntryType { get; set; } = "immediate";
 

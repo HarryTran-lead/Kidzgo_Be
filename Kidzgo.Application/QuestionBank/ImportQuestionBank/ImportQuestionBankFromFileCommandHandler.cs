@@ -260,24 +260,40 @@ public sealed class ImportQuestionBankFromFileCommandHandler(
     private static TableResult ReadExcel(Stream stream)
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        using var reader = ExcelReaderFactory.CreateReader(stream);
-        var rows = new List<string[]>();
-
-        do
+        try
         {
-            while (reader.Read())
-            {
-                var fields = new string[reader.FieldCount];
-                for (int i = 0; i < reader.FieldCount; i++)
-                {
-                    fields[i] = reader.GetValue(i)?.ToString() ?? string.Empty;
-                }
-                rows.Add(fields);
-            }
-            break;
-        } while (reader.NextResult());
+            using var reader = ExcelReaderFactory.CreateReader(stream);
+            var rows = new List<string[]>();
 
-        return BuildTableFromRows(rows, "Empty Excel file");
+            do
+            {
+                while (reader.Read())
+                {
+                    var fields = new string[reader.FieldCount];
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        fields[i] = reader.GetValue(i)?.ToString() ?? string.Empty;
+                    }
+                    rows.Add(fields);
+                }
+
+                break;
+            } while (reader.NextResult());
+
+            return BuildTableFromRows(rows, "Empty Excel file");
+        }
+        catch (HeaderException)
+        {
+            return TableResult.Failure(
+                HomeworkErrors.InvalidQuestionBankFile(
+                    "Invalid Excel file. Please upload a valid .xls or .xlsx file."));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return TableResult.Failure(
+                HomeworkErrors.InvalidQuestionBankFile(
+                    $"Unable to read Excel file: {ex.Message}"));
+        }
     }
 
     private static TableResult ReadDocx(Stream stream)

@@ -14,6 +14,11 @@ public readonly record struct RegularSessionParticipant(
     Guid? RegistrationId,
     RegistrationTrackType Track);
 
+public readonly record struct AssignmentSyncSummary(
+    int CreatedAssignments,
+    int ReactivatedAssignments,
+    int CancelledAssignments);
+
 public sealed class StudentSessionAssignmentService(
     IDbContext context,
     ISchedulePatternParser patternParser)
@@ -159,7 +164,7 @@ public sealed class StudentSessionAssignmentService(
         return Result.Success();
     }
 
-    public async Task SyncAssignmentsForEnrollmentAsync(
+    public async Task<AssignmentSyncSummary> SyncAssignmentsForEnrollmentAsync(
         ClassEnrollment enrollment,
         CancellationToken cancellationToken)
     {
@@ -176,6 +181,9 @@ public sealed class StudentSessionAssignmentService(
 
         var assignmentsBySessionId = existingAssignments.ToDictionary(a => a.SessionId);
         var now = VietnamTime.UtcNow();
+        var createdAssignments = 0;
+        var reactivatedAssignments = 0;
+        var cancelledAssignments = 0;
 
         foreach (var session in sessions)
         {
@@ -208,9 +216,15 @@ public sealed class StudentSessionAssignmentService(
                         CreatedAt = now,
                         UpdatedAt = now
                     });
+                    createdAssignments++;
                 }
                 else
                 {
+                    if (assignment.Status != StudentSessionAssignmentStatus.Assigned)
+                    {
+                        reactivatedAssignments++;
+                    }
+
                     assignment.StudentProfileId = enrollment.StudentProfileId;
                     assignment.RegistrationId = enrollment.RegistrationId;
                     assignment.Track = enrollment.Track;
@@ -222,8 +236,14 @@ public sealed class StudentSessionAssignmentService(
             {
                 assignment.Status = StudentSessionAssignmentStatus.Cancelled;
                 assignment.UpdatedAt = now;
+                cancelledAssignments++;
             }
         }
+
+        return new AssignmentSyncSummary(
+            createdAssignments,
+            reactivatedAssignments,
+            cancelledAssignments);
     }
 
     public async Task RestoreAssignmentsForEnrollmentAsync(

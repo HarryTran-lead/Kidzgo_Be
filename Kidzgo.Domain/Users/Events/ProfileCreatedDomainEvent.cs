@@ -8,9 +8,7 @@ public sealed record ProfileCreatedEmailProfile(
     string DisplayName,
     string FullName,
     string Gender,
-    string Birthday,
-    string ZaloId,
-    string CreatedAt
+    string Birthday
 );
 
 public sealed record ProfileCreatedDomainEvent(

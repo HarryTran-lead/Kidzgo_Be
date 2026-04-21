@@ -217,8 +217,8 @@ public sealed class CreateReportRequestCommandHandler(
 
         if (hasStudentTarget && !targetClassId.HasValue)
         {
-            var startDate = new DateTime(command.Year.Value, command.Month.Value, 1, 0, 0, 0, DateTimeKind.Utc);
-            var endDate = DateOnly.FromDateTime(startDate.AddMonths(1).AddDays(-1));
+            var startDate = new DateOnly(command.Year.Value, command.Month.Value, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
 
             var classIds = await context.ClassEnrollments
                 .Where(e => e.StudentProfileId == command.TargetStudentProfileId!.Value &&
@@ -297,8 +297,8 @@ public sealed class CreateReportRequestCommandHandler(
         }
         else if (!hasStudentTarget && targetClassId.HasValue)
         {
-            var startDate = new DateTime(command.Year.Value, command.Month.Value, 1, 0, 0, 0, DateTimeKind.Utc);
-            var endDate = DateOnly.FromDateTime(startDate.AddMonths(1).AddDays(-1));
+            var startDate = new DateOnly(command.Year.Value, command.Month.Value, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
             var now = VietnamTime.UtcNow();
 
             var studentIds = await context.ClassEnrollments

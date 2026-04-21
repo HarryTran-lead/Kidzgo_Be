@@ -74,7 +74,8 @@ public sealed class CreatePayOSLinkCommandHandler(
             ReturnUrl = options.ReturnUrl.Replace("{invoiceId}", invoice.Id.ToString()),
             CancelUrl = options.CancelUrl.Replace("{invoiceId}", invoice.Id.ToString()),
             ExpiredAt = invoice.DueDate.HasValue
-                ? (int)(invoice.DueDate.Value.ToDateTime(TimeOnly.MinValue).ToUniversalTime().Subtract(DateTime.UnixEpoch).TotalSeconds)
+                ? (int)(VietnamTime.TreatAsVietnamLocal(invoice.DueDate.Value.ToDateTime(TimeOnly.MinValue))
+                    .Subtract(DateTime.UnixEpoch).TotalSeconds)
                 : null
         };
 

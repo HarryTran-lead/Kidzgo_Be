@@ -182,7 +182,7 @@ public sealed class GetTeacherOverviewQueryHandler(
                 Title = e.Description ?? e.ExamType.ToString(),
                 ClassId = e.ClassId,
                 ClassCode = e.Class.Code,
-                ExamDate = e.Date.ToDateTime(TimeOnly.MinValue),
+                ExamDate = VietnamTime.TreatAsVietnamLocal(e.Date.ToDateTime(TimeOnly.MinValue)),
                 ExamType = e.ExamType.ToString()
             })
             .ToListAsync(cancellationToken);
@@ -200,7 +200,7 @@ public sealed class GetTeacherOverviewQueryHandler(
                 StudentName = r.StudentProfile.DisplayName,
                 ClassCode = r.Class != null ? r.Class.Code : "",
                 Status = r.Status.ToString(),
-                ReportMonth = new DateTime(r.Year, r.Month, 1)
+                ReportMonth = VietnamTime.TreatAsVietnamLocal(new DateTime(r.Year, r.Month, 1))
             })
             .ToListAsync(cancellationToken);
 

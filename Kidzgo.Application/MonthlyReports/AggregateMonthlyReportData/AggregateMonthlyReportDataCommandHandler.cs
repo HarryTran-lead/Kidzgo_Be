@@ -44,7 +44,7 @@ public sealed class AggregateMonthlyReportDataCommandHandler(
         await context.SaveChangesAsync(cancellationToken);
 
         // Get all enrollments in the branch (Active or Paused) for the month
-        var startDate = new DateTime(job.Year, job.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var startDate = new DateOnly(job.Year, job.Month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
 
         var enrollments = await context.ClassEnrollments
@@ -52,7 +52,7 @@ public sealed class AggregateMonthlyReportDataCommandHandler(
             .Include(e => e.StudentProfile)
             .Where(e => e.Class.BranchId == job.BranchId &&
                        (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Paused) &&
-                       e.EnrollDate <= DateOnly.FromDateTime(endDate))
+                       e.EnrollDate <= endDate)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
@@ -213,8 +213,8 @@ public sealed class AggregateMonthlyReportDataCommandHandler(
                     var sessionReports = await context.SessionReports
                         .Where(sr => sr.StudentProfileId == enrollment.StudentProfileId &&
                                    sr.Session.ClassId == enrollment.ClassId &&
-                                   sr.ReportDate >= DateOnly.FromDateTime(startDate) &&
-                                   sr.ReportDate <= DateOnly.FromDateTime(endDate) &&
+                                   sr.ReportDate >= startDate &&
+                                   sr.ReportDate <= endDate &&
                                    !sr.IsMonthlyCompiled)
                         .ToListAsync(cancellationToken);
 

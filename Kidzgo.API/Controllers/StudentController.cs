@@ -390,8 +390,8 @@ public class StudentController : ControllerBase
                 todaySession.classId,
                 todaySession.className,
                 plannedDate = VietnamTime.ToVietnamDateOnly(todaySession.PlannedDatetime),
-                startTime = VietnamTime.ToVietnamDateTime(todaySession.PlannedDatetime),
-                endTime = VietnamTime.ToVietnamDateTime(todaySession.PlannedDatetime.AddMinutes(todaySession.DurationMinutes)),
+                startTime = todaySession.PlannedDatetime,
+                endTime = todaySession.PlannedDatetime.AddMinutes(todaySession.DurationMinutes),
                 todaySession.teacherName,
                 todaySession.roomName,
                 todaySession.status

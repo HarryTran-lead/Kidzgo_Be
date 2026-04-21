@@ -46,7 +46,8 @@ public sealed class BatchDeliverRewardRedemptionsCommandHandler(IDbContext conte
         if (command.Year.HasValue && command.Month.HasValue)
         {
             // Tạo DateTime với Kind = UTC để tương thích với PostgreSQL
-            var startDate = new DateTime(command.Year.Value, command.Month.Value, 1, 0, 0, 0, DateTimeKind.Utc);
+            var startDate = VietnamTime.TreatAsVietnamLocal(
+                new DateTime(command.Year.Value, command.Month.Value, 1, 0, 0, 0));
             var endDate = startDate.AddMonths(1);
 
             // Lọc các redemption được approve trong tháng đó
@@ -58,7 +59,8 @@ public sealed class BatchDeliverRewardRedemptionsCommandHandler(IDbContext conte
         else if (command.Year.HasValue)
         {
             // Tạo DateTime với Kind = UTC để tương thích với PostgreSQL
-            var startDate = new DateTime(command.Year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var startDate = VietnamTime.TreatAsVietnamLocal(
+                new DateTime(command.Year.Value, 1, 1, 0, 0, 0));
             var endDate = startDate.AddYears(1);
 
             query = query.Where(r =>

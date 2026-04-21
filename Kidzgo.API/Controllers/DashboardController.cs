@@ -136,7 +136,11 @@ public class DashboardController : ControllerBase
             .ToListAsync(cancellationToken);
 
         var attendanceTrend = attendanceRows
-            .GroupBy(a => $"{a.PlannedDatetime.Year:D4}-{a.PlannedDatetime.Month:D2}")
+            .GroupBy(a =>
+            {
+                var plannedAtInVietnam = VietnamTime.ToVietnamDateTime(a.PlannedDatetime);
+                return $"{plannedAtInVietnam.Year:D4}-{plannedAtInVietnam.Month:D2}";
+            })
             .OrderBy(g => g.Key)
             .Select(g => new
             {

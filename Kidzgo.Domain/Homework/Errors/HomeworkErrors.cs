@@ -137,6 +137,14 @@ public static class HomeworkErrors
         "Homework.AiCreatorInvalidPoints",
         "Points per question must be greater than 0");
 
+    public static readonly Error AiCreatorBusy = Error.Failure(
+        "Homework.AiCreatorBusy",
+        "Hiện tại AI đang bận, vui lòng thử lại sau ít phút.");
+
+    public static readonly Error AiCreatorUnavailable = Error.Failure(
+        "Homework.AiCreatorUnavailable",
+        "Hiện tại hệ thống AI đang tạm gián đoạn, vui lòng thử lại sau.");
+
     // Input validation errors
     public static readonly Error InvalidSubmissionType = Error.Validation(
         "Homework.InvalidSubmissionType",

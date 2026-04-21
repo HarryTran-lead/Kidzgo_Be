@@ -4,6 +4,7 @@ using Kidzgo.Application.QuestionBank;
 using Kidzgo.Application.QuestionBank.CreateQuestionBankItems;
 using Kidzgo.Application.QuestionBank.GetQuestionBank;
 using Kidzgo.Application.QuestionBank.ImportQuestionBank;
+using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -180,7 +181,7 @@ public class QuestionBankController : ControllerBase
         };
 
         var result = await _mediator.Send(query, cancellationToken);
-        return result.MatchOk();
+        return MatchAiGenerationResult(result);
     }
 
     /// <summary>
@@ -239,7 +240,7 @@ public class QuestionBankController : ControllerBase
         };
 
         var result = await _mediator.Send(query, cancellationToken);
-        return result.MatchOk();
+        return MatchAiGenerationResult(result);
     }
 
     private static List<string> NormalizeTags(IEnumerable<string>? tags)
@@ -249,5 +250,29 @@ public class QuestionBankController : ControllerBase
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? new List<string>();
+    }
+
+    private static IResult MatchAiGenerationResult(Result<GenerateAiQuestionBankItemsResponse> result)
+    {
+        if (result.IsSuccess)
+        {
+            return result.MatchOk();
+        }
+
+        if (result.Error.Code is "Homework.AiCreatorBusy" or "Homework.AiCreatorUnavailable")
+        {
+            return Results.Problem(
+                title: result.Error.Code == "Homework.AiCreatorBusy"
+                    ? "AI đang bận"
+                    : "AI tạm gián đoạn",
+                detail: result.Error.Description,
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["code"] = result.Error.Code
+                });
+        }
+
+        return result.MatchOk();
     }
 }

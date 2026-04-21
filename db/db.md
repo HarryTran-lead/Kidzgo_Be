@@ -1,7 +1,8 @@
 // KidzGo high-level relational schema for dbdiagram.io
 // Scope: multi-branch, shared login with profiles, classes/sessions,
 // attendance/makeup, lesson plans/homework, exams, AI monthly reports,
-// gamification, CRM/lead, media, finance/payroll, notifications, tickets.
+// gamification, CRM/lead, media, registrations/enrollment confirmation,
+// notifications, tickets.
 
 Table email_templates {
   id uuid [pk]
@@ -42,7 +43,6 @@ Table users {
   updated_at timestamptz
 }
 
-
 Table profiles {
   id uuid [pk]
   user_id uuid [ref: > users.id]
@@ -53,7 +53,6 @@ Table profiles {
   created_at timestamptz
   updated_at timestamptz
 }
-
 
 Table parent_student_links {
   id uuid [pk]
@@ -129,7 +128,6 @@ Table device_tokens {
 //   profile_id uuid [ref: > profiles.id]
 //   role_id uuid [ref: > roles.id]
 // }
-
 
 Table programs {
   id uuid [pk]
@@ -219,6 +217,36 @@ Table class_enrollments {
 }
 
 // NEW: table exists in the current project and was missing from this dbdiagram file
+Table class_schedule_segments {
+  id uuid [pk]
+  class_id uuid [ref: > classes.id]
+  effective_from date
+  effective_to date
+  schedule_pattern varchar(500)
+  created_at timestamptz
+  updated_at timestamptz
+
+  Indexes {
+    (class_id, effective_from) [unique]
+  }
+}
+
+// NEW: table exists in the current project and was missing from this dbdiagram file
+Table class_enrollment_schedule_segments {
+  id uuid [pk]
+  class_enrollment_id uuid [ref: > class_enrollments.id]
+  effective_from date
+  effective_to date
+  session_selection_pattern varchar(500)
+  created_at timestamptz
+  updated_at timestamptz
+
+  Indexes {
+    (class_enrollment_id, effective_from) [unique]
+  }
+}
+
+// NEW: table exists in the current project and was missing from this dbdiagram file
 Table registrations {
   id uuid [pk]
   student_profile_id uuid [ref: > profiles.id]
@@ -247,6 +275,50 @@ Table registrations {
   expiry_date timestamptz
   created_at timestamptz
   updated_at timestamptz
+}
+
+// NEW: table exists in the current project and was missing from this dbdiagram file
+Table enrollment_confirmation_payment_settings {
+  id uuid [pk]
+  branch_id uuid [ref: - branches.id]
+  scope_key varchar(64) [unique]
+  payment_method varchar(100)
+  account_name varchar(200)
+  account_number varchar(50)
+  bank_name varchar(200)
+  bank_code varchar(50)
+  bank_bin varchar(20)
+  viet_qr_template varchar(50)
+  logo_url varchar(1000)
+  is_active boolean
+  created_at timestamptz
+  updated_at timestamptz
+  updated_by uuid
+
+  Indexes {
+    branch_id
+  }
+}
+
+// NEW: table exists in the current project and was missing from this dbdiagram file
+Table enrollment_confirmation_pdfs {
+  id uuid [pk]
+  registration_id uuid [ref: > registrations.id]
+  enrollment_id uuid [ref: > class_enrollments.id]
+  track varchar(20) // Primary/Secondary
+  form_type varchar(30) // NewStudent/ContinuingStudent
+  pdf_url varchar(1000)
+  generated_at timestamptz
+  generated_by uuid
+  is_active boolean
+  snapshot_json jsonb
+
+  Indexes {
+    registration_id
+    enrollment_id
+    generated_at
+    (enrollment_id, track, form_type, is_active)
+  }
 }
 
 Table sessions {
@@ -519,20 +591,23 @@ Table homework_assignments {
   created_at timestamptz
 }
 
-Table homework_student {
+Table homework_students {
   id uuid [pk]
   assignment_id uuid [ref: > homework_assignments.id]
   student_profile_id uuid [ref: > profiles.id]
   status varchar(20) // ASSIGNED/SUBMITTED/GRADED/LATE/MISSING
+  started_at timestamptz
   submitted_at timestamptz
   graded_at timestamptz
   score numeric
   teacher_feedback text
   ai_feedback jsonb
-  ai_version varchar(50) // optional: phiên bản AI dùng để chấm (A3/A8)
-  attachments jsonb
+  text_answer text
+  attachment_url text
 
- 
+  Indexes {
+    (assignment_id, student_profile_id) [unique]
+  }
 }
 
 // NEW: table exists in the current project and was missing from this dbdiagram file
@@ -551,7 +626,7 @@ Table homework_questions {
 // NEW: table exists in the current project and was missing from this dbdiagram file
 Table homework_submission_attempts {
   id uuid [pk]
-  homework_student_id uuid [ref: > homework_student.id]
+  homework_student_id uuid [ref: > homework_students.id]
   attempt_number int
   status varchar(20) // Assigned/Submitted/Graded/Late/Missing
   started_at timestamptz
@@ -613,61 +688,6 @@ Table exams {
   created_by uuid [ref: - users.id]
   created_at timestamptz
   updated_at timestamptz
-}
-
-Table exercises {
-  id uuid [pk]
-  class_id uuid [ref: - classes.id] // optional: can be assigned to specific class
-  mission_id uuid [ref: - missions.id] // optional: link to mission for rewards when student completes exercise
-  title varchar(255)
-  description text
-  exercise_type varchar(20) // READING/LISTENING/WRITING
-  created_by uuid [ref: > users.id] // teacher/admin
-  is_active boolean
-  is_deleted boolean
-  created_at timestamptz
-  updated_at timestamptz
-}
-
-Table exercise_questions {
-  id uuid [pk]
-  exercise_id uuid [ref: > exercises.id]
-  order_index int // order of question in exercise
-  question_text text
-  question_type varchar(20) // MULTIPLE_CHOICE/TEXT_INPUT
-  options jsonb // JSON array for multiple choice options
-  correct_answer text // correct answer
-  points int // points awarded for correct answer
-  explanation text // explanation of the answer
-}
-
-Table exercise_submissions {
-  id uuid [pk]
-  exercise_id uuid [ref: > exercises.id]
-  student_profile_id uuid [ref: > profiles.id]
-  answers jsonb // JSON object: {questionId: answer}
-  score numeric // total score
-  submitted_at timestamptz
-  graded_at timestamptz
-  graded_by uuid [ref: - users.id] // teacher who graded (for writing exercises)
-  
-  Indexes {
-    (exercise_id, student_profile_id) [unique]
-  }
-}
-
-Table exercise_submission_answers {
-  id uuid [pk]
-  submission_id uuid [ref: > exercise_submissions.id]
-  question_id uuid [ref: > exercise_questions.id]
-  answer text // student's answer
-  is_correct boolean // whether answer is correct (for auto-graded questions)
-  points_awarded numeric // points awarded for this answer
-  teacher_feedback text // teacher feedback (for writing questions)
-  
-  Indexes {
-    (submission_id, question_id) [unique]
-  }
 }
 
 Table exam_questions {
@@ -869,7 +889,7 @@ Table mission_reward_rules {
   }
 }
 
-Table mission_progress {
+Table mission_progresses {
   id uuid [pk]
   mission_id uuid [ref: > missions.id]
   student_profile_id uuid [ref: > profiles.id]
@@ -878,7 +898,9 @@ Table mission_progress {
   completed_at timestamptz
   verified_by uuid [ref: - users.id]
 
-  
+  Indexes {
+    (mission_id, student_profile_id) [unique]
+  }
 }
 
 Table star_transactions {
@@ -1070,147 +1092,6 @@ Table tuition_plans {
   updated_at timestamptz
 }
 
-Table invoices {
-  id uuid [pk]
-  branch_id uuid [ref: > branches.id]
-  student_profile_id uuid [ref: > profiles.id]
-  class_id uuid [ref: - classes.id]
-  type varchar(30) // MAIN_TUITION/EXTRA_CLASS/MATERIAL/EVENT/MAKEUP_FEE
-  amount numeric
-  currency varchar(10)
-  due_date date
-  status varchar(20) // PENDING/PAID/OVERDUE/CANCELLED
-  description text
-  payos_payment_link text
-  payos_qr text
-  issued_at timestamptz
-  issued_by uuid [ref: - users.id]
-}
-
-Table invoice_lines {
-  id uuid [pk]
-  invoice_id uuid [ref: > invoices.id]
-  item_type varchar(30) // SESSION_MAIN/SESSION_EXTRA/MATERIAL/EVENT
-  quantity int
-  unit_price numeric
-  description text
-  session_ids jsonb
-}
-
-Table payments {
-  id uuid [pk]
-  invoice_id uuid [ref: > invoices.id]
-  method varchar(20) // PAYOS/CASH/BANK_TRANSFER
-  amount numeric
-  paid_at timestamptz
-  reference_code varchar(100) //Mã tham chiếu giao dịch (từ PayOs)
-  confirmed_by uuid [ref: - users.id] //staff
-  evidence_url text
-}
-
-Table cashbook_entries {
-  id uuid [pk]
-  branch_id uuid [ref: > branches.id]
-  type varchar(10) // CASH_IN/CASH_OUT
-  amount numeric
-  currency varchar(10)
-  description text
-  related_type varchar(30) // INVOICE/PAYROLL/EXPENSE/ADJUSTMENT
-  related_id uuid //Invoice_id
-  entry_date date // là ngày hạch toán của bút toán quỹ (cashbook_entries) — dùng để sắp xếp/khóa sổ theo ngày phát sinh thu/chi (có thể khác created_at nếu ghi nhận muộn).
-  created_by uuid [ref: - users.id]
-  attachment_url text
-  ocr_metadata jsonb // optional: log raw kết quả OCR từ A7 (fields/confidence/raw_text/warnings)
-  created_at timestamptz
-}
-
-Table contracts {
-  id uuid [pk]
-  staff_user_id uuid [ref: > users.id]
-  contract_type varchar(20) // PROBATION/FIXED_TERM/INDEFINITE/PART_TIME
-  start_date date
-  end_date date
-  base_salary numeric
-  hourly_rate numeric //số tiền trả cho 1 giờ làm việc
-  allowance_fixed numeric //phụ cấp
-  minimum_monthly_hours numeric // số giờ làm tối thiểu mỗi tháng để nhận lương
-  overtime_rate_multiplier numeric // hệ số nhân lương overtime (ví dụ: 1.5x, 2x)
-  branch_id uuid [ref: > branches.id]
-  is_active boolean
-}
-
-Table shift_attendance {
-  id uuid [pk]
-  staff_user_id uuid [ref: > users.id]
-  contract_id uuid [ref: - contracts.id]
-  shift_date date
-  shift_hours numeric
-  role varchar(50)
-  approved_by uuid [ref: - users.id]
-  approved_at timestamptz
-}
-
-Table monthly_work_hours {
-  id uuid [pk]
-  staff_user_id uuid [ref: > users.id]
-  contract_id uuid [ref: > contracts.id]
-  branch_id uuid [ref: > branches.id]
-  year int
-  month int // 1-12
-  total_hours numeric // total hours worked in the month
-  teaching_hours numeric // hours from teaching sessions (for teachers)
-  regular_hours numeric // regular hours (from shift attendance)
-  overtime_hours numeric // overtime hours (hours exceeding minimum)
-  teaching_sessions int // number of sessions taught (for teachers)
-  is_locked boolean // whether this month's hours are locked (for payroll calculation)
-  
-  Indexes {
-    (staff_user_id, contract_id, year, month) [unique]
-  }
-}
-
-Table session_roles {
-  id uuid [pk]
-  session_id uuid [ref: > sessions.id]
-  staff_user_id uuid [ref: > users.id]
-  role varchar(30) // MAIN_TEACHER/ASSISTANT/CLUB/WORKSHOP
-  payable_unit_price numeric //đơn giá trả cho nhân sự trong buổi đó
-  payable_allowance numeric //Phụ cấp thêm 
-}
-
-Table payroll_runs {
-  id uuid [pk]
-  period_start date
-  period_end date
-  branch_id uuid [ref: > branches.id]
-  status varchar(20) // DRAFT/APPROVED/PAID
-  approved_by uuid [ref: - users.id]
-  paid_at timestamptz
-  created_at timestamptz
-}
-
-Table payroll_lines {
-  id uuid [pk]
-  payroll_run_id uuid [ref: > payroll_runs.id]
-  staff_user_id uuid [ref: > users.id]
-  component_type varchar(30) // TEACHING/TA/CLUB/WORKSHOP/BASE/OVERTIME/ALLOWANCE/DEDUCTION
-  source_id uuid // session_roles/contract/expense
-  amount numeric
-  description text
-  is_paid boolean
-  paid_at timestamptz
-}
-
-Table payroll_payments {
-  id uuid [pk]
-  payroll_run_id uuid [ref: > payroll_runs.id]
-  staff_user_id uuid [ref: > users.id]
-  amount numeric
-  method varchar(20) // BANK_TRANSFER/CASH
-  paid_at timestamptz
-  cashbook_entry_id uuid [ref: - cashbook_entries.id]
-}
-
 Table notifications {
   id uuid [pk]
   recipient_user_id uuid [ref: > users.id] // user (can be any role)
@@ -1275,4 +1156,5 @@ Table audit_logs {
   data_after jsonb
   created_at timestamptz
 }
+
 

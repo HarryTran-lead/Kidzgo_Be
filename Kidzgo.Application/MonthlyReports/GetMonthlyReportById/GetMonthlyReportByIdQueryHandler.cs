@@ -6,6 +6,7 @@ using Kidzgo.Domain.Reports;
 using Kidzgo.Domain.Reports.Errors;
 using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
+using ProfileType = Kidzgo.Domain.Users.ProfileType;
 
 namespace Kidzgo.Application.MonthlyReports.GetMonthlyReportById;
 
@@ -65,11 +66,14 @@ public sealed class GetMonthlyReportByIdQueryHandler(
         }
         else if (currentUser.Role == UserRole.Parent)
         {
-            // Get user's profile
-            var userProfile = await context.Profiles
-                .FirstOrDefaultAsync(p => p.UserId == currentUser.Id, cancellationToken);
+            var parentProfile = await context.Profiles
+                .FirstOrDefaultAsync(
+                    p => p.UserId == currentUser.Id &&
+                         p.ProfileType == ProfileType.Parent &&
+                         p.IsActive,
+                    cancellationToken);
 
-            if (userProfile is null)
+            if (parentProfile is null)
             {
                 return Result.Failure<GetMonthlyReportByIdResponse>(
                     Error.NotFound("MonthlyReport.Unauthorized", "User profile not found"));
@@ -77,7 +81,7 @@ public sealed class GetMonthlyReportByIdQueryHandler(
 
             // Parent can only view reports of their children
             var isOwner = await context.ParentStudentLinks
-                .AnyAsync(psl => psl.ParentProfileId == userProfile.Id &&
+                .AnyAsync(psl => psl.ParentProfileId == parentProfile.Id &&
                                psl.StudentProfileId == report.StudentProfileId,
                     cancellationToken);
 

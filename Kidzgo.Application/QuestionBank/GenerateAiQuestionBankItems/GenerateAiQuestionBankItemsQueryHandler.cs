@@ -64,25 +64,37 @@ public sealed class GenerateAiQuestionBankItemsQueryHandler(
                 HomeworkErrors.ProgramNotFound(query.ProgramId));
         }
 
-        var aiResult = await aiHomeworkAssistant.GenerateQuestionBankItemsAsync(
-            new AiQuestionBankGenerationRequest
-            {
-                ProgramId = query.ProgramId.ToString(),
-                Topic = ResolveTopic(query.Topic, sourceFileName),
-                QuestionType = query.QuestionType.ToString(),
-                QuestionCount = query.QuestionCount,
-                Level = query.Level.ToString(),
-                Skill = query.Skill,
-                TaskStyle = query.TaskStyle,
-                GrammarTags = query.GrammarTags,
-                VocabularyTags = query.VocabularyTags,
-                Instructions = query.Instructions,
-                Language = string.IsNullOrWhiteSpace(query.Language) ? "vi" : query.Language,
-                PointsPerQuestion = query.PointsPerQuestion,
-                SourceText = sourceText,
-                SourceFileName = sourceFileName
-            },
-            cancellationToken);
+        AiQuestionBankGenerationResult aiResult;
+        try
+        {
+            aiResult = await aiHomeworkAssistant.GenerateQuestionBankItemsAsync(
+                new AiQuestionBankGenerationRequest
+                {
+                    ProgramId = query.ProgramId.ToString(),
+                    Topic = ResolveTopic(query.Topic, sourceFileName),
+                    QuestionType = query.QuestionType.ToString(),
+                    QuestionCount = query.QuestionCount,
+                    Level = query.Level.ToString(),
+                    Skill = query.Skill,
+                    TaskStyle = query.TaskStyle,
+                    GrammarTags = query.GrammarTags,
+                    VocabularyTags = query.VocabularyTags,
+                    Instructions = query.Instructions,
+                    Language = string.IsNullOrWhiteSpace(query.Language) ? "vi" : query.Language,
+                    PointsPerQuestion = query.PointsPerQuestion,
+                    SourceText = sourceText,
+                    SourceFileName = sourceFileName
+                },
+                cancellationToken);
+        }
+        catch (InvalidOperationException ex) when (IsAiBusy(ex))
+        {
+            return Result.Failure<GenerateAiQuestionBankItemsResponse>(HomeworkErrors.AiCreatorBusy);
+        }
+        catch (InvalidOperationException ex) when (IsAiUnavailable(ex))
+        {
+            return Result.Failure<GenerateAiQuestionBankItemsResponse>(HomeworkErrors.AiCreatorUnavailable);
+        }
 
         return new GenerateAiQuestionBankItemsResponse
         {
@@ -125,5 +137,28 @@ public sealed class GenerateAiQuestionBankItemsQueryHandler(
         }
 
         return "source file";
+    }
+
+    private static bool IsAiBusy(InvalidOperationException exception)
+    {
+        var message = exception.Message;
+
+        return message.Contains("503", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("high demand", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("currently experiencing high demand", StringComparison.OrdinalIgnoreCase)
+               || (message.Contains("UNAVAILABLE", StringComparison.OrdinalIgnoreCase)
+                   && message.Contains("try again later", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsAiUnavailable(InvalidOperationException exception)
+    {
+        var message = exception.Message;
+
+        return message.Contains("Failed to call", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("service is running", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("connection refused", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("actively refused", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("temporarily unavailable", StringComparison.OrdinalIgnoreCase);
     }
 }

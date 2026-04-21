@@ -282,7 +282,7 @@ public sealed class ImportQuestionBankFromFileCommandHandler(
 
             return BuildTableFromRows(rows, "Empty Excel file");
         }
-        catch (HeaderException)
+        catch (ExcelDataReader.Exceptions.HeaderException)
         {
             return TableResult.Failure(
                 HomeworkErrors.InvalidQuestionBankFile(

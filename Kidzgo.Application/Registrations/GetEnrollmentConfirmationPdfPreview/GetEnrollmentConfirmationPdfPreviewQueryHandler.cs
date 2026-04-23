@@ -107,6 +107,8 @@ public sealed class GetEnrollmentConfirmationPdfPreviewQueryHandler(
             PaymentTransferContent = document.PaymentTransferContent,
             PaymentQrUrl = document.PaymentQrUrl,
             HeaderLogoUrl = document.HeaderLogoUrl,
+            NewStudentPolicyLines = document.NewStudentPolicyLines.ToList(),
+            ReservationPolicyLines = document.ReservationPolicyLines.ToList(),
             Reconciliation = document.Reconciliation is null
                 ? null
                 : new EnrollmentConfirmationPdfReconciliationDto

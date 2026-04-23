@@ -106,11 +106,7 @@ public sealed class EnrollmentConfirmationPdfGenerator(
         <section class="section">
             <div class="section-title">4. Chính sách áp dụng</div>
             <ul class="policy-list">
-                <li>Không áp dụng hoàn phí.</li>
-                <li>Các buổi con nghỉ phụ huynh báo trước cô 24h trước khi buổi học bắt đầu sẽ được sắp xếp học bù.</li>
-                <li>Không áp dụng học bù đối với trường hợp nghỉ không báo trước.</li>
-                <li>Trung tâm sẽ sắp xếp lớp học bù phù hợp.</li>
-                <li>Chính sách bảo lưu: tối đa 01 lần, trong vòng 03 tháng.</li>
+                {{RenderPolicyItems(document.NewStudentPolicyLines)}}
             </ul>
         </section>
 
@@ -221,10 +217,7 @@ public sealed class EnrollmentConfirmationPdfGenerator(
                     <th>Quy định bảo lưu</th>
                     <td>
                         <ul class="policy-list">
-                            <li>Chỉ áp dụng bảo lưu tối đa 01 lần cho mỗi khóa học.</li>
-                            <li>Sau thời hạn bảo lưu, nếu học viên không quay lại, số buổi còn lại sẽ không còn hiệu lực.</li>
-                            <li>Trung tâm sẽ hỗ trợ sắp xếp lớp phù hợp khi học viên quay lại học.</li>
-                            <li>Học phí đã đóng không được hoàn lại.</li>
+                            {{RenderPolicyItems(document.ReservationPolicyLines)}}
                         </ul>
                     </td>
                 </tr>
@@ -578,6 +571,16 @@ public sealed class EnrollmentConfirmationPdfGenerator(
 
     private static string FormatAmount(decimal amount, string currency)
         => $"{amount.ToString("N0", ViCulture)} {currency}";
+
+    private static string RenderPolicyItems(IEnumerable<string> lines)
+    {
+        var items = lines
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line => $"<li>{H(line)}</li>")
+            .ToList();
+
+        return items.Count == 0 ? "<li>Đang cập nhật.</li>" : string.Join(Environment.NewLine, items);
+    }
 
     private static string H(string value)
         => WebUtility.HtmlEncode(value);

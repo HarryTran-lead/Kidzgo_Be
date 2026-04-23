@@ -7,6 +7,7 @@ using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.CRM;
 using Kidzgo.Domain.Exams;
 using Kidzgo.Domain.Finance;
+using Kidzgo.Domain.Faqs;
 using Kidzgo.Domain.Gamification;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.Media;
@@ -95,6 +96,8 @@ public sealed class ApplicationDbContext(
     // Media
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<Blog> Blogs => Set<Blog>();
+    public DbSet<FaqCategory> FaqCategories => Set<FaqCategory>();
+    public DbSet<FaqItem> FaqItems => Set<FaqItem>();
 
     // Notifications
     public DbSet<Notification> Notifications => Set<Notification>();

@@ -51,6 +51,8 @@ public sealed class EnrollmentConfirmationPdfDocument
     public string? PaymentTransferContent { get; init; }
     public string? PaymentQrUrl { get; init; }
     public string? HeaderLogoUrl { get; init; }
+    public List<string> NewStudentPolicyLines { get; init; } = new();
+    public List<string> ReservationPolicyLines { get; init; } = new();
 }
 
 public sealed class EnrollmentReconciliationPdfSection

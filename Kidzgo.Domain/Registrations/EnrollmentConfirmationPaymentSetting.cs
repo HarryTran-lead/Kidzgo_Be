@@ -16,6 +16,8 @@ public class EnrollmentConfirmationPaymentSetting : Entity
     public string? BankBin { get; set; }
     public string VietQrTemplate { get; set; } = "compact2";
     public string? LogoUrl { get; set; }
+    public string? NewStudentPolicyText { get; set; }
+    public string? ReservationPolicyText { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

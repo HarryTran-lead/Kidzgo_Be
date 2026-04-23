@@ -200,7 +200,11 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
             PaymentBankName = paymentSetting?.BankName,
             PaymentTransferContent = paymentTransferContent,
             PaymentQrUrl = paymentQrUrl,
-            HeaderLogoUrl = paymentSetting?.LogoUrl
+            HeaderLogoUrl = paymentSetting?.LogoUrl,
+            NewStudentPolicyLines = EnrollmentConfirmationPolicyContent.GetNewStudentPolicyLines(
+                paymentSetting?.NewStudentPolicyText),
+            ReservationPolicyLines = EnrollmentConfirmationPolicyContent.GetReservationPolicyLines(
+                paymentSetting?.ReservationPolicyText)
         };
 
         return Result.Success(new EnrollmentConfirmationPdfPreviewBuildResult

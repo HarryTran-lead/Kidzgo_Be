@@ -63,6 +63,8 @@ public sealed class UpdateEnrollmentConfirmationPaymentSettingCommandHandler(
         setting.BankBin = Normalize(command.BankBin);
         setting.VietQrTemplate = Normalize(command.VietQrTemplate) ?? "compact2";
         setting.LogoUrl = Normalize(command.LogoUrl);
+        setting.NewStudentPolicyText = EnrollmentConfirmationPolicyContent.SerializeLines(command.NewStudentPolicyLines);
+        setting.ReservationPolicyText = EnrollmentConfirmationPolicyContent.SerializeLines(command.ReservationPolicyLines);
         setting.IsActive = command.IsActive;
         setting.UpdatedAt = now;
         setting.UpdatedBy = userContext.UserId;
@@ -138,6 +140,8 @@ public sealed class UpdateEnrollmentConfirmationPaymentSettingCommandHandler(
             BankBin = setting.BankBin,
             VietQrTemplate = setting.VietQrTemplate,
             LogoUrl = setting.LogoUrl,
+            NewStudentPolicyLines = EnrollmentConfirmationPolicyContent.GetNewStudentPolicyLines(setting.NewStudentPolicyText),
+            ReservationPolicyLines = EnrollmentConfirmationPolicyContent.GetReservationPolicyLines(setting.ReservationPolicyText),
             QrPreviewUrl = EnrollmentConfirmationPaymentQrBuilder.BuildVietQrUrl(
                 setting.BankBin,
                 setting.BankCode,

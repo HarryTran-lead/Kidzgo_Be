@@ -113,6 +113,7 @@ public sealed class ApplicationDbContext(
 
     // Programs
     public DbSet<Program> Programs => Set<Program>();
+    public DbSet<BranchProgram> BranchPrograms => Set<BranchProgram>();
     public DbSet<ExtracurricularProgram> ExtracurricularPrograms => Set<ExtracurricularProgram>();
     public DbSet<ProgramLeavePolicy> ProgramLeavePolicies => Set<ProgramLeavePolicy>();
     public DbSet<TuitionPlan> TuitionPlans => Set<TuitionPlan>();

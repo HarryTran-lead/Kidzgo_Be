@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.PlacementTests.Shared;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.CRM;
 using Kidzgo.Domain.CRM.Errors;
@@ -228,8 +229,20 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
         if (targetProgram is null)
             return null;
 
+        var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+            context,
+            activeReg.BranchId,
+            targetProgram.Id,
+            cancellationToken);
+
+        if (!programAssignedToBranch)
+            return null;
+
         var targetTuitionPlan = await context.TuitionPlans
-            .Where(tp => tp.ProgramId == targetProgram.Id && tp.IsActive)
+            .Where(tp => tp.ProgramId == targetProgram.Id &&
+                         tp.IsActive &&
+                         !tp.IsDeleted &&
+                         (!tp.BranchId.HasValue || tp.BranchId == activeReg.BranchId))
             .OrderBy(tp => tp.TuitionAmount)
             .FirstOrDefaultAsync(cancellationToken);
 

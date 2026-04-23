@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,18 @@ public sealed class UpdateClassCommandHandler(
         {
             return Result.Failure<UpdateClassResponse>(
                 ClassErrors.ProgramNotFound);
+        }
+
+        var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            cancellationToken);
+
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<UpdateClassResponse>(
+                ClassErrors.ProgramNotAvailableInBranch);
         }
 
         // Check if code is unique (excluding current class)

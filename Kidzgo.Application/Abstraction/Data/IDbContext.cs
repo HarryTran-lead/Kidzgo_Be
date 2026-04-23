@@ -106,6 +106,7 @@ public interface IDbContext
 
     // Programs
     DbSet<Program> Programs { get; }
+    DbSet<BranchProgram> BranchPrograms { get; }
     DbSet<ExtracurricularProgram> ExtracurricularPrograms { get; }
     DbSet<ProgramLeavePolicy> ProgramLeavePolicies { get; }
     DbSet<TuitionPlan> TuitionPlans { get; }

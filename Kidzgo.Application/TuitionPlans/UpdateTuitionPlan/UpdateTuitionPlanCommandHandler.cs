@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,17 @@ public sealed class UpdateTuitionPlanCommandHandler(
             if (!branchExists)
             {
                 return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.BranchNotFound);
+            }
+
+            var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+                context,
+                command.BranchId.Value,
+                command.ProgramId,
+                cancellationToken);
+
+            if (!programAssignedToBranch)
+            {
+                return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotAvailableInBranch);
             }
         }
 

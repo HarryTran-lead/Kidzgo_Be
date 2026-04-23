@@ -36,6 +36,10 @@ public static class RegistrationErrors
         "Registration.ProgramNotFound",
         $"Program with ID {programId} not found");
 
+    public static Error ProgramNotAvailableInBranch(Guid programId, Guid branchId) => Error.Validation(
+        "Registration.ProgramNotAvailableInBranch",
+        $"Program with ID {programId} is not assigned to branch {branchId}");
+
     public static Error SecondarySupplementaryRequiresSeparateRegistration(Guid programId) => Error.Validation(
         "Registration.SecondarySupplementaryRequiresSeparateRegistration",
         $"Supplementary program with ID {programId} must be created as a separate registration because it uses a separate tuition plan");
@@ -47,6 +51,10 @@ public static class RegistrationErrors
     public static Error BranchNotFound(Guid branchId) => Error.NotFound(
         "Registration.BranchNotFound",
         $"Branch with ID {branchId} not found");
+
+    public static Error ClassNotMatchingBranch(Guid classId, Guid branchId) => Error.Validation(
+        "Registration.ClassNotMatchingBranch",
+        $"Class with ID {classId} does not belong to branch {branchId}");
 
     public static Error CannotTransferToSameClass() => Error.Validation(
         "Registration.CannotTransferToSameClass",

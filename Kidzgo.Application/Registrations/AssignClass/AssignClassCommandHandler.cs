@@ -110,6 +110,12 @@ public sealed class AssignClassCommandHandler(
             return Result.Failure<AssignClassResponse>(RegistrationErrors.ClassNotFound(classId ?? Guid.Empty));
         }
 
+        if (classEntity != null && classEntity.BranchId != registration.BranchId)
+        {
+            return Result.Failure<AssignClassResponse>(
+                RegistrationErrors.ClassNotMatchingBranch(classEntity.Id, registration.BranchId));
+        }
+
         if (classEntity != null && classEntity.ProgramId != targetProgramId)
         {
             return Result.Failure<AssignClassResponse>(

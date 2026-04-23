@@ -92,6 +92,12 @@ public sealed class CreateEnrollmentCommandHandler(
                     EnrollmentErrors.TuitionPlanNotAvailable);
             }
 
+            if (tuitionPlan.BranchId.HasValue && tuitionPlan.BranchId != classEntity.BranchId)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.TuitionPlanBranchMismatch);
+            }
+
             // Check if tuition plan belongs to the same program as the class
             if (tuitionPlan.ProgramId != classEntity.ProgramId)
             {

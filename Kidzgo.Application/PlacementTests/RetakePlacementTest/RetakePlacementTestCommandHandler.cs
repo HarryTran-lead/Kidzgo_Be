@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.PlacementTests;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.CRM;
 using Kidzgo.Domain.CRM.Errors;
@@ -166,11 +167,25 @@ public sealed class RetakePlacementTestCommandHandler(
                 RegistrationErrors.ProgramNotFound(command.NewProgramId));
         }
 
+        var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.NewProgramId,
+            cancellationToken);
+
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<RetakePlacementTestResponse>(
+                RegistrationErrors.ProgramNotAvailableInBranch(command.NewProgramId, command.BranchId));
+        }
+
         var newTuitionPlan = await context.TuitionPlans
             .FirstOrDefaultAsync(tp =>
                 tp.Id == command.NewTuitionPlanId &&
                 tp.ProgramId == command.NewProgramId &&
-                tp.IsActive, cancellationToken);
+                tp.IsActive &&
+                !tp.IsDeleted &&
+                (!tp.BranchId.HasValue || tp.BranchId == command.BranchId), cancellationToken);
 
         if (newTuitionPlan is null)
         {

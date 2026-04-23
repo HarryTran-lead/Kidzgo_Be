@@ -2,8 +2,6 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs;
-using Kidzgo.Domain.Programs.Errors;
-using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Programs.CreateProgram;
 
@@ -13,20 +11,10 @@ public sealed class CreateProgramCommandHandler(
 {
     public async Task<Result<CreateProgramResponse>> Handle(CreateProgramCommand command, CancellationToken cancellationToken)
     {
-        // Check if branch exists
-        bool branchExists = await context.Branches
-            .AnyAsync(b => b.Id == command.BranchId && b.IsActive, cancellationToken);
-
-        if (!branchExists)
-        {
-            return Result.Failure<CreateProgramResponse>(ProgramErrors.BranchNotFound);
-        }
-
         var now = VietnamTime.UtcNow();
         var program = new Program
         {
             Id = Guid.NewGuid(),
-            BranchId = command.BranchId,
             Name = command.Name,
             Code = command.Code,
             IsMakeup = command.IsMakeup,
@@ -43,12 +31,10 @@ public sealed class CreateProgramCommandHandler(
         return new CreateProgramResponse
         {
             Id = program.Id,
-            BranchId = program.BranchId,
             Name = program.Name,
             Code = program.Code,
             IsMakeup = program.IsMakeup,
             IsSupplementary = program.IsSupplementary,
-            DefaultMakeupClassId = program.DefaultMakeupClassId,
             DefaultTuitionAmount = 0,
             UnitPriceSession = 0,
             Description = program.Description,

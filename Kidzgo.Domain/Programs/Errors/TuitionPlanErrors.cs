@@ -16,6 +16,10 @@ public static class TuitionPlanErrors
         "TuitionPlan.BranchNotFound",
         "Branch not found or inactive");
 
+    public static readonly Error ProgramNotAvailableInBranch = Error.Validation(
+        "TuitionPlan.ProgramNotAvailableInBranch",
+        "Program is not assigned to the selected branch");
+
     public static readonly Error HasActiveEnrollments = Error.Conflict(
         "TuitionPlan.HasActiveEnrollments",
         "Cannot delete tuition plan with active enrollments");

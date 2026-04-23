@@ -12,6 +12,10 @@ public static class ProgramErrors
         "Program.BranchNotFound",
         "Branch not found or inactive");
 
+    public static Error AlreadyAssignedToBranch(Guid programId, Guid branchId) => Error.Conflict(
+        "Program.AlreadyAssignedToBranch",
+        $"Program '{programId}' is already assigned to branch '{branchId}'");
+
     public static readonly Error HasActiveClasses = Error.Conflict(
         "Program.HasActiveClasses",
         "Cannot delete program with active classes");

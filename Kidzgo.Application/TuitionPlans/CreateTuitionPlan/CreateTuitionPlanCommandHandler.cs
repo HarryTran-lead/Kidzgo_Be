@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs;
 using Kidzgo.Domain.Programs.Errors;
@@ -31,6 +32,17 @@ public sealed class CreateTuitionPlanCommandHandler(
             if (!branchExists)
             {
                 return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.BranchNotFound);
+            }
+
+            var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+                context,
+                command.BranchId.Value,
+                command.ProgramId,
+                cancellationToken);
+
+            if (!programAssignedToBranch)
+            {
+                return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotAvailableInBranch);
             }
         }
 

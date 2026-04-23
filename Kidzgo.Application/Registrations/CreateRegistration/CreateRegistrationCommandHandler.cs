@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
@@ -40,8 +41,26 @@ public sealed class CreateRegistrationCommandHandler(
             return Result.Failure<CreateRegistrationResponse>(RegistrationErrors.ProgramNotFound(command.ProgramId));
         }
 
+        var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            cancellationToken);
+
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<CreateRegistrationResponse>(
+                RegistrationErrors.ProgramNotAvailableInBranch(command.ProgramId, command.BranchId));
+        }
+
         var tuitionPlan = await context.TuitionPlans
-            .FirstOrDefaultAsync(tp => tp.Id == command.TuitionPlanId && tp.ProgramId == command.ProgramId && tp.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(
+                tp => tp.Id == command.TuitionPlanId &&
+                      tp.ProgramId == command.ProgramId &&
+                      tp.IsActive &&
+                      !tp.IsDeleted &&
+                      (!tp.BranchId.HasValue || tp.BranchId == command.BranchId),
+                cancellationToken);
 
         if (tuitionPlan == null)
         {
@@ -64,6 +83,18 @@ public sealed class CreateRegistrationCommandHandler(
             {
                 return Result.Failure<CreateRegistrationResponse>(
                     RegistrationErrors.ProgramNotFound(command.SecondaryProgramId.Value));
+            }
+
+            var secondaryProgramAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+                context,
+                command.BranchId,
+                command.SecondaryProgramId.Value,
+                cancellationToken);
+
+            if (!secondaryProgramAssignedToBranch)
+            {
+                return Result.Failure<CreateRegistrationResponse>(
+                    RegistrationErrors.ProgramNotAvailableInBranch(command.SecondaryProgramId.Value, command.BranchId));
             }
 
             if (secondaryProgram.IsSupplementary)

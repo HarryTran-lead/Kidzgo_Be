@@ -75,6 +75,12 @@ public sealed class TransferClassCommandHandler(
             return Result.Failure<TransferClassResponse>(RegistrationErrors.ClassNotFound(command.NewClassId));
         }
 
+        if (newClass.BranchId != registration.BranchId)
+        {
+            return Result.Failure<TransferClassResponse>(
+                RegistrationErrors.ClassNotMatchingBranch(command.NewClassId, registration.BranchId));
+        }
+
         if (newClass.ProgramId != targetProgramId)
         {
             return Result.Failure<TransferClassResponse>(

@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Homework.Shared;
+using Kidzgo.Application.QuestionBank;
 using Kidzgo.Application.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
@@ -26,7 +27,7 @@ public sealed class CreateQuestionBankItemsCommandHandler(
         }
 
         var programExists = await context.Programs
-            .AnyAsync(p => p.Id == command.ProgramId, cancellationToken);
+            .AnyAsync(p => p.Id == command.ProgramId && !p.IsDeleted, cancellationToken);
 
         if (!programExists)
         {
@@ -111,25 +112,7 @@ public sealed class CreateQuestionBankItemsCommandHandler(
 
         foreach (var entity in items)
         {
-            dtoItems.Add(new QuestionBankItemDto
-            {
-                Id = entity.Id,
-                ProgramId = entity.ProgramId,
-                QuestionText = entity.QuestionText,
-                QuestionType = entity.QuestionType.ToString(),
-                Options = entity.Options == null
-                    ? new List<string>()
-                    : JsonSerializer.Deserialize<List<string>>(entity.Options) ?? new List<string>(),
-                CorrectAnswer = entity.CorrectAnswer,
-                Points = entity.Points,
-                Explanation = entity.Explanation,
-                Topic = entity.Topic,
-                Skill = entity.Skill,
-                GrammarTags = StringListJson.Deserialize(entity.GrammarTags),
-                VocabularyTags = StringListJson.Deserialize(entity.VocabularyTags),
-                Level = entity.Level,
-                CreatedAt = entity.CreatedAt
-            });
+            dtoItems.Add(entity.ToDto());
         }
 
         return new CreateQuestionBankItemsResponse

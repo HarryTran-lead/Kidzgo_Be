@@ -21,6 +21,7 @@ public class QuestionBankItem : Entity
     public Guid? CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public bool IsDeleted { get; set; }
 
     // Navigation properties
     public Program Program { get; set; } = null!;

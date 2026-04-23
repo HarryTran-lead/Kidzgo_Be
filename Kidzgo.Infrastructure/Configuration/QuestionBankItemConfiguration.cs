@@ -58,7 +58,11 @@ public class QuestionBankItemConfiguration : IEntityTypeConfiguration<QuestionBa
 
         builder.Property(x => x.UpdatedAt);
 
-        builder.HasIndex(x => new { x.ProgramId, x.Level });
+        builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.HasIndex(x => new { x.ProgramId, x.Level, x.IsDeleted });
 
         builder.HasOne(x => x.Program)
             .WithMany(x => x.QuestionBankItems)

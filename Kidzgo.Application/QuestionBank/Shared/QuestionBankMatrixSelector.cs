@@ -61,6 +61,7 @@ internal static class QuestionBankMatrixSelector
             .AsNoTracking()
             .Where(q =>
                 q.ProgramId == request.ProgramId &&
+                !q.IsDeleted &&
                 q.QuestionType == request.QuestionType &&
                 levels.Contains(q.Level));
 

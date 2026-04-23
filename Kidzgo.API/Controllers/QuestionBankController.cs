@@ -2,8 +2,10 @@ using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.QuestionBank;
 using Kidzgo.Application.QuestionBank.CreateQuestionBankItems;
+using Kidzgo.Application.QuestionBank.DeleteQuestionBankItem;
 using Kidzgo.Application.QuestionBank.GetQuestionBank;
 using Kidzgo.Application.QuestionBank.ImportQuestionBank;
+using Kidzgo.Application.QuestionBank.UpdateQuestionBankItem;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
 using MediatR;
@@ -106,6 +108,65 @@ public class QuestionBankController : ControllerBase
         };
 
         var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Update a question bank item
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    public async Task<IResult> UpdateQuestionBankItem(
+        Guid id,
+        [FromBody] UpdateQuestionBankItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<HomeworkQuestionType>(request.QuestionType, ignoreCase: true, out var questionType))
+        {
+            return Results.BadRequest($"Invalid question type: {request.QuestionType}");
+        }
+
+        if (!Enum.TryParse<QuestionLevel>(request.Level, ignoreCase: true, out var level))
+        {
+            return Results.BadRequest($"Invalid level: {request.Level}");
+        }
+
+        var command = new UpdateQuestionBankItemCommand
+        {
+            Id = id,
+            ProgramId = request.ProgramId,
+            QuestionText = request.QuestionText,
+            QuestionType = questionType,
+            Options = request.Options,
+            CorrectAnswer = request.CorrectAnswer,
+            Points = request.Points,
+            Explanation = request.Explanation,
+            Topic = request.Topic,
+            Skill = request.Skill,
+            GrammarTags = request.GrammarTags,
+            VocabularyTags = request.VocabularyTags,
+            Level = level
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Soft delete a question bank item
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    public async Task<IResult> DeleteQuestionBankItem(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var command = new DeleteQuestionBankItemCommand
+        {
+            Id = id
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
         return result.MatchOk();
     }
 

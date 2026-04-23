@@ -71,7 +71,7 @@ public sealed class GetHomeworkRecommendationsQueryHandler(
         var maxItems = Math.Clamp(query.MaxItems, 1, 10);
         var preferredQuestionType = HomeworkAiContextMapper.GetPreferredQuestionType(homeworkStudent.Assignment);
         var candidatesQuery = context.QuestionBankItems
-            .Where(q => q.ProgramId == homeworkStudent.Assignment.Class.ProgramId);
+            .Where(q => q.ProgramId == homeworkStudent.Assignment.Class.ProgramId && !q.IsDeleted);
 
         if (preferredQuestionType.HasValue)
         {

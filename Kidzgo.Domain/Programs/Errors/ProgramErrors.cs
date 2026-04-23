@@ -18,7 +18,11 @@ public static class ProgramErrors
 
     public static readonly Error HasActiveClasses = Error.Conflict(
         "Program.HasActiveClasses",
-        "Cannot delete program with active classes");
+        "Cannot delete program with active or planned classes");
+
+    public static readonly Error HasActiveEnrollments = Error.Conflict(
+        "Program.HasActiveEnrollments",
+        "Cannot delete program with active or paused enrollments");
 
     public static readonly Error NotMakeupProgram = Error.Validation(
         "Program.NotMakeupProgram",

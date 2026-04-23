@@ -1,14 +1,21 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Programs.Shared;
+using Kidzgo.Application.Services;
+using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Sessions;
+using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Classes.UpdateClass;
 
 public sealed class UpdateClassCommandHandler(
-    IDbContext context
+    IDbContext context,
+    SessionConflictChecker conflictChecker,
+    ISchedulePatternParser patternParser
 ) : ICommandHandler<UpdateClassCommand, UpdateClassResponse>
 {
     public async Task<Result<UpdateClassResponse>> Handle(UpdateClassCommand command, CancellationToken cancellationToken)
@@ -64,11 +71,92 @@ public sealed class UpdateClassCommandHandler(
                 ClassErrors.CodeExists);
         }
 
+        bool branchOrProgramChanged = classEntity.BranchId != command.BranchId ||
+                                      classEntity.ProgramId != command.ProgramId;
+        bool scheduleChanged = classEntity.StartDate != command.StartDate ||
+                               classEntity.EndDate != command.EndDate ||
+                               classEntity.SchedulePattern != command.SchedulePattern;
+
+        if (branchOrProgramChanged)
+        {
+            bool hasOperationalDependencies = await context.ClassEnrollments
+                                                 .AnyAsync(e => e.ClassId == command.Id, cancellationToken) ||
+                                             await context.Sessions
+                                                 .AnyAsync(s => s.ClassId == command.Id, cancellationToken);
+
+            if (hasOperationalDependencies)
+            {
+                return Result.Failure<UpdateClassResponse>(
+                    ClassErrors.HasOperationalDependencies);
+            }
+        }
+
+        int activeEnrollmentCount = await context.ClassEnrollments
+            .CountAsync(
+                e => e.ClassId == command.Id && e.Status == EnrollmentStatus.Active,
+                cancellationToken);
+
+        if (command.Capacity < activeEnrollmentCount)
+        {
+            return Result.Failure<UpdateClassResponse>(
+                ClassErrors.CapacityBelowActiveEnrollments);
+        }
+
+        var futureSessions = await context.Sessions
+            .Where(s => s.ClassId == command.Id &&
+                        s.Status == SessionStatus.Scheduled &&
+                        s.PlannedDatetime >= VietnamTime.UtcNow())
+            .Select(s => new
+            {
+                s.Id,
+                s.PlannedDatetime,
+                s.DurationMinutes,
+                s.PlannedRoomId
+            })
+            .ToListAsync(cancellationToken);
+
+        if (scheduleChanged && futureSessions.Count > 0)
+        {
+            return Result.Failure<UpdateClassResponse>(
+                ClassErrors.HasFutureSessions);
+        }
+
+        if (command.MainTeacherId.HasValue &&
+            command.AssistantTeacherId.HasValue &&
+            command.MainTeacherId.Value == command.AssistantTeacherId.Value)
+        {
+            return Result.Failure<UpdateClassResponse>(
+                ClassErrors.TeacherAndAssistantMustDiffer);
+        }
+
+        if (command.RoomId.HasValue)
+        {
+            var room = await context.Classrooms
+                .FirstOrDefaultAsync(r => r.Id == command.RoomId.Value && r.IsActive, cancellationToken);
+
+            if (room is null)
+            {
+                return Result.Failure<UpdateClassResponse>(
+                    ClassErrors.RoomNotFound);
+            }
+
+            if (room.BranchId != command.BranchId)
+            {
+                return Result.Failure<UpdateClassResponse>(
+                    ClassErrors.RoomBranchMismatch);
+            }
+        }
+
         // Check if teachers exist, are TEACHER role, and belong to the same branch
         if (command.MainTeacherId.HasValue)
         {
             var mainTeacher = await context.Users
-                .FirstOrDefaultAsync(u => u.Id == command.MainTeacherId.Value && u.Role == Domain.Users.UserRole.Teacher, cancellationToken);
+                .FirstOrDefaultAsync(
+                    u => u.Id == command.MainTeacherId.Value &&
+                         u.Role == UserRole.Teacher &&
+                         u.IsActive &&
+                         !u.IsDeleted,
+                    cancellationToken);
 
             if (mainTeacher is null)
             {
@@ -87,7 +175,12 @@ public sealed class UpdateClassCommandHandler(
         if (command.AssistantTeacherId.HasValue)
         {
             var assistantTeacher = await context.Users
-                .FirstOrDefaultAsync(u => u.Id == command.AssistantTeacherId.Value && u.Role == Domain.Users.UserRole.Teacher, cancellationToken);
+                .FirstOrDefaultAsync(
+                    u => u.Id == command.AssistantTeacherId.Value &&
+                         u.Role == UserRole.Teacher &&
+                         u.IsActive &&
+                         !u.IsDeleted,
+                    cancellationToken);
 
             if (assistantTeacher is null)
             {
@@ -100,6 +193,63 @@ public sealed class UpdateClassCommandHandler(
             {
                 return Result.Failure<UpdateClassResponse>(
                     ClassErrors.AssistantTeacherBranchMismatch);
+            }
+        }
+
+        bool resourcesChanged = classEntity.RoomId != command.RoomId ||
+                                classEntity.MainTeacherId != command.MainTeacherId ||
+                                classEntity.AssistantTeacherId != command.AssistantTeacherId;
+
+        if (resourcesChanged && futureSessions.Count > 0)
+        {
+            foreach (var session in futureSessions)
+            {
+                var conflictResult = await conflictChecker.CheckConflictsAsync(
+                    session.Id,
+                    session.PlannedDatetime,
+                    session.DurationMinutes,
+                    command.RoomId ?? session.PlannedRoomId,
+                    command.MainTeacherId,
+                    command.AssistantTeacherId,
+                    cancellationToken);
+
+                if (conflictResult.HasConflicts)
+                {
+                    return Result.Failure<UpdateClassResponse>(
+                        ToClassConflictError(conflictResult.Conflicts.First()));
+                }
+            }
+        }
+
+        if (futureSessions.Count == 0 &&
+            !string.IsNullOrWhiteSpace(command.SchedulePattern) &&
+            command.EndDate.HasValue)
+        {
+            var durationMinutes = patternParser.ParseDuration(command.SchedulePattern) ?? 90;
+            var parseResult = patternParser.ParseAndGenerateOccurrences(
+                command.SchedulePattern,
+                command.StartDate,
+                command.EndDate.Value);
+
+            if (parseResult.IsSuccess)
+            {
+                foreach (var sessionDateTime in parseResult.Value.Take(10))
+                {
+                    var conflictResult = await conflictChecker.CheckConflictsAsync(
+                        Guid.Empty,
+                        sessionDateTime,
+                        durationMinutes,
+                        command.RoomId,
+                        command.MainTeacherId,
+                        command.AssistantTeacherId,
+                        cancellationToken);
+
+                    if (conflictResult.HasConflicts)
+                    {
+                        return Result.Failure<UpdateClassResponse>(
+                            ToClassConflictError(conflictResult.Conflicts.First()));
+                    }
+                }
             }
         }
 
@@ -135,6 +285,27 @@ public sealed class UpdateClassCommandHandler(
             Capacity = classEntity.Capacity,
             SchedulePattern = classEntity.SchedulePattern,
             Description = classEntity.Description
+        };
+    }
+
+    private static Error ToClassConflictError(SessionConflict conflict)
+    {
+        return conflict.Type switch
+        {
+            ConflictType.Room => ClassErrors.RoomConflict(
+                conflict.ClassCode,
+                conflict.ClassTitle,
+                conflict.ConflictDatetime),
+            ConflictType.Teacher => ClassErrors.TeacherConflict(
+                conflict.ClassCode,
+                conflict.ClassTitle,
+                conflict.ConflictDatetime,
+                conflict.RoomName),
+            ConflictType.Assistant => ClassErrors.AssistantConflict(
+                conflict.ClassCode,
+                conflict.ClassTitle,
+                conflict.ConflictDatetime),
+            _ => ClassErrors.NotFound(null)
         };
     }
 }

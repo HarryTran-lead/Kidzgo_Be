@@ -28,40 +28,63 @@ public static class SessionErrors
         "Session.AlreadyCancelled",
         "Session is already cancelled");
 
+    public static Error AlreadyCompleted => Error.Validation(
+        "Session.AlreadyCompleted",
+        "Completed sessions cannot be cancelled");
+
+    public static Error HasAttendance => Error.Conflict(
+        "Session.HasAttendance",
+        "Session cannot be cancelled because attendance has already been recorded");
+
+    public static Error HasReports => Error.Conflict(
+        "Session.HasReports",
+        "Session cannot be cancelled because reports have already been created");
+
     public static Error Cancelled => Error.Validation(
         "Session.Cancelled",
         "Cancelled sessions cannot be completed");
 
     public static Error InvalidDuration(int duration) => Error.Validation(
         "Session.InvalidDuration",
-        $"Duration phải lớn hơn 0. Giá trị hiện tại: {duration}");
+        $"Duration must be greater than 0. Current value: {duration}");
 
     public static Error InvalidBranch(Guid branchId) => Error.Validation(
         "Session.InvalidBranch",
-        $"Branch với ID {branchId} không tồn tại hoặc không active");
+        $"Branch with ID {branchId} does not exist or is inactive");
 
     public static Error InvalidRoom(Guid roomId) => Error.Validation(
         "Session.InvalidRoom",
-        $"Room với ID {roomId} không tồn tại hoặc không thuộc branch này");
+        $"Room with ID {roomId} does not exist, is inactive, or does not belong to this branch");
 
     public static Error InvalidTeacher(Guid teacherId) => Error.Validation(
         "Session.InvalidTeacher",
-        $"Main Teacher với ID {teacherId} không tồn tại, không phải Teacher role, hoặc không thuộc branch này");
+        $"Main teacher with ID {teacherId} does not exist, is inactive, is not a teacher, or does not belong to this branch");
 
     public static Error InvalidAssistant(Guid assistantId) => Error.Validation(
         "Session.InvalidAssistant",
-        $"Assistant Teacher với ID {assistantId} không tồn tại, không phải Teacher role, hoặc không thuộc branch này");
+        $"Assistant teacher with ID {assistantId} does not exist, is inactive, is not a teacher, or does not belong to this branch");
 
-    public static Error RoomOccupied(string classCode, string className, DateTime plannedDatetime) => Error.Validation(
+    public static Error TeacherAndAssistantMustDiffer => Error.Validation(
+        "Session.TeacherAndAssistantMustDiffer",
+        "Main teacher and assistant teacher must be different users");
+
+    public static Error RoomOccupied(string classCode, string className, DateTime plannedDatetime) => Error.Conflict(
         "Session.RoomOccupied",
-        $"Phòng đã bị chiếm dụng bởi lớp '{classCode} - {className}' vào ngày {plannedDatetime:dd/MM/yyyy HH:mm}");
+        $"Room is already occupied by class '{classCode} - {className}' at {plannedDatetime:dd/MM/yyyy HH:mm}");
+
+    public static Error TeacherOccupied(string classCode, string className, DateTime plannedDatetime) => Error.Conflict(
+        "Session.TeacherOccupied",
+        $"Teacher is already assigned to class '{classCode} - {className}' at {plannedDatetime:dd/MM/yyyy HH:mm}");
+
+    public static Error AssistantOccupied(string classCode, string className, DateTime plannedDatetime) => Error.Conflict(
+        "Session.AssistantOccupied",
+        $"Assistant teacher is already assigned to class '{classCode} - {className}' at {plannedDatetime:dd/MM/yyyy HH:mm}");
 
     public static Error SaveFailed(string details) => Error.Validation(
         "Session.SaveFailed",
-        $"Không thể lưu sessions: {details}");
+        $"Cannot save sessions: {details}");
 
     public static Error UnauthorizedAccess(Guid sessionId) => Error.Validation(
         "Session.UnauthorizedAccess",
-        $"Teacher không được phép tạo report cho session với ID '{sessionId}'");
+        $"Teacher is not allowed to create a report for session with ID '{sessionId}'");
 }
-

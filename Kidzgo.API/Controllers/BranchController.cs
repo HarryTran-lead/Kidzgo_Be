@@ -122,6 +122,7 @@ public class BranchController : ControllerBase
 
     
     [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> ToggleBranchStatus(
         Guid id,
         [FromBody] ToggleBranchStatusRequest request,

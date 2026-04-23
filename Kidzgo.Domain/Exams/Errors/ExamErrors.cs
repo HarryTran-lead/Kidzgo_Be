@@ -27,5 +27,13 @@ public static class ExamErrors
     public static readonly Error UserNotFound = Error.NotFound(
         "Exam.UserNotFound",
         "User not found");
+
+    public static readonly Error HasSubmissions = Error.Conflict(
+        "Exam.HasSubmissions",
+        "Cannot delete exam with submissions");
+
+    public static readonly Error HasResults = Error.Conflict(
+        "Exam.HasResults",
+        "Cannot delete exam with results");
 }
 

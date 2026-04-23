@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Classes.DeleteClass;
@@ -22,9 +23,11 @@ public sealed class DeleteClassCommandHandler(
                 ClassErrors.NotFound(command.Id));
         }
 
-        // Check if class has active enrollments
         bool hasActiveEnrollments = await context.ClassEnrollments
-            .AnyAsync(ce => ce.ClassId == command.Id && ce.Status == Domain.Classes.EnrollmentStatus.Active, cancellationToken);
+            .AnyAsync(
+                ce => ce.ClassId == command.Id &&
+                      (ce.Status == EnrollmentStatus.Active || ce.Status == EnrollmentStatus.Paused),
+                cancellationToken);
 
         if (hasActiveEnrollments)
         {
@@ -32,7 +35,19 @@ public sealed class DeleteClassCommandHandler(
                 ClassErrors.HasActiveEnrollments);
         }
 
-        // Soft delete: Set status to Closed
+        bool hasFutureSessions = await context.Sessions
+            .AnyAsync(
+                s => s.ClassId == command.Id &&
+                     s.Status == SessionStatus.Scheduled &&
+                     s.PlannedDatetime >= VietnamTime.UtcNow(),
+                cancellationToken);
+
+        if (hasFutureSessions)
+        {
+            return Result.Failure(
+                ClassErrors.HasFutureSessions);
+        }
+
         classEntity.Status = ClassStatus.Closed;
         classEntity.UpdatedAt = VietnamTime.UtcNow();
         await context.SaveChangesAsync(cancellationToken);

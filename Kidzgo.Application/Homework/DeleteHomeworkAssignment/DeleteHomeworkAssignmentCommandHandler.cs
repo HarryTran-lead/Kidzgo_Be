@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Homework.Errors;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
@@ -24,10 +25,23 @@ public sealed class DeleteHomeworkAssignmentCommandHandler(
             return Result.Failure(HomeworkErrors.NotFound(command.Id));
         }
 
-        // Hard delete: Remove homework assignment
-        // Note: Based on HomeworkAssignmentConfiguration, HomeworkStudents have Cascade delete
-        // This means all HomeworkStudent records will also be deleted
-        // If you need to keep history, change DeleteBehavior to Restrict in configuration
+        bool hasStudentWork = await context.HomeworkStudents.AnyAsync(
+            hs => hs.AssignmentId == homework.Id &&
+                  (hs.Status == HomeworkStatus.Submitted ||
+                   hs.Status == HomeworkStatus.Graded ||
+                   hs.Status == HomeworkStatus.Late ||
+                   hs.Status == HomeworkStatus.Missing ||
+                   hs.StartedAt.HasValue ||
+                   hs.SubmittedAt.HasValue ||
+                   hs.GradedAt.HasValue ||
+                   hs.SubmissionAttempts.Any()),
+            cancellationToken);
+
+        if (hasStudentWork)
+        {
+            return Result.Failure(HomeworkErrors.CannotDeleteWithStudentWork);
+        }
+
         context.HomeworkAssignments.Remove(homework);
         
         await context.SaveChangesAsync(cancellationToken);

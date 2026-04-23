@@ -6,6 +6,7 @@ using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Classes.CreateClass;
@@ -53,11 +54,37 @@ public sealed class CreateClassCommandHandler(
             return Result.Failure<CreateClassResponse>(ClassErrors.CodeExists);
         }
 
+        if (command.MainTeacherId.HasValue &&
+            command.AssistantTeacherId.HasValue &&
+            command.MainTeacherId.Value == command.AssistantTeacherId.Value)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.TeacherAndAssistantMustDiffer);
+        }
+
+        if (command.RoomId.HasValue)
+        {
+            var room = await context.Classrooms
+                .FirstOrDefaultAsync(r => r.Id == command.RoomId.Value && r.IsActive, cancellationToken);
+
+            if (room is null)
+            {
+                return Result.Failure<CreateClassResponse>(ClassErrors.RoomNotFound);
+            }
+
+            if (room.BranchId != command.BranchId)
+            {
+                return Result.Failure<CreateClassResponse>(ClassErrors.RoomBranchMismatch);
+            }
+        }
+
         if (command.MainTeacherId.HasValue)
         {
             var mainTeacher = await context.Users
                 .FirstOrDefaultAsync(
-                    u => u.Id == command.MainTeacherId.Value && u.Role == Domain.Users.UserRole.Teacher,
+                    u => u.Id == command.MainTeacherId.Value &&
+                         u.Role == UserRole.Teacher &&
+                         u.IsActive &&
+                         !u.IsDeleted,
                     cancellationToken);
 
             if (mainTeacher is null)
@@ -75,7 +102,10 @@ public sealed class CreateClassCommandHandler(
         {
             var assistantTeacher = await context.Users
                 .FirstOrDefaultAsync(
-                    u => u.Id == command.AssistantTeacherId.Value && u.Role == Domain.Users.UserRole.Teacher,
+                    u => u.Id == command.AssistantTeacherId.Value &&
+                         u.Role == UserRole.Teacher &&
+                         u.IsActive &&
+                         !u.IsDeleted,
                     cancellationToken);
 
             if (assistantTeacher is null)
@@ -107,7 +137,7 @@ public sealed class CreateClassCommandHandler(
                         Guid.Empty,
                         sessionDateTime,
                         durationMinutes,
-                        null,
+                        command.RoomId,
                         command.MainTeacherId,
                         command.AssistantTeacherId,
                         cancellationToken);

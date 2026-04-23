@@ -4,7 +4,6 @@ namespace Kidzgo.Application.Programs.CreateProgram;
 
 public sealed class CreateProgramCommand : ICommand<CreateProgramResponse>
 {
-    public Guid BranchId { get; init; }
     public string Name { get; init; } = null!;
     public string Code { get; init; } = null!;
     public bool IsMakeup { get; init; }

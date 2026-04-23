@@ -20,16 +20,6 @@ public sealed class UpdateProgramCommandHandler(
             return Result.Failure<UpdateProgramResponse>(ProgramErrors.NotFound(command.Id));
         }
 
-        // Check if branch exists
-        bool branchExists = await context.Branches
-            .AnyAsync(b => b.Id == command.BranchId && b.IsActive, cancellationToken);
-
-        if (!branchExists)
-        {
-            return Result.Failure<UpdateProgramResponse>(ProgramErrors.BranchNotFound);
-        }
-
-        program.BranchId = command.BranchId;
         program.Name = command.Name;
         program.Code = command.Code;
         program.IsMakeup = command.IsMakeup;
@@ -41,12 +31,10 @@ public sealed class UpdateProgramCommandHandler(
         return new UpdateProgramResponse
         {
             Id = program.Id,
-            BranchId = program.BranchId,
             Name = program.Name,
             Code = program.Code,
             IsMakeup = program.IsMakeup,
             IsSupplementary = program.IsSupplementary,
-            DefaultMakeupClassId = program.DefaultMakeupClassId,
             DefaultTuitionAmount = 0,
             UnitPriceSession = 0,
             Description = program.Description,

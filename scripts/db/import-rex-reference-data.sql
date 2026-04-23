@@ -193,24 +193,20 @@ BEGIN
     END IF;
 
     UPDATE public."Programs" AS p
-    SET "BranchId" = branch_id,
-        "Name" = sp.name,
+    SET "Name" = sp.name,
         "Code" = pg_temp.required_code(sp.name, 'P', 10),
         "Description" = NULL,
         "IsActive" = true,
         "IsDeleted" = false,
         "IsMakeup" = false,
         "IsSupplementary" = sp.is_supplementary,
-        "DefaultMakeupClassId" = NULL,
         "UpdatedAt" = now_utc
     FROM seed_programs AS sp
-    WHERE p."BranchId" = branch_id
-      AND p."Name" = sp.name;
+    WHERE p."Id" = pg_temp.seed_uuid('program:' || sp.name);
 
     INSERT INTO public."Programs"
     (
         "Id",
-        "BranchId",
         "Name",
         "Code",
         "Description",
@@ -218,13 +214,11 @@ BEGIN
         "IsDeleted",
         "IsMakeup",
         "IsSupplementary",
-        "DefaultMakeupClassId",
         "CreatedAt",
         "UpdatedAt"
     )
     SELECT
         pg_temp.seed_uuid('program:' || sp.name),
-        branch_id,
         sp.name,
         pg_temp.required_code(sp.name, 'P', 10),
         NULL,
@@ -232,7 +226,6 @@ BEGIN
         false,
         false,
         sp.is_supplementary,
-        NULL,
         now_utc,
         now_utc
     FROM seed_programs AS sp
@@ -240,9 +233,32 @@ BEGIN
     (
         SELECT 1
         FROM public."Programs" AS p
-        WHERE p."BranchId" = branch_id
-          AND p."Name" = sp.name
+        WHERE p."Id" = pg_temp.seed_uuid('program:' || sp.name)
     );
+
+    INSERT INTO public."BranchPrograms"
+    (
+        "Id",
+        "BranchId",
+        "ProgramId",
+        "IsActive",
+        "DefaultMakeupClassId",
+        "CreatedAt",
+        "UpdatedAt"
+    )
+    SELECT
+        pg_temp.seed_uuid('branch-program:' || branch_id::text || ':' || sp.name),
+        branch_id,
+        pg_temp.seed_uuid('program:' || sp.name),
+        true,
+        NULL,
+        now_utc,
+        now_utc
+    FROM seed_programs AS sp
+    ON CONFLICT ("BranchId", "ProgramId") DO UPDATE
+    SET "IsActive" = true,
+        "DefaultMakeupClassId" = NULL,
+        "UpdatedAt" = EXCLUDED."UpdatedAt";
 
     UPDATE public."TuitionPlans" AS tp
     SET "BranchId" = branch_id,
@@ -255,9 +271,9 @@ BEGIN
         "UpdatedAt" = now_utc
     FROM seed_tuition_plans AS stp
     INNER JOIN public."Programs" AS p
-        ON p."BranchId" = branch_id
-       AND p."Name" = stp.program_name
+        ON p."Id" = pg_temp.seed_uuid('program:' || stp.program_name)
     WHERE tp."ProgramId" = p."Id"
+      AND tp."BranchId" = branch_id
       AND tp."Name" = stp.name;
 
     INSERT INTO public."TuitionPlans"
@@ -290,13 +306,13 @@ BEGIN
         now_utc
     FROM seed_tuition_plans AS stp
     INNER JOIN public."Programs" AS p
-        ON p."BranchId" = branch_id
-       AND p."Name" = stp.program_name
+        ON p."Id" = pg_temp.seed_uuid('program:' || stp.program_name)
     WHERE NOT EXISTS
     (
         SELECT 1
         FROM public."TuitionPlans" AS tp
         WHERE tp."ProgramId" = p."Id"
+          AND tp."BranchId" = branch_id
           AND tp."Name" = stp.name
     );
 
@@ -317,9 +333,9 @@ BEGIN
         "UpdatedAt" = now_utc
     FROM seed_classes AS sc
     INNER JOIN public."Programs" AS p
-        ON p."BranchId" = branch_id
-       AND p."Name" = sc.program_name
-    WHERE c."Code" = pg_temp.required_code(sc.title, 'C', 50);
+        ON p."Id" = pg_temp.seed_uuid('program:' || sc.program_name)
+    WHERE c."BranchId" = branch_id
+      AND c."Code" = pg_temp.required_code(sc.title, 'C', 50);
 
     INSERT INTO public."Classes"
     (
@@ -359,13 +375,13 @@ BEGIN
         now_utc
     FROM seed_classes AS sc
     INNER JOIN public."Programs" AS p
-        ON p."BranchId" = branch_id
-       AND p."Name" = sc.program_name
+        ON p."Id" = pg_temp.seed_uuid('program:' || sc.program_name)
     WHERE NOT EXISTS
     (
         SELECT 1
         FROM public."Classes" AS c
-        WHERE c."Code" = pg_temp.required_code(sc.title, 'C', 50)
+        WHERE c."BranchId" = branch_id
+          AND c."Code" = pg_temp.required_code(sc.title, 'C', 50)
     );
 
     RAISE NOTICE 'Rex reference data import completed for branch id %.', branch_id;

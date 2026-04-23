@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,16 +14,13 @@ public sealed class GetProgramsQueryHandler(
     public async Task<Result<GetProgramsResponse>> Handle(GetProgramsQuery query, CancellationToken cancellationToken)
     {
         var programsQuery = context.Programs
-            .Include(p => p.Branch)
             .Where(p => !p.IsDeleted);
 
-        // Filter by branch
         if (query.BranchId.HasValue)
         {
-            programsQuery = programsQuery.Where(p => p.BranchId == query.BranchId.Value);
+            programsQuery = BranchProgramAccessHelper.FilterProgramsByBranch(programsQuery, query.BranchId.Value);
         }
 
-        // Filter by search term
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
             programsQuery = programsQuery.Where(p =>
@@ -31,53 +29,62 @@ public sealed class GetProgramsQueryHandler(
                 (p.Description != null && p.Description.Contains(query.SearchTerm)));
         }
 
-        // Filter by IsActive
         if (query.IsActive.HasValue)
         {
             programsQuery = programsQuery.Where(p => p.IsActive == query.IsActive.Value);
         }
-        
-        // Filter by IsMakeup
+
         if (query.IsMakeup.HasValue)
         {
             programsQuery = programsQuery.Where(p => p.IsMakeup == query.IsMakeup.Value);
         }
 
-        // Get total count
         int totalCount = await programsQuery.CountAsync(cancellationToken);
+        var branchId = query.BranchId;
 
-        // Apply pagination
-        // Sắp xếp theo CreatedAt descending để Program mới tạo nằm đầu danh sách
         var programs = await programsQuery
             .OrderByDescending(p => p.CreatedAt)
-            .ThenBy(p => p.Name) // Nếu có nhiều Program cùng thời điểm, sắp xếp theo tên
+            .ThenBy(p => p.Name)
             .ApplyPagination(query.PageNumber, query.PageSize)
             .Select(p => new ProgramDto
             {
                 Id = p.Id,
-                BranchId = p.BranchId,
-                BranchName = p.Branch.Name,
                 Name = p.Name,
                 Code = p.Code,
                 IsMakeup = p.IsMakeup,
                 IsSupplementary = p.IsSupplementary,
-                DefaultMakeupClassId = p.DefaultMakeupClassId,
                 DefaultTuitionAmount = p.TuitionPlans
-                    .Where(tp => tp.IsActive && !tp.IsDeleted)
+                    .Where(tp => tp.IsActive &&
+                                 !tp.IsDeleted &&
+                                 (!branchId.HasValue ||
+                                  tp.BranchId == null ||
+                                  tp.BranchId == branchId))
                     .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
                 UnitPriceSession = p.TuitionPlans
-                    .Where(tp => tp.IsActive && !tp.IsDeleted)
+                    .Where(tp => tp.IsActive &&
+                                 !tp.IsDeleted &&
+                                 (!branchId.HasValue ||
+                                  tp.BranchId == null ||
+                                  tp.BranchId == branchId))
                     .Select(tp => (decimal?)tp.UnitPriceSession)
                     .Min() ?? 0,
                 Description = p.Description,
                 IsActive = p.IsActive,
                 TotalSessions = p.TuitionPlans
-                    .Where(tp => tp.IsActive && !tp.IsDeleted)
+                    .Where(tp => tp.IsActive &&
+                                 !tp.IsDeleted &&
+                                 (!branchId.HasValue ||
+                                  tp.BranchId == null ||
+                                  tp.BranchId == branchId))
                     .Select(tp => (int?)tp.TotalSessions)
                     .Max() ?? 0,
-                ClassCount = p.Classes.Count(c => c.Status != Domain.Classes.ClassStatus.Cancelled),
+                AssignedBranchCount = p.BranchPrograms.Count(bp => bp.IsActive),
+                ClassCount = p.Classes.Count(c =>
+                    c.Status != Domain.Classes.ClassStatus.Cancelled &&
+                    (!branchId.HasValue || c.BranchId == branchId)),
                 StudentCount = p.Classes
+                    .Where(c => !branchId.HasValue || c.BranchId == branchId)
                     .SelectMany(c => c.ClassEnrollments)
                     .Count(ce => ce.Status == Domain.Classes.EnrollmentStatus.Active)
             })
@@ -95,4 +102,3 @@ public sealed class GetProgramsQueryHandler(
         };
     }
 }
-

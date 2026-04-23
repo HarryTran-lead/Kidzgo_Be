@@ -48,6 +48,10 @@ public static class EnrollmentErrors
         "Enrollment.TuitionPlanProgramMismatch",
         "Tuition plan must belong to the same program as the class");
 
+    public static readonly Error TuitionPlanBranchMismatch = Error.Conflict(
+        "Enrollment.TuitionPlanBranchMismatch",
+        "Tuition plan is not available for the class branch");
+
     public static readonly Error AlreadyActive = Error.Conflict(
         "Enrollment.AlreadyActive",
         "Enrollment is already active");

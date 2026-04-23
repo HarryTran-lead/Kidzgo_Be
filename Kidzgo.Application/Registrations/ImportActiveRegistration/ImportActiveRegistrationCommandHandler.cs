@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
@@ -47,11 +48,25 @@ public sealed class ImportActiveRegistrationCommandHandler(
                 RegistrationErrors.ProgramNotFound(command.ProgramId));
         }
 
+        var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            cancellationToken);
+
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<ImportActiveRegistrationResponse>(
+                RegistrationErrors.ProgramNotAvailableInBranch(command.ProgramId, command.BranchId));
+        }
+
         var tuitionPlan = await context.TuitionPlans
             .FirstOrDefaultAsync(
                 tp => tp.Id == command.TuitionPlanId &&
                       tp.ProgramId == command.ProgramId &&
-                      tp.IsActive,
+                      tp.IsActive &&
+                      !tp.IsDeleted &&
+                      (!tp.BranchId.HasValue || tp.BranchId == command.BranchId),
                 cancellationToken);
 
         if (tuitionPlan == null)

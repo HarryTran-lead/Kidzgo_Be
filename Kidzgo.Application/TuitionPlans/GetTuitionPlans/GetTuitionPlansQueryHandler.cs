@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,9 @@ public sealed class GetTuitionPlansQueryHandler(
         // If branchId is provided, get tuition plans for that branch OR plans with branchId = null (applies to all branches)
         if (query.BranchId.HasValue)
         {
-            tuitionPlansQuery = tuitionPlansQuery.Where(t => t.BranchId == query.BranchId.Value || t.BranchId == null);
+            var branchId = query.BranchId.Value;
+            tuitionPlansQuery = BranchProgramAccessHelper.FilterTuitionPlansForBranch(tuitionPlansQuery, branchId)
+                .Where(t => t.Program.BranchPrograms.Any(bp => bp.BranchId == branchId && bp.IsActive));
         }
 
         // Filter by program

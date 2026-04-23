@@ -9,9 +9,6 @@ public sealed class UpdateProgramCommandValidator : AbstractValidator<UpdateProg
         RuleFor(command => command.Id)
             .NotEmpty().WithMessage("Program ID is required");
 
-        RuleFor(command => command.BranchId)
-            .NotEmpty().WithMessage("Branch ID is required");
-
         RuleFor(command => command.Name)
             .NotEmpty().WithMessage("Program name is required")
             .MaximumLength(255).WithMessage("Program name must not exceed 255 characters");

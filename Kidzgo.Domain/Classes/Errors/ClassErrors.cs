@@ -16,6 +16,10 @@ public static class ClassErrors
         "Class.ProgramNotFound",
         "Program not found, deleted, or inactive");
 
+    public static readonly Error ProgramNotAvailableInBranch = Error.Validation(
+        "Class.ProgramNotAvailableInBranch",
+        "Program is not assigned to the selected branch");
+
     public static readonly Error CodeExists = Error.Conflict(
         "Class.CodeExists",
         "Class code already exists");

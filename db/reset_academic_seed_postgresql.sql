@@ -31,7 +31,13 @@ SELECT
     timezone('UTC', now()) AS now_utc,
     COALESCE(
         (SELECT "BranchId" FROM public."Classes" WHERE "Id" = 'cc509804-5b7d-8005-5ebb-0a21a8300253'::uuid),
-        (SELECT "BranchId" FROM public."Programs" WHERE "Id" = '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid),
+        (
+            SELECT "BranchId"
+            FROM public."BranchPrograms"
+            WHERE "ProgramId" = '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid
+            ORDER BY "CreatedAt" NULLS LAST, "Id"
+            LIMIT 1
+        ),
         (SELECT "BranchId" FROM public."Classrooms" WHERE "Id" = '47399a72-e948-4461-a09a-319ffce9f359'::uuid),
         (SELECT "BranchId" FROM public."Users" WHERE "Id" = 'b3bf97ee-0489-4458-ae8a-4f18e77572fe'::uuid),
         (SELECT "Id" FROM public."Branches" WHERE "IsActive" = TRUE ORDER BY "CreatedAt" NULLS LAST, "Id" LIMIT 1),
@@ -99,6 +105,7 @@ TRUNCATE TABLE
     public."TeachingMaterialViewProgresses",
     public."TeachingMaterialSlides",
     public."TeachingMaterials",
+    public."BranchPrograms",
     public."ProgramLeavePolicies",
     public."ExtracurricularPrograms",
     public."EnrollmentConfirmationPdfs",
@@ -193,7 +200,6 @@ SET
 INSERT INTO public."Programs"
 (
     "Id",
-    "BranchId",
     "Name",
     "Code",
     "Description",
@@ -201,13 +207,11 @@ INSERT INTO public."Programs"
     "IsDeleted",
     "IsMakeup",
     "IsSupplementary",
-    "DefaultMakeupClassId",
     "CreatedAt",
     "UpdatedAt"
 )
 SELECT
     v.id,
-    ctx.branch_id,
     v.name,
     v.code,
     v.description,
@@ -215,7 +219,6 @@ SELECT
     FALSE,
     FALSE,
     v.is_supplementary,
-    NULL,
     ctx.now_utc,
     ctx.now_utc
 FROM seed_context ctx
@@ -235,7 +238,6 @@ CROSS JOIN (
 ) AS v(id, name, code, description, is_supplementary)
 ON CONFLICT ("Id") DO UPDATE
 SET
-    "BranchId" = EXCLUDED."BranchId",
     "Name" = EXCLUDED."Name",
     "Code" = EXCLUDED."Code",
     "Description" = EXCLUDED."Description",
@@ -243,6 +245,44 @@ SET
     "IsDeleted" = FALSE,
     "IsMakeup" = FALSE,
     "IsSupplementary" = EXCLUDED."IsSupplementary",
+    "UpdatedAt" = EXCLUDED."UpdatedAt";
+
+INSERT INTO public."BranchPrograms"
+(
+    "Id",
+    "BranchId",
+    "ProgramId",
+    "IsActive",
+    "DefaultMakeupClassId",
+    "CreatedAt",
+    "UpdatedAt"
+)
+SELECT
+    ('90000000-0000-0000-0000-' || right(replace(v.id::text, '-', ''), 12))::uuid,
+    ctx.branch_id,
+    v.id,
+    TRUE,
+    NULL,
+    ctx.now_utc,
+    ctx.now_utc
+FROM seed_context ctx
+CROSS JOIN (
+    VALUES
+        ('5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid),
+        ('11111111-1111-1111-1111-111111111201'::uuid),
+        ('11111111-1111-1111-1111-111111111202'::uuid),
+        ('11111111-1111-1111-1111-111111111204'::uuid),
+        ('11111111-1111-1111-1111-111111111205'::uuid),
+        ('11111111-1111-1111-1111-111111111206'::uuid),
+        ('11111111-1111-1111-1111-111111111207'::uuid),
+        ('11111111-1111-1111-1111-111111111208'::uuid),
+        ('11111111-1111-1111-1111-111111111209'::uuid),
+        ('11111111-1111-1111-1111-111111111210'::uuid),
+        ('11111111-1111-1111-1111-111111111211'::uuid)
+) AS v(id)
+ON CONFLICT ("BranchId", "ProgramId") DO UPDATE
+SET
+    "IsActive" = TRUE,
     "DefaultMakeupClassId" = NULL,
     "UpdatedAt" = EXCLUDED."UpdatedAt";
 

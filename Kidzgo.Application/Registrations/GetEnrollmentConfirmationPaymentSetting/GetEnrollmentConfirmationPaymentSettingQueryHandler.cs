@@ -47,6 +47,8 @@ public sealed class GetEnrollmentConfirmationPaymentSettingQueryHandler(
         {
             return new GetEnrollmentConfirmationPaymentSettingResponse
             {
+                NewStudentPolicyLines = EnrollmentConfirmationPolicyContent.GetNewStudentPolicyLines(null),
+                ReservationPolicyLines = EnrollmentConfirmationPolicyContent.GetReservationPolicyLines(null),
                 IsActive = false
             };
         }
@@ -64,6 +66,8 @@ public sealed class GetEnrollmentConfirmationPaymentSettingQueryHandler(
             BankBin = setting.BankBin,
             VietQrTemplate = setting.VietQrTemplate,
             LogoUrl = setting.LogoUrl,
+            NewStudentPolicyLines = EnrollmentConfirmationPolicyContent.GetNewStudentPolicyLines(setting.NewStudentPolicyText),
+            ReservationPolicyLines = EnrollmentConfirmationPolicyContent.GetReservationPolicyLines(setting.ReservationPolicyText),
             QrPreviewUrl = EnrollmentConfirmationPaymentQrBuilder.BuildVietQrUrl(
                 setting.BankBin,
                 setting.BankCode,

@@ -6,9 +6,6 @@ public sealed class CreateProgramCommandValidator : AbstractValidator<CreateProg
 {
     public CreateProgramCommandValidator()
     {
-        RuleFor(command => command.BranchId)
-            .NotEmpty().WithMessage("Branch ID is required");
-
         RuleFor(command => command.Name)
             .NotEmpty().WithMessage("Program name is required")
             .MaximumLength(255).WithMessage("Program name must not exceed 255 characters");

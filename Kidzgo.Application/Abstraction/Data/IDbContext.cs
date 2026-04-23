@@ -5,6 +5,7 @@ using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.CRM;
 using Kidzgo.Domain.Exams;
 using Kidzgo.Domain.Finance;
+using Kidzgo.Domain.Faqs;
 using Kidzgo.Domain.Gamification;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.Media;
@@ -88,6 +89,8 @@ public interface IDbContext
     // Media
     DbSet<MediaAsset> MediaAssets { get; }
     DbSet<Blog> Blogs { get; }
+    DbSet<FaqCategory> FaqCategories { get; }
+    DbSet<FaqItem> FaqItems { get; }
 
     // Notifications
     DbSet<Notification> Notifications { get; }
@@ -106,6 +109,7 @@ public interface IDbContext
 
     // Programs
     DbSet<Program> Programs { get; }
+    DbSet<BranchProgram> BranchPrograms { get; }
     DbSet<ExtracurricularProgram> ExtracurricularPrograms { get; }
     DbSet<ProgramLeavePolicy> ProgramLeavePolicies { get; }
     DbSet<TuitionPlan> TuitionPlans { get; }

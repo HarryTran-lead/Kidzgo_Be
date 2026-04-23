@@ -1,5 +1,6 @@
 using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
+using Kidzgo.Application.Programs.AssignProgramToBranch;
 using Kidzgo.Application.Programs.CreateProgram;
 using Kidzgo.Application.Programs.DeleteProgram;
 using Kidzgo.Application.Programs.GetProgramById;
@@ -32,7 +33,6 @@ public class ProgramController : ControllerBase
     {
         var command = new CreateProgramCommand
         {
-            BranchId = request.BranchId,
             Name = request.Name,
             Code = request.Code,
             IsMakeup = request.IsMakeup,
@@ -119,7 +119,6 @@ public class ProgramController : ControllerBase
         var command = new UpdateProgramCommand
         {
             Id = id,
-            BranchId = request.BranchId,
             Name = request.Name,
             Code = request.Code,
             IsMakeup = request.IsMakeup,
@@ -128,6 +127,23 @@ public class ProgramController : ControllerBase
 
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/branches/{branchId:guid}")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> AssignProgramToBranch(
+        Guid id,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var command = new AssignProgramToBranchCommand
+        {
+            ProgramId = id,
+            BranchId = branchId
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchCreated(p => $"/api/programs/{p.ProgramId}/branches/{p.BranchId}");
     }
 
     /// UC-043: Xóa mềm Program

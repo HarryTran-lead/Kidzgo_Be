@@ -13,17 +13,13 @@ public sealed class GetProgramByIdQueryHandler(
     public async Task<Result<GetProgramByIdResponse>> Handle(GetProgramByIdQuery query, CancellationToken cancellationToken)
     {
         var program = await context.Programs
-            .Include(p => p.Branch)
             .Where(p => p.Id == query.Id && !p.IsDeleted)
-            .Select(p => new GetProgramByIdResponse
+            .Select(p => new
             {
                 Id = p.Id,
-                BranchId = p.BranchId,
-                BranchName = p.Branch.Name,
                 Name = p.Name,
                 IsMakeup = p.IsMakeup,
                 IsSupplementary = p.IsSupplementary,
-                DefaultMakeupClassId = p.DefaultMakeupClassId,
                 Code = p.Code,
                 DefaultTuitionAmount = p.TuitionPlans
                     .Where(tp => tp.IsActive && !tp.IsDeleted)
@@ -51,7 +47,33 @@ public sealed class GetProgramByIdQueryHandler(
             return Result.Failure<GetProgramByIdResponse>(ProgramErrors.NotFound(query.Id));
         }
 
-        return program;
+        var branchAssignments = await context.BranchPrograms
+            .Where(bp => bp.ProgramId == program.Id && bp.IsActive)
+            .OrderBy(bp => bp.Branch.Name)
+            .Select(bp => new ProgramBranchAssignmentDto
+            {
+                BranchId = bp.BranchId,
+                BranchName = bp.Branch.Name,
+                IsActive = bp.IsActive,
+                DefaultMakeupClassId = bp.DefaultMakeupClassId
+            })
+            .ToListAsync(cancellationToken);
+
+        return new GetProgramByIdResponse
+        {
+            Id = program.Id,
+            Name = program.Name,
+            Code = program.Code,
+            IsMakeup = program.IsMakeup,
+            IsSupplementary = program.IsSupplementary,
+            DefaultTuitionAmount = program.DefaultTuitionAmount,
+            UnitPriceSession = program.UnitPriceSession,
+            Description = program.Description,
+            IsActive = program.IsActive,
+            TotalSessions = program.TotalSessions,
+            BranchAssignments = branchAssignments,
+            ClassCount = program.ClassCount,
+            StudentCount = program.StudentCount
+        };
     }
 }
-

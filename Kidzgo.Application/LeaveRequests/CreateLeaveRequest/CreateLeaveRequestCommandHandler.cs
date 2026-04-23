@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
@@ -181,7 +182,10 @@ public sealed class CreateLeaveRequestCommandHandler(
                     };
                     context.MakeupCredits.Add(credit);
 
-                    var defaultMakeupClassId = await GetDefaultMakeupClassIdAsync(context, classInfo.BranchId, cancellationToken);
+                    var defaultMakeupClassId = await BranchProgramAccessHelper.GetDefaultMakeupClassIdAsync(
+                        context,
+                        classInfo.BranchId,
+                        cancellationToken);
                     await ScheduleMakeupSessionAsync(context, credit, classInfo, session, defaultMakeupClassId, cancellationToken);
                 }
 
@@ -398,16 +402,5 @@ public sealed class CreateLeaveRequestCommandHandler(
                  pendingCreditIds.Contains(a.MakeupCreditId));
     }
 
-    private static async Task<Guid?> GetDefaultMakeupClassIdAsync(
-        IDbContext context,
-        Guid branchId,
-        CancellationToken cancellationToken)
-    {
-        return await context.Programs
-            .Where(p => p.BranchId == branchId && p.IsMakeup && p.DefaultMakeupClassId != null)
-            .OrderByDescending(p => p.UpdatedAt)
-            .Select(p => p.DefaultMakeupClassId)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
 }
 

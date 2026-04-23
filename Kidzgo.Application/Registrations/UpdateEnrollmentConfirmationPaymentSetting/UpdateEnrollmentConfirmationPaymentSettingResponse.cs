@@ -12,6 +12,8 @@ public sealed class UpdateEnrollmentConfirmationPaymentSettingResponse
     public string? BankBin { get; init; }
     public string VietQrTemplate { get; init; } = "compact2";
     public string? LogoUrl { get; init; }
+    public List<string> NewStudentPolicyLines { get; init; } = new();
+    public List<string> ReservationPolicyLines { get; init; } = new();
     public string? QrPreviewUrl { get; init; }
     public bool IsActive { get; init; }
     public DateTime CreatedAt { get; init; }

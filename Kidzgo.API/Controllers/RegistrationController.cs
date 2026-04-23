@@ -292,6 +292,8 @@ public class RegistrationController : ControllerBase
             BankBin = request.BankBin,
             VietQrTemplate = request.VietQrTemplate,
             LogoUrl = request.LogoUrl,
+            NewStudentPolicyLines = request.NewStudentPolicyLines,
+            ReservationPolicyLines = request.ReservationPolicyLines,
             IsActive = request.IsActive
         };
 

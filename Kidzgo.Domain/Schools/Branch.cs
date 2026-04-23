@@ -37,5 +37,6 @@ public class Branch : Entity
     public ICollection<Contract> Contracts { get; set; } = new List<Contract>();
     public ICollection<PayrollRun> PayrollRuns { get; set; } = new List<PayrollRun>();
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<BranchProgram> BranchPrograms { get; set; } = new List<BranchProgram>();
     public ICollection<TuitionPlan> TuitionPlans { get; set; } = new List<TuitionPlan>();
 }

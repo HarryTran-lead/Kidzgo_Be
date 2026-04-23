@@ -14,5 +14,7 @@ public sealed class UpdateEnrollmentConfirmationPaymentSettingCommand
     public string? BankBin { get; init; }
     public string? VietQrTemplate { get; init; }
     public string? LogoUrl { get; init; }
+    public List<string>? NewStudentPolicyLines { get; init; }
+    public List<string>? ReservationPolicyLines { get; init; }
     public bool IsActive { get; init; } = true;
 }

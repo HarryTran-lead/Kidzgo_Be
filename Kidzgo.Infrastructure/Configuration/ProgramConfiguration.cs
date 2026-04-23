@@ -13,9 +13,6 @@ public class ProgramConfiguration : IEntityTypeConfiguration<Program>
         builder.Property(x => x.Id)
             .IsRequired();
 
-        builder.Property(x => x.BranchId)
-            .IsRequired();
-
         builder.Property(x => x.Name)
             .HasMaxLength(255)
             .IsRequired();
@@ -43,22 +40,15 @@ public class ProgramConfiguration : IEntityTypeConfiguration<Program>
         builder.Property(x => x.IsSupplementary)
             .IsRequired();
 
-        builder.Property(x => x.DefaultMakeupClassId);
-
         // Relationships
-        builder.HasOne(x => x.Branch)
-            .WithMany()
-            .HasForeignKey(x => x.BranchId)
+        builder.HasMany(x => x.BranchPrograms)
+            .WithOne(x => x.Program)
+            .HasForeignKey(x => x.ProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.Classes)
             .WithOne(x => x.Program)
             .HasForeignKey(x => x.ProgramId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(x => x.DefaultMakeupClass)
-            .WithMany()
-            .HasForeignKey(x => x.DefaultMakeupClassId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.TuitionPlans)

@@ -1,5 +1,6 @@
 using Kidzgo.Domain.Schools;
 using Kidzgo.Domain.CRM;
+using Kidzgo.Domain.Programs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -54,6 +55,11 @@ public class BranchConfiguration : IEntityTypeConfiguration<Branch>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Classes)
+            .WithOne(x => x.Branch)
+            .HasForeignKey(x => x.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.BranchPrograms)
             .WithOne(x => x.Branch)
             .HasForeignKey(x => x.BranchId)
             .OnDelete(DeleteBehavior.Restrict);

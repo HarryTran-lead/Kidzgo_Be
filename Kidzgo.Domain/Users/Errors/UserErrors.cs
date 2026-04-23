@@ -81,4 +81,12 @@ public static class UserErrors
     public static readonly Error PhoneNumberNotUnique = Error.Conflict(
         "Users.PhoneNumberNotUnique",
         "The provided phone number is already in use");
+
+    public static readonly Error HasActiveAssignments = Error.Conflict(
+        "Users.HasActiveAssignments",
+        "Cannot deactivate, delete, or change role while the user has active assignments");
+
+    public static readonly Error BranchInactive = Error.Conflict(
+        "Users.BranchInactive",
+        "User cannot be assigned to an inactive branch");
 }

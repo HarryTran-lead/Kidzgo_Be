@@ -35,9 +35,13 @@ public sealed class CreateEnrollmentCommandHandler(
                 EnrollmentErrors.ClassNotAvailable);
         }
 
-        // Check if student profile exists and is a student
         var studentProfile = await context.Profiles
-            .FirstOrDefaultAsync(p => p.Id == command.StudentProfileId && p.ProfileType == Domain.Users.ProfileType.Student, cancellationToken);
+            .FirstOrDefaultAsync(
+                p => p.Id == command.StudentProfileId &&
+                     p.ProfileType == Domain.Users.ProfileType.Student &&
+                     p.IsActive &&
+                     !p.IsDeleted,
+                cancellationToken);
 
         if (studentProfile is null)
         {
@@ -45,11 +49,11 @@ public sealed class CreateEnrollmentCommandHandler(
                 EnrollmentErrors.StudentNotFound);
         }
 
-        // Check if student is already enrolled in this class with Active status
         bool alreadyEnrolled = await context.ClassEnrollments
             .AnyAsync(ce => ce.ClassId == command.ClassId 
                 && ce.StudentProfileId == command.StudentProfileId 
-                && ce.Status == EnrollmentStatus.Active, cancellationToken);
+                && (ce.Status == EnrollmentStatus.Active || ce.Status == EnrollmentStatus.Paused),
+                cancellationToken);
 
         if (alreadyEnrolled)
         {

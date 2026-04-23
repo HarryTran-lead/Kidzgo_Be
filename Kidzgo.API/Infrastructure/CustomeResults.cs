@@ -11,6 +11,25 @@ public static class CustomResults
             throw new InvalidOperationException();
         }
 
+        if (result.Error is StatusChangeBlockedError statusChangeBlockedError)
+        {
+            return Results.Json(
+                new
+                {
+                    success = false,
+                    code = statusChangeBlockedError.Code,
+                    message = statusChangeBlockedError.Description,
+                    details = new
+                    {
+                        entity = statusChangeBlockedError.Entity,
+                        entityId = statusChangeBlockedError.EntityId,
+                        reasons = statusChangeBlockedError.Reasons,
+                        counts = statusChangeBlockedError.Counts
+                    }
+                },
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
         return Results.Problem(
             title: GetTitle(result.Error),
             detail: GetDetail(result.Error),

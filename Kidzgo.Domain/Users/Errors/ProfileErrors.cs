@@ -79,5 +79,17 @@ public static class ProfileErrors
     public static readonly Error TeacherMustUseScopedStudentApis = Error.Validation(
         "Profile.TeacherMustUseScopedStudentApis",
         "Teacher cannot use this profile listing endpoint. Use teacher-scoped student APIs instead.");
+
+    public static readonly Error HasActiveEnrollments = Error.Conflict(
+        "Profile.HasActiveEnrollments",
+        "Cannot deactivate or delete a student profile with active or paused enrollments");
+
+    public static readonly Error HasFutureSessions = Error.Conflict(
+        "Profile.HasFutureSessions",
+        "Cannot deactivate or delete a student profile with future assigned sessions");
+
+    public static readonly Error HasActiveStudentLinks = Error.Conflict(
+        "Profile.HasActiveStudentLinks",
+        "Cannot deactivate or delete a parent profile with active student links");
 }
 

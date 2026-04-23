@@ -22,14 +22,24 @@ public sealed class DeleteExamCommandHandler(
                 ExamErrors.NotFound(command.Id));
         }
 
-        // Delete exam results first
-        var examResults = await context.ExamResults
-            .Where(er => er.ExamId == exam.Id)
-            .ToListAsync(cancellationToken);
+        bool hasSubmissions = await context.ExamSubmissions
+            .AnyAsync(s => s.ExamId == exam.Id, cancellationToken);
 
-        context.ExamResults.RemoveRange(examResults);
+        if (hasSubmissions)
+        {
+            return Result.Failure<DeleteExamResponse>(
+                ExamErrors.HasSubmissions);
+        }
 
-        // Delete exam
+        bool hasResults = await context.ExamResults
+            .AnyAsync(er => er.ExamId == exam.Id, cancellationToken);
+
+        if (hasResults)
+        {
+            return Result.Failure<DeleteExamResponse>(
+                ExamErrors.HasResults);
+        }
+
         context.Exams.Remove(exam);
 
         await context.SaveChangesAsync(cancellationToken);

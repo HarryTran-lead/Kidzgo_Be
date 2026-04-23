@@ -28,6 +28,10 @@ public static class HomeworkErrors
         "Homework.CannotUpdate",
         "Cannot update homework assignment that has submitted or graded submissions");
 
+    public static readonly Error CannotDeleteWithStudentWork = Error.Conflict(
+        "Homework.CannotDeleteWithStudentWork",
+        "Cannot delete homework assignment with started, submitted, graded, late, or missing student work");
+
     public static Error Unauthorized(Guid? homeworkId) => Error.Validation(
         "Homework.Unauthorized",
         $"You do not have permission to access homework assignment with Id = '{homeworkId}'");

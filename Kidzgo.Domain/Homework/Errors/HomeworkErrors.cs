@@ -179,6 +179,10 @@ public static class HomeworkErrors
         "Homework.ProgramNotFound",
         $"Program with Id = '{programId}' was not found");
 
+    public static Error QuestionBankItemNotFound(Guid? questionBankItemId) => Error.NotFound(
+        "Homework.QuestionBankItemNotFound",
+        $"Question bank item with Id = '{questionBankItemId}' was not found");
+
     public static readonly Error InvalidQuestionDistribution = Error.Validation(
         "Homework.InvalidQuestionDistribution",
         "Question distribution must have at least one level with count > 0");

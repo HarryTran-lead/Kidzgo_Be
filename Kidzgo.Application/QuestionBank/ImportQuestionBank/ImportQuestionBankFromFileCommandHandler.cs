@@ -29,7 +29,7 @@ public sealed class ImportQuestionBankFromFileCommandHandler(
     {
         var extension = Path.GetExtension(command.FileName).ToLowerInvariant();
         var programExists = await context.Programs
-            .AnyAsync(p => p.Id == command.ProgramId, cancellationToken);
+            .AnyAsync(p => p.Id == command.ProgramId && !p.IsDeleted, cancellationToken);
 
         if (!programExists)
         {

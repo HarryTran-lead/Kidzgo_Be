@@ -18,4 +18,5 @@ public sealed class QuestionBankItemDto
     public List<string> VocabularyTags { get; init; } = new();
     public QuestionLevel Level { get; init; }
     public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
 }

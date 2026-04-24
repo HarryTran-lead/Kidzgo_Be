@@ -13,6 +13,9 @@ public class QuestionBankItem : Entity
     public string? CorrectAnswer { get; set; } // Correct answer (for multiple choice: option text, legacy data may store option index)
     public int Points { get; set; }
     public string? Explanation { get; set; }
+    public string? ImageUrls { get; set; }
+    public string? VideoUrls { get; set; }
+    public string? AudioUrls { get; set; }
     public string? Topic { get; set; }
     public string? Skill { get; set; }
     public string? GrammarTags { get; set; }

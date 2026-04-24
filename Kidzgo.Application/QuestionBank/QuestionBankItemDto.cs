@@ -12,6 +12,9 @@ public sealed class QuestionBankItemDto
     public string? CorrectAnswer { get; init; }
     public int Points { get; init; }
     public string? Explanation { get; init; }
+    public List<string> ImageUrls { get; init; } = new();
+    public List<string> VideoUrls { get; init; } = new();
+    public List<string> AudioUrls { get; init; } = new();
     public string? Topic { get; init; }
     public string? Skill { get; init; }
     public List<string> GrammarTags { get; init; } = new();

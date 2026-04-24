@@ -34,6 +34,15 @@ public class QuestionBankItemConfiguration : IEntityTypeConfiguration<QuestionBa
 
         builder.Property(x => x.Explanation);
 
+        builder.Property(x => x.ImageUrls)
+            .HasColumnType("jsonb");
+
+        builder.Property(x => x.VideoUrls)
+            .HasColumnType("jsonb");
+
+        builder.Property(x => x.AudioUrls)
+            .HasColumnType("jsonb");
+
         builder.Property(x => x.Topic)
             .HasMaxLength(100);
 

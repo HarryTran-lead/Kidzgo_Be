@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Tickets.Notifications;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Tickets;
 using Kidzgo.Domain.Tickets.Errors;
@@ -10,7 +11,8 @@ namespace Kidzgo.Application.Tickets.CreateTicket;
 
 public sealed class CreateTicketCommandHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ITemplateRenderer templateRenderer
 ) : ICommandHandler<CreateTicketCommand, CreateTicketResponse>
 {
     public async Task<Result<CreateTicketResponse>> Handle(CreateTicketCommand command, CancellationToken cancellationToken)
@@ -128,6 +130,26 @@ public sealed class CreateTicketCommandHandler(
 
         context.Tickets.Add(ticket);
         await context.SaveChangesAsync(cancellationToken);
+
+        if (ticket.AssignedToUserId.HasValue)
+        {
+            var assignedUser = await context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == ticket.AssignedToUserId.Value, cancellationToken);
+
+            if (assignedUser is not null)
+            {
+                await TicketNotificationHelper.NotifyAssignedSupportAsync(
+                    context,
+                    templateRenderer,
+                    ticket,
+                    assignedUser.Id,
+                    assignedUser.Role.ToString(),
+                    user.Role.ToString(),
+                    user.Name ?? "System",
+                    cancellationToken);
+            }
+        }
 
         // Query ticket with navigation properties for response
         var ticketWithNav = await context.Tickets

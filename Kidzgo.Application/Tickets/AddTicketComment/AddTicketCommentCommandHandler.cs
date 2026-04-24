@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Tickets.Notifications;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Tickets;
 using Kidzgo.Domain.Tickets.Errors;
@@ -10,7 +11,8 @@ namespace Kidzgo.Application.Tickets.AddTicketComment;
 
 public sealed class AddTicketCommentCommandHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ITemplateRenderer templateRenderer
 ) : ICommandHandler<AddTicketCommentCommand, AddTicketCommentResponse>
 {
     public async Task<Result<AddTicketCommentResponse>> Handle(AddTicketCommentCommand command, CancellationToken cancellationToken)
@@ -80,6 +82,22 @@ public sealed class AddTicketCommentCommandHandler(
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        var isSupportReply = user.Role is Domain.Users.UserRole.ManagementStaff or
+            Domain.Users.UserRole.Teacher or
+            Domain.Users.UserRole.Admin;
+
+        if (isSupportReply && ticket.OpenedByUserId != commenterUserId)
+        {
+            await TicketNotificationHelper.NotifyRequesterReplyAsync(
+                context,
+                templateRenderer,
+                ticket,
+                user.Role.ToString(),
+                user.Name ?? "System",
+                comment.Message,
+                cancellationToken);
+        }
 
         // Query comment with navigation properties for response
         var commentWithNav = await context.TicketComments

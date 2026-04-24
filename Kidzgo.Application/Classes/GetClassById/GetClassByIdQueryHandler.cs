@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +45,14 @@ public sealed class GetClassByIdQueryHandler(
                      s.Status == Domain.Sessions.SessionStatus.Completed,
                 cancellationToken);
 
+        var effectiveWeeklyScheduleJson = SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+            classEntity.WeeklyScheduleJson,
+            classEntity.ScheduleSegments.Select(segment => new WeeklyScheduleSegmentWindow(
+                segment.EffectiveFrom,
+                segment.EffectiveTo,
+                segment.WeeklyScheduleJson)),
+            VietnamTime.TodayDateOnly());
+
         return new GetClassByIdResponse
         {
             Id = classEntity.Id,
@@ -65,9 +74,9 @@ public sealed class GetClassByIdQueryHandler(
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
             CurrentEnrollmentCount = currentEnrollmentCount,
-            WeeklyScheduleSlots = classEntity.WeeklyScheduleJson is null
+            WeeklyScheduleSlots = effectiveWeeklyScheduleJson is null
                 ? []
-                : ParseSlots(classEntity.WeeklyScheduleJson),
+                : ParseSlots(effectiveWeeklyScheduleJson),
             TeacherIds = new[] { classEntity.MainTeacherId, classEntity.AssistantTeacherId }
                 .Where(x => x.HasValue)
                 .Select(x => x!.Value)

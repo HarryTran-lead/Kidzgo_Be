@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -115,16 +116,43 @@ public sealed class GetClassesQueryHandler(
             .ToListAsync(cancellationToken);
 
         var weeklyScheduleByClassId = classWeeklySchedules.ToDictionary(item => item.Id, item => item.WeeklyScheduleJson);
+        var pagedClassIds = classWeeklySchedules.Select(item => item.Id).ToList();
+        var scheduleSegments = await context.ClassScheduleSegments
+            .AsNoTracking()
+            .Where(segment => pagedClassIds.Contains(segment.ClassId))
+            .OrderBy(segment => segment.EffectiveFrom)
+            .ToListAsync(cancellationToken);
+        var scheduleSegmentsByClassId = scheduleSegments
+            .GroupBy(segment => segment.ClassId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(segment => new WeeklyScheduleSegmentWindow(
+                        segment.EffectiveFrom,
+                        segment.EffectiveTo,
+                        segment.WeeklyScheduleJson))
+                    .ToList());
+        var today = VietnamTime.TodayDateOnly();
 
         foreach (var classDto in classes)
         {
             if (!weeklyScheduleByClassId.TryGetValue(classDto.Id, out var weeklyScheduleJson) ||
-                string.IsNullOrWhiteSpace(weeklyScheduleJson))
+                (string.IsNullOrWhiteSpace(weeklyScheduleJson) &&
+                 !scheduleSegmentsByClassId.ContainsKey(classDto.Id)))
             {
                 continue;
             }
 
-            var parseResult = schedulePatternParser.ParseScheduleSlots(weeklyScheduleJson);
+            scheduleSegmentsByClassId.TryGetValue(classDto.Id, out var segmentWindows);
+            var effectiveWeeklyScheduleJson = SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+                weeklyScheduleJson,
+                segmentWindows ?? [],
+                today);
+            if (string.IsNullOrWhiteSpace(effectiveWeeklyScheduleJson))
+            {
+                continue;
+            }
+
+            var parseResult = schedulePatternParser.ParseScheduleSlots(effectiveWeeklyScheduleJson);
             if (parseResult.IsSuccess)
             {
                 classDto.WeeklyScheduleSlots.AddRange(parseResult.Value);

@@ -275,6 +275,11 @@ public sealed class UpdateClassCommandHandler(
         classEntity.WeeklyScheduleJson = normalizedWeeklyScheduleJson;
         classEntity.Description = command.Description;
         classEntity.UpdatedAt = VietnamTime.UtcNow();
+        classEntity.Status = ResolveLifecycleStatus(
+            classEntity.Status,
+            classEntity.StartDate,
+            classEntity.EndDate,
+            VietnamTime.ToVietnamDateOnly(classEntity.UpdatedAt));
 
         await context.SaveChangesAsync(cancellationToken);
 
@@ -327,6 +332,27 @@ public sealed class UpdateClassCommandHandler(
 
         var parseResult = patternParser.ParseScheduleSlots(weeklyScheduleJson);
         return parseResult.IsSuccess ? parseResult.Value : [];
+    }
+
+    private static ClassStatus ResolveLifecycleStatus(
+        ClassStatus currentStatus,
+        DateOnly startDate,
+        DateOnly? endDate,
+        DateOnly today)
+    {
+        if (currentStatus is ClassStatus.Closed or ClassStatus.Completed or ClassStatus.Cancelled or ClassStatus.Suspended)
+        {
+            return currentStatus;
+        }
+
+        if (startDate <= today)
+        {
+            return currentStatus == ClassStatus.Full
+                ? ClassStatus.Full
+                : ClassStatus.Active;
+        }
+
+        return ClassStatus.Planned;
     }
 }
 

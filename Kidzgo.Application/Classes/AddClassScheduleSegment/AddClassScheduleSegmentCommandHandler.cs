@@ -113,6 +113,7 @@ public sealed class AddClassScheduleSegmentCommandHandler(
         }
 
         var now = VietnamTime.UtcNow();
+        var today = VietnamTime.TodayDateOnly();
         if (existingSegments.Count == 0 && command.EffectiveFrom > classEntity.StartDate)
         {
             if (string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
@@ -156,10 +157,19 @@ public sealed class AddClassScheduleSegmentCommandHandler(
             UpdatedAt = now
         };
 
+        var shouldUpdateCurrentWeeklySchedule =
+            command.EffectiveFrom <= today ||
+            command.EffectiveFrom == classEntity.StartDate;
+
         context.ClassScheduleSegments.Add(newSegment);
-        classEntity.WeeklyScheduleJson = normalizedWeeklyScheduleJson;
+        if (shouldUpdateCurrentWeeklySchedule)
+        {
+            classEntity.WeeklyScheduleJson = normalizedWeeklyScheduleJson;
+        }
+
         classEntity.UpdatedAt = now;
 
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         var generatedSessionsCount = 0;
@@ -171,11 +181,14 @@ public sealed class AddClassScheduleSegmentCommandHandler(
                 cancellationToken);
             if (generateResult.IsFailure)
             {
+                await transaction.RollbackAsync(cancellationToken);
                 return Result.Failure<AddClassScheduleSegmentResponse>(generateResult.Error);
             }
 
             generatedSessionsCount = generateResult.Value;
         }
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AddClassScheduleSegmentResponse
         {

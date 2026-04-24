@@ -102,6 +102,28 @@ internal static class SchedulePatternSupport
         return Result.Success<string?>(SerializeStructuredPattern(slotsResult.Value));
     }
 
+    public static Result<string?> NormalizeWeeklyPatternJson(
+        IReadOnlyCollection<WeeklyPatternEntry>? weeklyPattern,
+        bool requireValue)
+    {
+        if (weeklyPattern is not { Count: > 0 })
+        {
+            return requireValue
+                ? Result.Failure<string?>(Error.Validation(
+                    "WeeklyPattern.Empty",
+                    "Weekly pattern cannot be empty"))
+                : Result.Success<string?>(null);
+        }
+
+        var patternResult = NormalizeWeeklyPatternEntries(weeklyPattern);
+        if (patternResult.IsFailure)
+        {
+            return Result.Failure<string?>(patternResult.Error);
+        }
+
+        return Result.Success<string?>(SerializeWeeklyPattern(patternResult.Value));
+    }
+
     public static Result<List<ScheduleSlot>> ParseScheduleSlots(string schedulePattern)
     {
         if (string.IsNullOrWhiteSpace(schedulePattern))
@@ -133,6 +155,24 @@ internal static class SchedulePatternSupport
         return string.Join(
             ", ",
             slotResult.Value.Select(BuildSlotDisplayText));
+    }
+
+    public static Result<List<WeeklyPatternEntry>> ParseWeeklyPattern(string schedulePattern)
+    {
+        if (string.IsNullOrWhiteSpace(schedulePattern))
+        {
+            return Result.Failure<List<WeeklyPatternEntry>>(Error.Validation(
+                "WeeklyPattern.Empty",
+                "Weekly pattern cannot be empty"));
+        }
+
+        var slotResult = ParseScheduleSlots(schedulePattern);
+        if (slotResult.IsFailure)
+        {
+            return Result.Failure<List<WeeklyPatternEntry>>(slotResult.Error);
+        }
+
+        return Result.Success(GroupSlotsToWeeklyPattern(slotResult.Value));
     }
 
     public static string? BuildDisplayText(IReadOnlyCollection<ScheduleSlot>? slots)
@@ -170,6 +210,22 @@ internal static class SchedulePatternSupport
     public static string GetDayCode(DateOnly date)
     {
         return DayOfWeekToDayCode[date.DayOfWeek];
+    }
+
+    public static string? ResolveEffectiveWeeklyScheduleJson(
+        string? defaultWeeklyScheduleJson,
+        IEnumerable<WeeklyScheduleSegmentWindow> segments,
+        DateOnly referenceDate)
+    {
+        var matchingSegment = segments
+            .Where(segment => segment.EffectiveFrom <= referenceDate &&
+                              (!segment.EffectiveTo.HasValue || referenceDate <= segment.EffectiveTo.Value))
+            .OrderByDescending(segment => segment.EffectiveFrom)
+            .FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(matchingSegment.WeeklyScheduleJson)
+            ? defaultWeeklyScheduleJson
+            : matchingSegment.WeeklyScheduleJson;
     }
 
     public static DayOfWeek ToDayOfWeek(string dayCode)
@@ -254,6 +310,17 @@ internal static class SchedulePatternSupport
         return JsonSerializer.Serialize(payload, JsonOptions);
     }
 
+    private static string SerializeWeeklyPattern(IReadOnlyCollection<WeeklyPatternEntry> entries)
+    {
+        var payload = new WeeklyPatternPayload
+        {
+            Type = "weekly-pattern",
+            Entries = entries.ToList()
+        };
+
+        return JsonSerializer.Serialize(payload, JsonOptions);
+    }
+
     private static string BuildSlotDisplayText(ScheduleSlot slot)
     {
         var label = DayLabels.TryGetValue(slot.DayOfWeek, out var dayLabel)
@@ -292,6 +359,23 @@ internal static class SchedulePatternSupport
             }
 
             var payload = JsonSerializer.Deserialize<StructuredSchedulePatternPayload>(schedulePattern, JsonOptions);
+            if (payload?.Slots is { Count: > 0 })
+            {
+                return NormalizeSlots(payload.Slots);
+            }
+
+            var weeklyPatternPayload = JsonSerializer.Deserialize<WeeklyPatternPayload>(schedulePattern, JsonOptions);
+            if (weeklyPatternPayload?.Entries is { Count: > 0 })
+            {
+                var weeklyPatternResult = NormalizeWeeklyPatternEntries(weeklyPatternPayload.Entries);
+                if (weeklyPatternResult.IsFailure)
+                {
+                    return Result.Failure<List<ScheduleSlot>>(weeklyPatternResult.Error);
+                }
+
+                return Result.Success(FlattenWeeklyPatternEntries(weeklyPatternResult.Value));
+            }
+
             if (payload?.Slots is null || payload.Slots.Count == 0)
             {
                 return Result.Failure<List<ScheduleSlot>>(Error.Validation(
@@ -307,6 +391,123 @@ internal static class SchedulePatternSupport
                 "SchedulePattern.Invalid",
                 $"Invalid structured schedule pattern: {ex.Message}"));
         }
+    }
+
+    private static Result<List<WeeklyPatternEntry>> NormalizeWeeklyPatternEntries(
+        IEnumerable<WeeklyPatternEntry> entries)
+    {
+        var normalizedEntries = new List<WeeklyPatternEntry>();
+
+        foreach (var entry in entries)
+        {
+            if (entry.DayOfWeeks is not { Count: > 0 })
+            {
+                return Result.Failure<List<WeeklyPatternEntry>>(Error.Validation(
+                    "WeeklyPattern.EmptyDayOfWeeks",
+                    "Each weeklyPattern entry must contain at least one dayOfWeeks value."));
+            }
+
+            if (!TimeOnly.TryParseExact(
+                    entry.StartTime?.Trim(),
+                    ["HH:mm", "H:mm", "HH:mm:ss"],
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var startTime))
+            {
+                return Result.Failure<List<WeeklyPatternEntry>>(Error.Validation(
+                    "WeeklyPattern.InvalidStartTime",
+                    $"Invalid weeklyPattern startTime: '{entry.StartTime}'. Use HH:mm format."));
+            }
+
+            if (entry.DurationMinutes <= 0)
+            {
+                return Result.Failure<List<WeeklyPatternEntry>>(Error.Validation(
+                    "WeeklyPattern.InvalidDuration",
+                    "weeklyPattern durationMinutes must be greater than 0."));
+            }
+
+            var normalizedDays = entry.DayOfWeeks
+                .Select(day => day?.Trim().ToUpperInvariant())
+                .ToList();
+
+            if (normalizedDays.Any(day => string.IsNullOrWhiteSpace(day) || !DayCodeToDayOfWeek.ContainsKey(day)))
+            {
+                return Result.Failure<List<WeeklyPatternEntry>>(Error.Validation(
+                    "WeeklyPattern.InvalidDayOfWeek",
+                    "weeklyPattern dayOfWeeks must use MO, TU, WE, TH, FR, SA, or SU."));
+            }
+
+            var distinctDays = normalizedDays
+                .Where(day => !string.IsNullOrWhiteSpace(day))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(day => Array.IndexOf(DayOrder, day))
+                .ToList();
+
+            normalizedEntries.Add(new WeeklyPatternEntry
+            {
+                DayOfWeeks = distinctDays,
+                StartTime = startTime.ToString("HH:mm", CultureInfo.InvariantCulture),
+                DurationMinutes = entry.DurationMinutes
+            });
+        }
+
+        var duplicateSlot = normalizedEntries
+            .SelectMany(entry => entry.DayOfWeeks.Select(day => $"{day}|{entry.StartTime}"))
+            .GroupBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateSlot is not null)
+        {
+            var duplicateParts = duplicateSlot.Key.Split('|', 2);
+            return Result.Failure<List<WeeklyPatternEntry>>(Error.Validation(
+                "WeeklyPattern.DuplicateSlot",
+                $"Duplicate weeklyPattern slot found for {duplicateParts[0]} at {duplicateParts[1]}."));
+        }
+
+        return Result.Success(
+            normalizedEntries
+                .OrderBy(entry => entry.DayOfWeeks.Min(day => Array.IndexOf(DayOrder, day)))
+                .ThenBy(entry => entry.StartTime, StringComparer.Ordinal)
+                .ToList());
+    }
+
+    private static List<ScheduleSlot> FlattenWeeklyPatternEntries(
+        IEnumerable<WeeklyPatternEntry> entries)
+    {
+        return entries
+            .SelectMany(entry => entry.DayOfWeeks.Select(day => new ScheduleSlot
+            {
+                DayOfWeek = day,
+                StartTime = entry.StartTime,
+                DurationMinutes = entry.DurationMinutes
+            }))
+            .OrderBy(slot => Array.IndexOf(DayOrder, slot.DayOfWeek))
+            .ThenBy(slot => slot.StartTime, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static List<WeeklyPatternEntry> GroupSlotsToWeeklyPattern(IEnumerable<ScheduleSlot> slots)
+    {
+        return slots
+            .GroupBy(slot => $"{slot.StartTime}|{slot.DurationMinutes}", StringComparer.Ordinal)
+            .OrderBy(group => group.Min(slot => Array.IndexOf(DayOrder, slot.DayOfWeek)))
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var parts = group.Key.Split('|', 2);
+                return new WeeklyPatternEntry
+                {
+                    StartTime = parts[0],
+                    DurationMinutes = int.TryParse(parts[1], out var d) ? d : 0,
+                    DayOfWeeks = group
+                        .Select(slot => slot.DayOfWeek)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(day => Array.IndexOf(DayOrder, day))
+                        .ToList()
+                };
+            })
+            .ToList();
     }
 
     private static Result<List<ScheduleSlot>> ParseLegacyRRuleSlots(string schedulePattern)
@@ -385,5 +586,11 @@ internal static class SchedulePatternSupport
     {
         public string Type { get; set; } = "weekly-slots";
         public List<ScheduleSlot> Slots { get; set; } = [];
+    }
+
+    private sealed class WeeklyPatternPayload
+    {
+        public string Type { get; set; } = "weekly-pattern";
+        public List<WeeklyPatternEntry> Entries { get; set; } = [];
     }
 }

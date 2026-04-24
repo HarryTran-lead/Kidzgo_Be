@@ -84,6 +84,15 @@ public sealed class AssignClassCommandHandler(
         var assignmentStartDate = command.FirstStudyDate ?? today;
         DateTime? firstStudySessionAt = null;
         DateOnly? resolvedFirstStudyDate = null;
+        var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
+            command.WeeklyPattern,
+            requireValue: false);
+        if (weeklyPatternResult.IsFailure)
+        {
+            return Result.Failure<AssignClassResponse>(weeklyPatternResult.Error);
+        }
+
+        var sessionSelectionPattern = weeklyPatternResult.Value;
 
         if (isWait && command.FirstStudyDate.HasValue)
         {
@@ -124,8 +133,8 @@ public sealed class AssignClassCommandHandler(
 
         if (classEntity != null)
         {
-            var selectionPatternValidation = studentSessionAssignmentService
-                .ValidateSelectionPattern(classEntity, command.SessionSelectionPattern);
+            var selectionPatternValidation = await studentSessionAssignmentService
+                .ValidateSelectionPatternAsync(classEntity, sessionSelectionPattern, cancellationToken);
             if (selectionPatternValidation.IsFailure)
             {
                 return Result.Failure<AssignClassResponse>(selectionPatternValidation.Error);
@@ -162,7 +171,7 @@ public sealed class AssignClassCommandHandler(
             var candidateSlots = await studentEnrollmentScheduleConflictService.GetCandidateSlotsAsync(
                 classEntity.Id,
                 assignmentStartDate,
-                command.SessionSelectionPattern,
+                sessionSelectionPattern,
                 cancellationToken);
 
             if (candidateSlots.Count > 0)
@@ -218,7 +227,7 @@ public sealed class AssignClassCommandHandler(
                 registration.StudentProfileId,
                 classEntity.Id,
                 assignmentStartDate,
-                command.SessionSelectionPattern,
+                sessionSelectionPattern,
                 cancellationToken);
             if (conflictResult.IsFailure)
             {
@@ -240,7 +249,7 @@ public sealed class AssignClassCommandHandler(
                 TuitionPlanId = registration.TuitionPlanId,
                 RegistrationId = registration.Id,
                 Track = RegistrationTrackHelper.ToTrackType(track),
-                SessionSelectionPattern = command.SessionSelectionPattern,
+                SessionSelectionPattern = sessionSelectionPattern,
                 CreatedAt = now,
                 UpdatedAt = now
             };

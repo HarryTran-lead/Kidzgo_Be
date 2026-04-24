@@ -2,9 +2,8 @@ using Kidzgo.Application.Abstraction.Services;
 
 namespace Kidzgo.API.Requests;
 
-public sealed class ReassignEquivalentClassRequest
+public sealed class TransferClassRequest
 {
-    public Guid RegistrationId { get; set; }
     public Guid NewClassId { get; set; }
     public string Track { get; set; } = "primary";
     public List<WeeklyPatternEntry>? WeeklyPattern { get; set; }

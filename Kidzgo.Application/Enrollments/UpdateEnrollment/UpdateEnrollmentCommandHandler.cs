@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Services;
+using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public sealed class UpdateEnrollmentCommandHandler(
                 .ThenInclude(c => c.Program)
             .Include(e => e.StudentProfile)
             .Include(e => e.TuitionPlan)
+            .Include(e => e.ScheduleSegments)
             .FirstOrDefaultAsync(e => e.Id == command.Id, cancellationToken);
 
         if (enrollment is null)
@@ -40,20 +42,67 @@ public sealed class UpdateEnrollmentCommandHandler(
             enrollment.Track = RegistrationTrackHelper.ToTrackType(command.Track);
         }
 
-        if (command.ClearSessionSelectionPattern)
+        if (command.ClearWeeklyPattern)
         {
             enrollment.SessionSelectionPattern = null;
         }
-        else if (command.SessionSelectionPattern is not null)
+        else if (command.WeeklyPattern is not null)
         {
-            var selectionPatternValidation = studentSessionAssignmentService
-                .ValidateSelectionPattern(enrollment.Class, command.SessionSelectionPattern);
+            var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
+                command.WeeklyPattern,
+                requireValue: false);
+            if (weeklyPatternResult.IsFailure)
+            {
+                return Result.Failure<UpdateEnrollmentResponse>(weeklyPatternResult.Error);
+            }
+
+            var selectionPatternValidation = await studentSessionAssignmentService
+                .ValidateSelectionPatternAsync(enrollment.Class, weeklyPatternResult.Value, cancellationToken);
             if (selectionPatternValidation.IsFailure)
             {
                 return Result.Failure<UpdateEnrollmentResponse>(selectionPatternValidation.Error);
             }
 
-            enrollment.SessionSelectionPattern = command.SessionSelectionPattern;
+            enrollment.SessionSelectionPattern = weeklyPatternResult.Value;
+        }
+
+        if (command.ClearWeeklyPattern || command.WeeklyPattern is not null)
+        {
+            var now = VietnamTime.UtcNow();
+            var today = VietnamTime.TodayDateOnly();
+            var effectiveDate = enrollment.EnrollDate > today ? enrollment.EnrollDate : today;
+
+            if (enrollment.Class.Program.IsSupplementary)
+            {
+                var activeSegment = enrollment.ScheduleSegments
+                    .Where(s => s.EffectiveFrom <= effectiveDate && (!s.EffectiveTo.HasValue || s.EffectiveTo.Value >= effectiveDate))
+                    .OrderByDescending(s => s.EffectiveFrom)
+                    .FirstOrDefault();
+
+                if (activeSegment != null)
+                {
+                    if (activeSegment.EffectiveFrom == effectiveDate)
+                    {
+                        activeSegment.SessionSelectionPattern = enrollment.SessionSelectionPattern;
+                        activeSegment.UpdatedAt = now;
+                    }
+                    else
+                    {
+                        activeSegment.EffectiveTo = effectiveDate.AddDays(-1);
+                        activeSegment.UpdatedAt = now;
+
+                        context.ClassEnrollmentScheduleSegments.Add(new ClassEnrollmentScheduleSegment
+                        {
+                            Id = Guid.NewGuid(),
+                            ClassEnrollmentId = enrollment.Id,
+                            EffectiveFrom = effectiveDate,
+                            SessionSelectionPattern = enrollment.SessionSelectionPattern,
+                            CreatedAt = now,
+                            UpdatedAt = now
+                        });
+                    }
+                }
+            }
         }
 
         // Update TuitionPlan if provided
@@ -117,4 +166,3 @@ public sealed class UpdateEnrollmentCommandHandler(
         };
     }
 }
-

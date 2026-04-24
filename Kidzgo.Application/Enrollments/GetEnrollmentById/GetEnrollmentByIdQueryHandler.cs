@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -44,7 +45,7 @@ public sealed class GetEnrollmentByIdQueryHandler(
             Status = enrollment.Status.ToString(),
             TuitionPlanId = enrollment.TuitionPlanId,
             TuitionPlanName = enrollment.TuitionPlan?.Name,
-            SessionSelectionPattern = enrollment.SessionSelectionPattern,
+            WeeklyPattern = ParseWeeklyPatternOrNull(enrollment.SessionSelectionPattern),
             ScheduleSegments = enrollment.ScheduleSegments
                 .OrderBy(segment => segment.EffectiveFrom)
                 .Select(segment => new EnrollmentScheduleSegmentDto
@@ -52,12 +53,23 @@ public sealed class GetEnrollmentByIdQueryHandler(
                     Id = segment.Id,
                     EffectiveFrom = segment.EffectiveFrom,
                     EffectiveTo = segment.EffectiveTo,
-                    SessionSelectionPattern = segment.SessionSelectionPattern
+                    WeeklyPattern = ParseWeeklyPatternOrNull(segment.SessionSelectionPattern)
                 })
                 .ToList(),
             CreatedAt = enrollment.CreatedAt,
             UpdatedAt = enrollment.UpdatedAt
         };
+    }
+
+    private static List<Kidzgo.Application.Abstraction.Services.WeeklyPatternEntry>? ParseWeeklyPatternOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var result = SchedulePatternSupport.ParseWeeklyPattern(value);
+        return result.IsSuccess ? result.Value : null;
     }
 }
 

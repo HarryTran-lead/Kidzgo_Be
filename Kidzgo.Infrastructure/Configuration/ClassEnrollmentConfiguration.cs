@@ -37,15 +37,7 @@ public class ClassEnrollmentConfiguration : IEntityTypeConfiguration<ClassEnroll
             .IsRequired();
 
         builder.Property(x => x.SessionSelectionPattern)
-            .HasMaxLength(500);
-
-        builder.Property(x => x.Track)
-            .HasConversion<string>()
-            .HasMaxLength(20)
-            .IsRequired();
-
-        builder.Property(x => x.SessionSelectionPattern)
-            .HasMaxLength(500);
+            .HasColumnType("text");
 
         builder.Property(x => x.EnrollmentConfirmationPdfUrl)
             .HasMaxLength(1000);

@@ -25,6 +25,15 @@ public sealed class TransferClassCommandHandler(
         var effectiveDate = VietnamTime.ToVietnamDateOnly(command.EffectiveDate);
         var track = RegistrationTrackHelper.NormalizeTrack(command.Track);
         var isSecondaryTrack = track == RegistrationTrackHelper.SecondaryTrack;
+        var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
+            command.WeeklyPattern,
+            requireValue: false);
+        if (weeklyPatternResult.IsFailure)
+        {
+            return Result.Failure<TransferClassResponse>(weeklyPatternResult.Error);
+        }
+
+        var sessionSelectionPattern = weeklyPatternResult.Value;
 
         var registration = await context.Registrations
             .Include(r => r.Program)
@@ -61,11 +70,17 @@ public sealed class TransferClassCommandHandler(
         }
 
         var oldClassId = currentClassId.Value;
+
+        // Early exit: cannot transfer to same class (avoids 2 unnecessary DB queries)
+        if (oldClassId == command.NewClassId)
+        {
+            return Result.Failure<TransferClassResponse>(RegistrationErrors.CannotTransferToSameClass());
+        }
+
         var oldClass = await context.Classes
             .Include(c => c.ClassEnrollments)
             .FirstOrDefaultAsync(c => c.Id == oldClassId, cancellationToken);
 
-        // 4. Get new class
         var newClass = await context.Classes
             .Include(c => c.ClassEnrollments)
             .FirstOrDefaultAsync(c => c.Id == command.NewClassId, cancellationToken);
@@ -87,8 +102,8 @@ public sealed class TransferClassCommandHandler(
                 RegistrationErrors.ClassNotMatchingProgram(command.NewClassId, targetProgramId ?? Guid.Empty));
         }
 
-        var selectionPatternValidation = studentSessionAssignmentService
-            .ValidateSelectionPattern(newClass, command.SessionSelectionPattern);
+        var selectionPatternValidation = await studentSessionAssignmentService
+            .ValidateSelectionPatternAsync(newClass, sessionSelectionPattern, cancellationToken);
         if (selectionPatternValidation.IsFailure)
         {
             return Result.Failure<TransferClassResponse>(selectionPatternValidation.Error);
@@ -98,37 +113,31 @@ public sealed class TransferClassCommandHandler(
             .Count(ce => ce.Status == EnrollmentStatus.Active);
         ClassCapacityStatusHelper.SyncAvailabilityStatus(newClass, newClassActiveEnrollmentCount, now);
 
-        // 6. Check new class capacity
+        // Check new class capacity
         if (newClassActiveEnrollmentCount >= newClass.Capacity)
         {
             return Result.Failure<TransferClassResponse>(RegistrationErrors.ClassFull(command.NewClassId));
         }
 
-        // 7. Check new class status
+        // Check new class status
         if (newClass.Status != ClassStatus.Active && newClass.Status != ClassStatus.Recruiting)
         {
             return Result.Failure<TransferClassResponse>(
                 Error.Validation("ClassNotAvailable", $"Cannot transfer to class with status {newClass.Status}"));
         }
 
-        // 8. Check if same class
-        if (oldClassId == command.NewClassId)
-        {
-            return Result.Failure<TransferClassResponse>(RegistrationErrors.CannotTransferToSameClass());
-        }
-
         var oldEnrollment = await context.ClassEnrollments
-            .FirstOrDefaultAsync(ce => ce.ClassId == oldClassId 
-                && ce.StudentProfileId == registration.StudentProfileId 
+            .FirstOrDefaultAsync(ce => ce.ClassId == oldClassId
+                && ce.StudentProfileId == registration.StudentProfileId
                 && (!ce.RegistrationId.HasValue || ce.RegistrationId == registration.Id)
-                && ce.Status == EnrollmentStatus.Active, 
+                && ce.Status == EnrollmentStatus.Active,
                 cancellationToken);
 
         var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
             registration.StudentProfileId,
             newClass.Id,
             effectiveDate,
-            command.SessionSelectionPattern,
+            sessionSelectionPattern,
             cancellationToken,
             excludeEnrollmentId: oldEnrollment?.Id,
             excludeLegacyClassId: oldClassId,
@@ -138,8 +147,7 @@ public sealed class TransferClassCommandHandler(
             return Result.Failure<TransferClassResponse>(conflictResult.Error);
         }
 
-        // 9. Update old enrollment to dropped
-
+        // Update old enrollment to dropped
         if (oldEnrollment != null)
         {
             oldEnrollment.Status = EnrollmentStatus.Dropped;
@@ -150,7 +158,7 @@ public sealed class TransferClassCommandHandler(
                 cancellationToken);
         }
 
-        // 10. Create new enrollment
+        // Create new enrollment
         var newEnrollment = new ClassEnrollment
         {
             Id = Guid.NewGuid(),
@@ -161,7 +169,7 @@ public sealed class TransferClassCommandHandler(
             TuitionPlanId = registration.TuitionPlanId,
             RegistrationId = registration.Id,
             Track = RegistrationTrackHelper.ToTrackType(track),
-            SessionSelectionPattern = command.SessionSelectionPattern,
+            SessionSelectionPattern = sessionSelectionPattern,
             CreatedAt = now,
             UpdatedAt = now
         };

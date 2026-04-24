@@ -194,7 +194,7 @@ public sealed class CreateClassCommandHandler(
             AssistantTeacherId = command.AssistantTeacherId,
             StartDate = command.StartDate,
             EndDate = endDate,
-            Status = ClassStatus.Planned,
+            Status = ClassStatus.Active,
             Capacity = command.Capacity,
             WeeklyScheduleJson = normalizedWeeklyScheduleJson,
             Description = command.Description,
@@ -234,4 +234,5 @@ public sealed class CreateClassCommandHandler(
         var parseResult = patternParser.ParseScheduleSlots(weeklyScheduleJson);
         return parseResult.IsSuccess ? parseResult.Value : [];
     }
+
 }

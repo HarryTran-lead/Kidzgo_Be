@@ -24,18 +24,13 @@ public sealed class UpdateClassCommandValidator : AbstractValidator<UpdateClassC
             .MaximumLength(255).WithMessage("Class title must not exceed 255 characters");
 
         RuleFor(command => command.StartDate)
-            .NotEmpty().WithMessage("Start date is required")
-            .GreaterThanOrEqualTo(VietnamTime.TodayDateOnly())
-            .WithMessage("Start date cannot be in the past");
+            .NotEmpty().WithMessage("Start date is required");
 
         RuleFor(command => command.EndDate)
             .NotNull().WithMessage("End date is required when weekly schedule is provided")
             .When(command => command.WeeklyScheduleSlots is { Count: > 0 })
             .GreaterThanOrEqualTo(command => command.StartDate)
             .WithMessage("End date must be greater than or equal to start date")
-            .When(command => command.EndDate.HasValue)
-            .GreaterThanOrEqualTo(VietnamTime.TodayDateOnly())
-            .WithMessage("End date cannot be in the past")
             .When(command => command.EndDate.HasValue);
 
         RuleFor(command => command.Capacity)

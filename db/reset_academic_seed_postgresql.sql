@@ -436,7 +436,9 @@ SELECT
     ctx.now_utc,
     ctx.now_utc
 FROM seed_classes sc
-CROSS JOIN seed_context ctx;
+CROSS JOIN seed_context ctx
+-- Chỉ tạo segments cho supplementary classes (Kèm LMS, Speaking Club, etc.)
+INNER JOIN public."Programs" p ON sc.program_id = p."Id" AND p."IsSupplementary" = TRUE;
 
 SELECT 'Program count' AS check_name, COUNT(*) AS total
 FROM public."Programs";

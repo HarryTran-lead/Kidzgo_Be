@@ -72,6 +72,7 @@ public sealed class SuggestClassesQueryHandler(
         var matchingClasses = await context.Classes
             .Include(c => c.MainTeacher)
             .Include(c => c.ClassEnrollments)
+            .Include(c => c.ScheduleSegments)
             .Where(c => c.ProgramId == programId
                 && c.BranchId == branchId
                 && (c.Status == ClassStatus.Recruiting || c.Status == ClassStatus.Active || c.Status == ClassStatus.Planned || c.Status == ClassStatus.Full)
@@ -79,20 +80,23 @@ public sealed class SuggestClassesQueryHandler(
             .OrderBy(c => c.StartDate)
             .ToListAsync(cancellationToken);
 
-        var filteredClasses = matchingClasses
-            .Where(c => IsScheduleMatching(preferredSchedule ?? string.Empty, c.WeeklyScheduleJson, schedulePatternParser))
-            .ToList();
+        var today = VietnamTime.TodayDateOnly();
 
-        var now = VietnamTime.TodayDateOnly();
+        var filteredClasses = matchingClasses
+            .Where(c => IsScheduleMatching(
+                preferredSchedule ?? string.Empty,
+                ResolveEffectiveWeeklyScheduleJson(c, today),
+                schedulePatternParser))
+            .ToList();
 
         return (
             filteredClasses
-                .Where(c => c.StartDate <= now.AddDays(7))
-                .Select(c => MapSuggestedClass(c, now))
+                .Where(c => c.StartDate <= today.AddDays(7))
+                .Select(c => MapSuggestedClass(c, today))
                 .ToList(),
             filteredClasses
-                .Where(c => c.StartDate > now.AddDays(7))
-                .Select(c => MapSuggestedClass(c, now))
+                .Where(c => c.StartDate > today.AddDays(7))
+                .Select(c => MapSuggestedClass(c, today))
                 .ToList());
     }
 
@@ -113,7 +117,7 @@ public sealed class SuggestClassesQueryHandler(
             CurrentEnrollment = currentEnrollment,
             StartDate = classEntity.StartDate,
             EndDate = classEntity.EndDate,
-            WeeklyScheduleSlots = ParseWeeklyScheduleSlots(classEntity.WeeklyScheduleJson),
+            WeeklyScheduleSlots = ParseWeeklyScheduleSlots(ResolveEffectiveWeeklyScheduleJson(classEntity, now)),
             MainTeacherName = classEntity.MainTeacher != null ? classEntity.MainTeacher.Name : "Not assigned",
             ClassroomName = null,
             IsClassStarted = classEntity.StartDate <= now
@@ -189,6 +193,17 @@ public sealed class SuggestClassesQueryHandler(
         }
 
         return true;
+    }
+
+    private static string? ResolveEffectiveWeeklyScheduleJson(Kidzgo.Domain.Classes.Class classEntity, DateOnly referenceDate)
+    {
+        return SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+            classEntity.WeeklyScheduleJson,
+            classEntity.ScheduleSegments.Select(segment => new WeeklyScheduleSegmentWindow(
+                segment.EffectiveFrom,
+                segment.EffectiveTo,
+                segment.WeeklyScheduleJson)),
+            referenceDate);
     }
 
     private static PreferredScheduleCriteria ParsePreferredSchedule(string preferredSchedule)

@@ -71,8 +71,18 @@ public sealed class CreateEnrollmentCommandHandler(
                 EnrollmentErrors.ClassFull);
         }
 
-        var selectionPatternValidation = studentSessionAssignmentService
-            .ValidateSelectionPattern(classEntity, command.SessionSelectionPattern);
+        var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
+            command.WeeklyPattern,
+            requireValue: false);
+        if (weeklyPatternResult.IsFailure)
+        {
+            return Result.Failure<CreateEnrollmentResponse>(weeklyPatternResult.Error);
+        }
+
+        var sessionSelectionPattern = weeklyPatternResult.Value;
+
+        var selectionPatternValidation = await studentSessionAssignmentService
+            .ValidateSelectionPatternAsync(classEntity, sessionSelectionPattern, cancellationToken);
         if (selectionPatternValidation.IsFailure)
         {
             return Result.Failure<CreateEnrollmentResponse>(selectionPatternValidation.Error);
@@ -114,7 +124,7 @@ public sealed class CreateEnrollmentCommandHandler(
             command.StudentProfileId,
             classEntity.Id,
             command.EnrollDate,
-            command.SessionSelectionPattern,
+            sessionSelectionPattern,
             cancellationToken);
         if (conflictResult.IsFailure)
         {
@@ -131,7 +141,7 @@ public sealed class CreateEnrollmentCommandHandler(
             Status = EnrollmentStatus.Active,
             TuitionPlanId = command.TuitionPlanId,
             Track = RegistrationTrackHelper.ToTrackType(command.Track),
-            SessionSelectionPattern = command.SessionSelectionPattern,
+            SessionSelectionPattern = sessionSelectionPattern,
             CreatedAt = now,
             UpdatedAt = now
         };

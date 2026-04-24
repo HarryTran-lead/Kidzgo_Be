@@ -341,6 +341,17 @@ public sealed class SessionGenerationService
         }
 
         var windows = new List<ScheduleGenerationWindow>();
+        var firstSegment = scheduleSegments[0];
+
+        if (firstSegment.EffectiveFrom > classEntity.StartDate && 
+            !string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
+        {
+            windows.Add(new ScheduleGenerationWindow(
+                classEntity.StartDate,
+                firstSegment.EffectiveFrom.AddDays(-1),
+                classEntity.WeeklyScheduleJson));
+        }
+
         foreach (var segment in scheduleSegments)
         {
             if (segment.EffectiveFrom > classEndDate ||

@@ -13,8 +13,8 @@ public sealed class RegistrationActualStudyScheduleDto
     public string ProgramName { get; init; } = null!;
     public bool UsesClassDefaultSchedule { get; init; }
     public List<ScheduleSlot> ClassWeeklyScheduleSlots { get; init; } = new();
-    public string? SessionSelectionPattern { get; init; }
-    public string? EffectiveSchedulePattern { get; init; }
+    public List<WeeklyPatternEntry>? WeeklyPattern { get; init; }
+    public List<WeeklyPatternEntry>? EffectiveWeeklyPattern { get; init; }
     public List<string> StudyDayCodes { get; init; } = new();
     public List<string> StudyDays { get; init; } = new();
     public string? StudyDaySummary { get; init; }
@@ -26,8 +26,8 @@ public sealed class RegistrationActualStudyScheduleSegmentDto
     public Guid Id { get; init; }
     public DateOnly EffectiveFrom { get; init; }
     public DateOnly? EffectiveTo { get; init; }
-    public string? SessionSelectionPattern { get; init; }
-    public string? EffectiveSchedulePattern { get; init; }
+    public List<WeeklyPatternEntry>? WeeklyPattern { get; init; }
+    public List<WeeklyPatternEntry>? EffectiveWeeklyPattern { get; init; }
     public List<string> StudyDayCodes { get; init; } = new();
     public List<string> StudyDays { get; init; } = new();
     public string? StudyDaySummary { get; init; }
@@ -78,9 +78,12 @@ internal static class RegistrationActualStudyScheduleMapper
     private static RegistrationActualStudyScheduleDto MapSingle(ClassEnrollment enrollment)
     {
         var classEntity = enrollment.Class;
+        var currentClassWeeklyScheduleJson = ResolveClassWeeklyScheduleJson(
+            classEntity,
+            VietnamTime.TodayDateOnly());
         var usesClassDefaultSchedule = string.IsNullOrWhiteSpace(enrollment.SessionSelectionPattern);
         var effectiveSchedulePattern = usesClassDefaultSchedule
-            ? classEntity.WeeklyScheduleJson
+            ? currentClassWeeklyScheduleJson
             : enrollment.SessionSelectionPattern;
         var studyDayCodes = ExtractOrderedDayCodes(effectiveSchedulePattern);
         var studyDays = studyDayCodes
@@ -95,15 +98,17 @@ internal static class RegistrationActualStudyScheduleMapper
             ProgramId = classEntity.ProgramId,
             ProgramName = classEntity.Program.Name,
             UsesClassDefaultSchedule = usesClassDefaultSchedule,
-            ClassWeeklyScheduleSlots = ParseWeeklyScheduleSlots(classEntity.WeeklyScheduleJson),
-            SessionSelectionPattern = enrollment.SessionSelectionPattern,
-            EffectiveSchedulePattern = effectiveSchedulePattern,
+            ClassWeeklyScheduleSlots = ParseWeeklyScheduleSlots(currentClassWeeklyScheduleJson),
+            WeeklyPattern = ParseWeeklyPattern(enrollment.SessionSelectionPattern),
+            EffectiveWeeklyPattern = ParseWeeklyPattern(effectiveSchedulePattern),
             StudyDayCodes = studyDayCodes,
             StudyDays = studyDays,
             StudyDaySummary = studyDays.Count > 0 ? string.Join(", ", studyDays) : null,
             ScheduleSegments = enrollment.ScheduleSegments
                 .OrderBy(segment => segment.EffectiveFrom)
-                .Select(segment => MapSegment(segment, classEntity.WeeklyScheduleJson))
+                .Select(segment => MapSegment(
+                    segment,
+                    ResolveClassWeeklyScheduleJson(classEntity, segment.EffectiveFrom)))
                 .ToList()
         };
     }
@@ -125,8 +130,8 @@ internal static class RegistrationActualStudyScheduleMapper
             Id = segment.Id,
             EffectiveFrom = segment.EffectiveFrom,
             EffectiveTo = segment.EffectiveTo,
-            SessionSelectionPattern = segment.SessionSelectionPattern,
-            EffectiveSchedulePattern = effectiveSchedulePattern,
+            WeeklyPattern = ParseWeeklyPattern(segment.SessionSelectionPattern),
+            EffectiveWeeklyPattern = ParseWeeklyPattern(effectiveSchedulePattern),
             StudyDayCodes = studyDayCodes,
             StudyDays = studyDays,
             StudyDaySummary = studyDays.Count > 0 ? string.Join(", ", studyDays) : null
@@ -150,5 +155,27 @@ internal static class RegistrationActualStudyScheduleMapper
 
         var parseResult = SchedulePatternSupport.ParseScheduleSlots(weeklyScheduleJson);
         return parseResult.IsSuccess ? parseResult.Value : new List<ScheduleSlot>();
+    }
+
+    private static List<WeeklyPatternEntry>? ParseWeeklyPattern(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var parseResult = SchedulePatternSupport.ParseWeeklyPattern(value);
+        return parseResult.IsSuccess ? parseResult.Value : null;
+    }
+
+    private static string? ResolveClassWeeklyScheduleJson(Class classEntity, DateOnly referenceDate)
+    {
+        return SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+            classEntity.WeeklyScheduleJson,
+            classEntity.ScheduleSegments.Select(segment => new WeeklyScheduleSegmentWindow(
+                segment.EffectiveFrom,
+                segment.EffectiveTo,
+                segment.WeeklyScheduleJson)),
+            referenceDate);
     }
 }

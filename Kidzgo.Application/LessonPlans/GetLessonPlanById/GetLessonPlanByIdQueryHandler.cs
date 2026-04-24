@@ -56,7 +56,9 @@ public sealed class GetLessonPlanByIdQueryHandler(
             SessionTitle = lessonPlan.Session != null
                 ? $"Session {VietnamTime.FormatInVietnam(lessonPlan.Session.PlannedDatetime, "dd/MM/yyyy HH:mm")}"
                 : null,
-            SessionDate = lessonPlan.Session?.PlannedDatetime,
+            SessionDate = lessonPlan.Session is null
+                ? null
+                : VietnamTime.ToVietnamDateTime(lessonPlan.Session.PlannedDatetime),
             TemplateId = lessonPlan.TemplateId,
             TemplateLevel = lessonPlan.Template?.Level,
             TemplateSessionIndex = lessonPlan.Template?.SessionIndex,

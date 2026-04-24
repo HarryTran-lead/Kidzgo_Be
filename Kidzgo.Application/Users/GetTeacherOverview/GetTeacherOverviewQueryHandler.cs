@@ -111,7 +111,7 @@ public sealed class GetTeacherOverviewQueryHandler(
             upcomingSessionsQuery = upcomingSessionsQuery.Where(s => s.Id == query.SessionId.Value);
         }
 
-        var upcomingSessions = await upcomingSessionsQuery
+        var upcomingSessionRows = await upcomingSessionsQuery
             .OrderBy(s => s.PlannedDatetime)
             .Take(20)
             .Select(s => new SessionSummaryDto
@@ -124,6 +124,18 @@ public sealed class GetTeacherOverviewQueryHandler(
                 AttendanceMarked = s.Attendances.Any()
             })
             .ToListAsync(cancellationToken);
+
+        var upcomingSessions = upcomingSessionRows
+            .Select(s => new SessionSummaryDto
+            {
+                Id = s.Id,
+                ClassId = s.ClassId,
+                ClassCode = s.ClassCode,
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(s.PlannedDatetime),
+                Status = s.Status,
+                AttendanceMarked = s.AttendanceMarked
+            })
+            .ToList();
 
         // Students
         var studentsQuery = context.ClassEnrollments
@@ -148,7 +160,7 @@ public sealed class GetTeacherOverviewQueryHandler(
             .ToListAsync(cancellationToken);
 
         // Recent Attendances
-        var recentAttendances = await context.Attendances
+        var recentAttendanceRows = await context.Attendances
             .AsNoTracking()
             .Where(a => classIds.Contains(a.Session.ClassId) &&
                        a.Session.PlannedDatetime >= fromDate &&
@@ -165,6 +177,17 @@ public sealed class GetTeacherOverviewQueryHandler(
             .OrderByDescending(a => a.SessionDate)
             .Take(20)
             .ToListAsync(cancellationToken);
+
+        var recentAttendances = recentAttendanceRows
+            .Select(a => new AttendanceSummaryDto
+            {
+                SessionId = a.SessionId,
+                ClassCode = a.ClassCode,
+                SessionDate = VietnamTime.ToVietnamDateTime(a.SessionDate),
+                PresentCount = a.PresentCount,
+                AbsentCount = a.AbsentCount
+            })
+            .ToList();
 
         // Pending Homeworks (TODO: Implement when Homework entity is available)
         var pendingHomeworks = new List<HomeworkSummaryDto>();

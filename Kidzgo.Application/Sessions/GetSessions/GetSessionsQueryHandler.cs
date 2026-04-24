@@ -53,7 +53,7 @@ public sealed class GetSessionsQueryHandler(
 
         var totalCount = await sessionsQuery.CountAsync(cancellationToken);
 
-        var items = await sessionsQuery
+        var sessionRows = await sessionsQuery
             .OrderBy(s => s.PlannedDatetime)
             .ApplyPagination(query.PageNumber, query.PageSize)
             .Select(s => new SessionListItemDto
@@ -84,6 +84,38 @@ public sealed class GetSessionsQueryHandler(
                 ActualAssistantName = s.ActualAssistant != null ? s.ActualAssistant.Name : null
             })
             .ToListAsync(cancellationToken);
+
+        var items = sessionRows
+            .Select(s => new SessionListItemDto
+            {
+                Id = s.Id,
+                Color = s.Color,
+                ClassId = s.ClassId,
+                ClassCode = s.ClassCode,
+                ClassTitle = s.ClassTitle,
+                BranchId = s.BranchId,
+                BranchName = s.BranchName,
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(s.PlannedDatetime),
+                ActualDatetime = s.ActualDatetime.HasValue
+                    ? VietnamTime.ToVietnamDateTime(s.ActualDatetime.Value)
+                    : null,
+                DurationMinutes = s.DurationMinutes,
+                ParticipationType = s.ParticipationType,
+                Status = s.Status,
+                PlannedRoomId = s.PlannedRoomId,
+                PlannedRoomName = s.PlannedRoomName,
+                ActualRoomId = s.ActualRoomId,
+                ActualRoomName = s.ActualRoomName,
+                PlannedTeacherId = s.PlannedTeacherId,
+                PlannedTeacherName = s.PlannedTeacherName,
+                ActualTeacherId = s.ActualTeacherId,
+                ActualTeacherName = s.ActualTeacherName,
+                PlannedAssistantId = s.PlannedAssistantId,
+                PlannedAssistantName = s.PlannedAssistantName,
+                ActualAssistantId = s.ActualAssistantId,
+                ActualAssistantName = s.ActualAssistantName
+            })
+            .ToList();
 
         var page = new Page<SessionListItemDto>(
             items,

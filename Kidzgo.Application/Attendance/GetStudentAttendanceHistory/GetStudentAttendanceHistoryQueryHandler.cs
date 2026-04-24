@@ -38,7 +38,7 @@ public sealed class GetStudentAttendanceHistoryQueryHandler(
 
         var total = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        var attendanceRows = await query
             .OrderByDescending(a => a.Session.PlannedDatetime)
             .ApplyPagination(request.PageNumber, request.PageSize)
             .Select(a => new GetStudentAttendanceHistoryResponse
@@ -51,6 +51,18 @@ public sealed class GetStudentAttendanceHistoryQueryHandler(
                 Note = a.Note
             })
             .ToListAsync(cancellationToken);
+
+        var items = attendanceRows
+            .Select(a => new GetStudentAttendanceHistoryResponse
+            {
+                Id = a.Id,
+                SessionId = a.SessionId,
+                SessionDateTime = VietnamTime.ToVietnamDateTime(a.SessionDateTime),
+                AttendanceStatus = a.AttendanceStatus,
+                AbsenceType = a.AbsenceType,
+                Note = a.Note
+            })
+            .ToList();
 
         return new Page<GetStudentAttendanceHistoryResponse>(items, total, request.PageNumber, request.PageSize);
     }

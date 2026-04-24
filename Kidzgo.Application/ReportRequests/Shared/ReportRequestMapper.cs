@@ -1,5 +1,4 @@
 using Kidzgo.Domain.Reports;
-
 namespace Kidzgo.Application.ReportRequests.Shared;
 
 internal static class ReportRequestMapper
@@ -22,7 +21,9 @@ internal static class ReportRequestMapper
             TargetClassCode = request.TargetClass?.Code,
             TargetClassTitle = request.TargetClass?.Title,
             TargetSessionId = request.TargetSessionId,
-            TargetSessionDate = request.TargetSession?.PlannedDatetime,
+            TargetSessionDate = request.TargetSession is null
+                ? null
+                : Kidzgo.Domain.Time.VietnamTime.ToVietnamDateTime(request.TargetSession.PlannedDatetime),
             Month = request.Month,
             Year = request.Year,
             Message = request.Message,

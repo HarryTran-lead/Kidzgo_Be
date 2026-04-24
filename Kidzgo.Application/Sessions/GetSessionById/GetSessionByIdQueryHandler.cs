@@ -59,8 +59,10 @@ public sealed class GetSessionByIdQueryHandler(
             ClassTitle = session.Class?.Title ?? string.Empty,
             BranchId = session.BranchId,
             BranchName = branchName,
-            PlannedDatetime = session.PlannedDatetime,
-            ActualDatetime = session.ActualDatetime,
+            PlannedDatetime = Kidzgo.Domain.Time.VietnamTime.ToVietnamDateTime(session.PlannedDatetime),
+            ActualDatetime = session.ActualDatetime.HasValue
+                ? Kidzgo.Domain.Time.VietnamTime.ToVietnamDateTime(session.ActualDatetime.Value)
+                : null,
             DurationMinutes = session.DurationMinutes,
             ParticipationType = session.ParticipationType.ToString(),
             Status = session.Status.ToString(),

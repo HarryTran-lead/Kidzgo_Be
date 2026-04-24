@@ -359,8 +359,10 @@ public sealed class GetStudentTimetableQueryHandler(
                     ClassId = session.ClassId,
                     ClassCode = session.ClassCode,
                     ClassTitle = session.ClassTitle,
-                    PlannedDatetime = session.PlannedDatetime,
-                    ActualDatetime = session.ActualDatetime,
+                    PlannedDatetime = VietnamTime.ToVietnamDateTime(session.PlannedDatetime),
+                    ActualDatetime = session.ActualDatetime.HasValue
+                        ? VietnamTime.ToVietnamDateTime(session.ActualDatetime.Value)
+                        : null,
                     DurationMinutes = session.DurationMinutes,
                     ParticipationType = session.ParticipationType,
                     Status = session.Status,
@@ -383,7 +385,11 @@ public sealed class GetStudentTimetableQueryHandler(
                         ? AttendanceStatus.Makeup.ToString()
                         : attendance?.AttendanceStatus,
                     AbsenceType = hasApprovedLeave ? null : attendance?.AbsenceType,
-                    AttendanceMarkedAt = hasApprovedLeave ? null : attendance?.AttendanceMarkedAt
+                    AttendanceMarkedAt = hasApprovedLeave
+                        ? null
+                        : attendance?.AttendanceMarkedAt is { } markedAt
+                            ? VietnamTime.ToVietnamDateTime(markedAt)
+                            : null
                 };
             })
             .OrderBy(s => s.PlannedDatetime)

@@ -87,6 +87,9 @@ public sealed class UpdateQuestionBankItemCommandHandler(
         item.CorrectAnswer = normalizedCorrectAnswer;
         item.Points = command.Points;
         item.Explanation = string.IsNullOrWhiteSpace(command.Explanation) ? null : command.Explanation.Trim();
+        item.ImageUrls = StringListJson.Serialize(command.ImageUrls);
+        item.VideoUrls = StringListJson.Serialize(command.VideoUrls);
+        item.AudioUrls = StringListJson.Serialize(command.AudioUrls);
         item.Topic = string.IsNullOrWhiteSpace(command.Topic) ? null : command.Topic.Trim();
         item.Skill = string.IsNullOrWhiteSpace(command.Skill) ? null : command.Skill.Trim();
         item.GrammarTags = StringListJson.Serialize(command.GrammarTags);

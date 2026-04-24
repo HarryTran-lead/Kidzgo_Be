@@ -36,7 +36,7 @@ public sealed class SessionGenerationService
     {
         var roomId = classEntity.RoomId;
 
-        if (classEntity.Status is not ClassStatus.Planned and not ClassStatus.Active)
+        if (classEntity.Status is not ClassStatus.Planned and not ClassStatus.Recruiting and not ClassStatus.Active)
         {
             return Result.Failure<int>(SessionErrors.InvalidClassStatus);
         }

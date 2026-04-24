@@ -27,8 +27,8 @@ public sealed class CreateSessionCommandHandler(
             return Result.Failure<CreateSessionResponse>(ClassErrors.NotFound(command.ClassId));
         }
 
-        // Only allow creating sessions for Planned or Active classes
-        if (classEntity.Status is not ClassStatus.Planned and not ClassStatus.Active)
+        // Only allow creating sessions for Planned, Recruiting, or Active classes
+        if (classEntity.Status is not ClassStatus.Planned and not ClassStatus.Recruiting and not ClassStatus.Active)
         {
             return Result.Failure<CreateSessionResponse>(SessionErrors.InvalidClassStatus);
         }

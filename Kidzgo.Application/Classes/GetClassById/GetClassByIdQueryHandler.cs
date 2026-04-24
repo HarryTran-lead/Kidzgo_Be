@@ -27,6 +27,21 @@ public sealed class GetClassByIdQueryHandler(
                 ClassErrors.NotFound(query.Id));
         }
 
+        var currentEnrollmentCount = await context.ClassEnrollments
+            .CountAsync(
+                ce => ce.ClassId == query.Id &&
+                      ce.Status == Domain.Classes.EnrollmentStatus.Active,
+                cancellationToken);
+
+        var totalSessions = await context.Sessions
+            .CountAsync(s => s.ClassId == query.Id, cancellationToken);
+
+        var completedSessions = await context.Sessions
+            .CountAsync(
+                s => s.ClassId == query.Id &&
+                     s.Status == Domain.Sessions.SessionStatus.Completed,
+                cancellationToken);
+
         return new GetClassByIdResponse
         {
             Id = classEntity.Id,
@@ -47,7 +62,7 @@ public sealed class GetClassByIdQueryHandler(
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
-            CurrentEnrollmentCount = classEntity.ClassEnrollments.Count(ce => ce.Status == Domain.Classes.EnrollmentStatus.Active),
+            CurrentEnrollmentCount = currentEnrollmentCount,
             SchedulePattern = classEntity.SchedulePattern,
             TeacherIds = new[] { classEntity.MainTeacherId, classEntity.AssistantTeacherId }
                 .Where(x => x.HasValue)
@@ -57,8 +72,8 @@ public sealed class GetClassByIdQueryHandler(
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!)
                 .ToList(),
-            TotalSessions = classEntity.Sessions.Count,
-            CompletedSessions = classEntity.Sessions.Count(s => s.Status == Domain.Sessions.SessionStatus.Completed),
+            TotalSessions = totalSessions,
+            CompletedSessions = completedSessions,
             ScheduleSegments = classEntity.ScheduleSegments
                 .OrderBy(segment => segment.EffectiveFrom)
                 .Select(segment => new ClassScheduleSegmentDto

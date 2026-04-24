@@ -14,7 +14,7 @@ public static class SessionErrors
 
     public static Error InvalidClassStatus => Error.Validation(
         "Session.InvalidClassStatus",
-        "Sessions can only be created for Planned or Active classes");
+        "Sessions can only be created for Planned, Recruiting, or Active classes");
 
     public static Error MissingSchedulePattern(Guid classId) => Error.Validation(
         "Session.MissingSchedulePattern",

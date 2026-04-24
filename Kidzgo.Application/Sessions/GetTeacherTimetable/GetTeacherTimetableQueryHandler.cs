@@ -56,7 +56,7 @@ public sealed class GetTeacherTimetableQueryHandler(
             sessionsQuery = sessionsQuery.Where(s => s.ClassId == query.ClassId.Value);
         }
 
-        var sessions = await sessionsQuery
+        var sessionRows = await sessionsQuery
             .OrderBy(s => s.PlannedDatetime)
             .Select(s => new TimetableItemDto
             {
@@ -85,6 +85,37 @@ public sealed class GetTeacherTimetableQueryHandler(
                 AttendanceStatus = null
             })
             .ToListAsync(cancellationToken);
+
+        var sessions = sessionRows
+            .Select(s => new TimetableItemDto
+            {
+                Id = s.Id,
+                Color = s.Color,
+                ClassId = s.ClassId,
+                ClassCode = s.ClassCode,
+                ClassTitle = s.ClassTitle,
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(s.PlannedDatetime),
+                ActualDatetime = s.ActualDatetime.HasValue
+                    ? VietnamTime.ToVietnamDateTime(s.ActualDatetime.Value)
+                    : null,
+                DurationMinutes = s.DurationMinutes,
+                ParticipationType = s.ParticipationType,
+                Status = s.Status,
+                PlannedRoomId = s.PlannedRoomId,
+                PlannedRoomName = s.PlannedRoomName,
+                ActualRoomId = s.ActualRoomId,
+                ActualRoomName = s.ActualRoomName,
+                PlannedTeacherId = s.PlannedTeacherId,
+                PlannedTeacherName = s.PlannedTeacherName,
+                ActualTeacherId = s.ActualTeacherId,
+                ActualTeacherName = s.ActualTeacherName,
+                PlannedAssistantId = s.PlannedAssistantId,
+                PlannedAssistantName = s.PlannedAssistantName,
+                LessonPlanId = s.LessonPlanId,
+                LessonPlanLink = s.LessonPlanLink,
+                AttendanceStatus = s.AttendanceStatus
+            })
+            .ToList();
 
         return Result.Success(new GetTeacherTimetableResponse
         {

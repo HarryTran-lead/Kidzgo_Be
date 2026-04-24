@@ -105,7 +105,7 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             {
                 SessionId = session.Id,
                 SessionIndex = sessionIndex,
-                SessionDate = session.PlannedDatetime,
+                SessionDate = VietnamTime.ToVietnamDateTime(session.PlannedDatetime),
                 PlannedTeacherId = session.PlannedTeacherId,
                 PlannedTeacherName = session.PlannedTeacherName,
                 ActualTeacherId = session.ActualTeacherId,

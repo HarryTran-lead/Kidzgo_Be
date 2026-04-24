@@ -123,7 +123,7 @@ public sealed class GetAdminOverviewQueryHandler(
             .ToListAsync(cancellationToken);
 
         // Upcoming Sessions
-        var upcomingSessions = await sessionsQuery
+        var upcomingSessionRows = await sessionsQuery
             .Where(s => s.Status == SessionStatus.Scheduled && s.PlannedDatetime >= now)
             .OrderBy(s => s.PlannedDatetime)
             .Take(20)
@@ -136,6 +136,17 @@ public sealed class GetAdminOverviewQueryHandler(
                 Status = s.Status.ToString()
             })
             .ToListAsync(cancellationToken);
+
+        var upcomingSessions = upcomingSessionRows
+            .Select(s => new SessionSummaryDto
+            {
+                Id = s.Id,
+                ClassId = s.ClassId,
+                ClassCode = s.ClassCode,
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(s.PlannedDatetime),
+                Status = s.Status
+            })
+            .ToList();
 
         // Students
         var students = await studentsQuery

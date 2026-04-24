@@ -166,8 +166,9 @@ public sealed class SuggestMakeupSessionsQueryHandler(
                 ClassTitle = suggestion.Class.Title,
                 ProgramName = suggestion.Class.Program.Name,
                 ProgramCode = suggestion.Class.Program.Code,
-                PlannedDatetime = suggestion.PlannedDatetime,
-                PlannedEndDatetime = suggestion.PlannedDatetime.AddMinutes(suggestion.DurationMinutes),
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(suggestion.PlannedDatetime),
+                PlannedEndDatetime = VietnamTime.ToVietnamDateTime(
+                    suggestion.PlannedDatetime.AddMinutes(suggestion.DurationMinutes)),
                 BranchId = suggestion.BranchId
             });
         }

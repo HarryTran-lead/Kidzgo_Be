@@ -65,7 +65,7 @@ public sealed class GetRegistrationByIdQueryHandler(
                 Track = RegistrationTrackHelper.ToTrackName(firstStudySessionRow.Track),
                 ClassId = firstStudySessionRow.ClassId,
                 ClassName = firstStudySessionRow.ClassName,
-                PlannedDatetime = firstStudySessionRow.PlannedDatetime,
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(firstStudySessionRow.PlannedDatetime),
                 StudyDate = VietnamTime.ToVietnamDateOnly(firstStudySessionRow.PlannedDatetime)
             };
 

@@ -147,7 +147,7 @@ public sealed class GetSessionReportByIdQueryHandler(
         {
             Id = sessionReport.Id,
             SessionId = sessionReport.SessionId,
-            SessionDate = sessionReport.Session.PlannedDatetime,
+            SessionDate = VietnamTime.ToVietnamDateTime(sessionReport.Session.PlannedDatetime),
             SessionStatus = sessionReport.Session.Status.ToString(),
             ClassId = sessionReport.Session.ClassId,
             ClassCode = sessionReport.Session.Class.Code,

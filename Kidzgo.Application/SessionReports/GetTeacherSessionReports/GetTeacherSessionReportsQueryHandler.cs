@@ -28,7 +28,7 @@ public sealed class GetTeacherSessionReportsQueryHandler(
 
         var totalCount = await reportsQuery.CountAsync(cancellationToken);
 
-        var items = await reportsQuery
+        var reportRows = await reportsQuery
             .OrderByDescending(sr => sr.ReportDate)
             .ThenByDescending(sr => sr.CreatedAt)
             .ApplyPagination(query.PageNumber, query.PageSize)
@@ -49,6 +49,24 @@ public sealed class GetTeacherSessionReportsQueryHandler(
             })
             .ToListAsync(cancellationToken);
 
+        var items = reportRows
+            .Select(sr => new TeacherSessionReportListItemDto
+            {
+                Id = sr.Id,
+                SessionId = sr.SessionId,
+                SessionDate = VietnamTime.ToVietnamDateTime(sr.SessionDate),
+                ClassId = sr.ClassId,
+                ClassCode = sr.ClassCode,
+                ClassTitle = sr.ClassTitle,
+                StudentProfileId = sr.StudentProfileId,
+                StudentName = sr.StudentName,
+                ReportDate = sr.ReportDate,
+                Feedback = sr.Feedback,
+                IsMonthlyCompiled = sr.IsMonthlyCompiled,
+                CreatedAt = sr.CreatedAt
+            })
+            .ToList();
+
         var page = new Page<TeacherSessionReportListItemDto>(
             items,
             totalCount,
@@ -64,4 +82,3 @@ public sealed class GetTeacherSessionReportsQueryHandler(
         };
     }
 }
-

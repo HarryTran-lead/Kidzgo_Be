@@ -197,7 +197,7 @@ public sealed class GetParentOverviewQueryHandler(
             upcomingSessionsQuery = upcomingSessionsQuery.Where(s => s.Id == query.SessionId.Value);
         }
 
-        var upcomingSessions = await upcomingSessionsQuery
+        var upcomingSessionRows = await upcomingSessionsQuery
             .OrderBy(s => s.PlannedDatetime)
             .Take(20)
             .Select(s => new SessionSummaryDto
@@ -211,8 +211,20 @@ public sealed class GetParentOverviewQueryHandler(
             })
             .ToListAsync(cancellationToken);
 
+        var upcomingSessions = upcomingSessionRows
+            .Select(s => new SessionSummaryDto
+            {
+                Id = s.Id,
+                ClassId = s.ClassId,
+                ClassCode = s.ClassCode,
+                StudentProfileId = s.StudentProfileId,
+                PlannedDatetime = VietnamTime.ToVietnamDateTime(s.PlannedDatetime),
+                Status = s.Status
+            })
+            .ToList();
+
         // Recent Attendances
-        var recentAttendances = await context.Attendances
+        var recentAttendanceRows = await context.Attendances
             .AsNoTracking()
             .Where(a => studentProfileIds.Contains(a.StudentProfileId) &&
                        a.Session.PlannedDatetime >= fromDate &&
@@ -227,6 +239,16 @@ public sealed class GetParentOverviewQueryHandler(
                 AttendanceStatus = a.AttendanceStatus.ToString()
             })
             .ToListAsync(cancellationToken);
+
+        var recentAttendances = recentAttendanceRows
+            .Select(a => new AttendanceSummaryDto
+            {
+                SessionId = a.SessionId,
+                ClassCode = a.ClassCode,
+                SessionDate = VietnamTime.ToVietnamDateTime(a.SessionDate),
+                AttendanceStatus = a.AttendanceStatus
+            })
+            .ToList();
 
         // Makeup Credits
         var makeupCredits = await context.MakeupCredits

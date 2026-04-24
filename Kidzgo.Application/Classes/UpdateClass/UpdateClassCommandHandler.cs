@@ -1,7 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
-using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
@@ -57,18 +56,6 @@ public sealed class UpdateClassCommandHandler(
         {
             return Result.Failure<UpdateClassResponse>(
                 ClassErrors.ProgramNotFound);
-        }
-
-        var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
-            context,
-            command.BranchId,
-            command.ProgramId,
-            cancellationToken);
-
-        if (!programAssignedToBranch)
-        {
-            return Result.Failure<UpdateClassResponse>(
-                ClassErrors.ProgramNotAvailableInBranch);
         }
 
         // Check if code is unique (excluding current class)

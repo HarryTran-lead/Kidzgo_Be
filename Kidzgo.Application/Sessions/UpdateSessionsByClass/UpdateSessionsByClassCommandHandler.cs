@@ -1,11 +1,11 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Time;
-using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Classes.Errors;
+using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
-using Kidzgo.Domain.Sessions.Errors;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Sessions.UpdateSessionsByClass;
@@ -20,40 +20,47 @@ public sealed class UpdateSessionsByClassCommandHandler(
         UpdateSessionsByClassCommand command,
         CancellationToken cancellationToken)
     {
-        // Kiểm tra class tồn tại
-        var classExists = await context.Classes
-            .AnyAsync(c => c.Id == command.ClassId, cancellationToken);
+        var classEntity = await context.Classes
+            .FirstOrDefaultAsync(c => c.Id == command.ClassId, cancellationToken);
 
-        if (!classExists)
+        if (classEntity is null)
         {
             return Result.Failure<UpdateSessionsByClassResponse>(
                 ClassErrors.NotFound(command.ClassId));
         }
 
-        // Build query để lấy sessions cần update
+        var resourceValidation = await SessionResourceValidator.ValidateAsync(
+            context,
+            classEntity.BranchId,
+            command.PlannedRoomId,
+            command.PlannedTeacherId,
+            command.PlannedAssistantId,
+            cancellationToken);
+
+        if (resourceValidation.IsFailure)
+        {
+            return Result.Failure<UpdateSessionsByClassResponse>(resourceValidation.Error);
+        }
+
         var query = context.Sessions
             .Where(s => s.ClassId == command.ClassId);
 
-        // Nếu có danh sách SessionIds cụ thể, chỉ update các sessions đó
         if (command.SessionIds != null && command.SessionIds.Count > 0)
         {
             query = query.Where(s => command.SessionIds.Contains(s.Id));
         }
 
-        // Filter theo status nếu có
         if (command.FilterByStatus.HasValue)
         {
             query = query.Where(s => s.Status == command.FilterByStatus.Value);
         }
 
-        // Filter theo FromDate nếu có
         if (command.FromDate.HasValue)
         {
             var fromDateUtc = VietnamTime.NormalizeToUtc(command.FromDate.Value);
             query = query.Where(s => s.PlannedDatetime >= fromDateUtc);
         }
 
-        // Chỉ update các sessions có thể update được (không phải Cancelled hoặc Completed)
         query = query.Where(s => s.Status != SessionStatus.Cancelled && s.Status != SessionStatus.Completed);
 
         var sessions = await query.ToListAsync(cancellationToken);
@@ -65,7 +72,7 @@ public sealed class UpdateSessionsByClassCommandHandler(
                 UpdatedSessionsCount = 0,
                 UpdatedSessionIds = new List<Guid>(),
                 SkippedSessionIds = new List<Guid>(),
-                Errors = new List<string> { "Không tìm thấy sessions nào để update" }
+                Errors = new List<string> { "No sessions were found for update" }
             });
         }
 
@@ -78,25 +85,22 @@ public sealed class UpdateSessionsByClassCommandHandler(
         {
             try
             {
-                // Kiểm tra xem có field nào cần update không
                 bool hasChanges = false;
 
-                // Xác định các giá trị sẽ được sử dụng sau khi update
                 var plannedUtc = command.PlannedDatetime.HasValue
                     ? VietnamTime.NormalizeToUtc(command.PlannedDatetime.Value)
                     : session.PlannedDatetime;
-                
+
                 var duration = command.DurationMinutes ?? session.DurationMinutes;
                 var roomId = command.PlannedRoomId ?? session.PlannedRoomId;
                 var teacherId = command.PlannedTeacherId ?? session.PlannedTeacherId;
                 var assistantId = command.PlannedAssistantId ?? session.PlannedAssistantId;
 
-                // Kiểm tra conflict nếu có thay đổi về datetime, room, hoặc teacher
                 bool needsConflictCheck = command.PlannedDatetime.HasValue ||
-                                        command.PlannedRoomId.HasValue ||
-                                        command.PlannedTeacherId.HasValue ||
-                                        command.PlannedAssistantId.HasValue ||
-                                        command.DurationMinutes.HasValue;
+                                          command.PlannedRoomId.HasValue ||
+                                          command.PlannedTeacherId.HasValue ||
+                                          command.PlannedAssistantId.HasValue ||
+                                          command.DurationMinutes.HasValue;
 
                 if (needsConflictCheck)
                 {
@@ -112,50 +116,44 @@ public sealed class UpdateSessionsByClassCommandHandler(
                     if (conflictResult.HasConflicts)
                     {
                         var conflictMessages = conflictResult.Conflicts
-                            .Select(c => $"{c.Type}: {c.ClassCode} - {c.ClassTitle} vào {c.ConflictDatetime:dd/MM/yyyy HH:mm}")
+                            .Select(c => $"{c.Type}: {c.ClassCode} - {c.ClassTitle} at {c.ConflictDatetime:dd/MM/yyyy HH:mm}")
                             .ToList();
-                        errors.Add($"Session {session.Id}: Xung đột - {string.Join(", ", conflictMessages)}");
+                        errors.Add($"Session {session.Id}: conflict - {string.Join(", ", conflictMessages)}");
                         skippedSessionIds.Add(session.Id);
                         continue;
                     }
                 }
 
-                // Update PlannedDatetime nếu có
                 if (command.PlannedDatetime.HasValue)
                 {
                     session.PlannedDatetime = plannedUtc;
                     hasChanges = true;
                 }
 
-                // Update DurationMinutes nếu có
                 if (command.DurationMinutes.HasValue)
                 {
                     session.DurationMinutes = command.DurationMinutes.Value;
                     hasChanges = true;
                 }
 
-                // Update PlannedRoomId nếu có
                 if (command.PlannedRoomId.HasValue)
                 {
                     session.PlannedRoomId = command.PlannedRoomId.Value;
                     hasChanges = true;
                 }
 
-                // Update PlannedTeacherId nếu có
                 if (command.PlannedTeacherId.HasValue)
                 {
                     session.PlannedTeacherId = command.PlannedTeacherId.Value;
                     hasChanges = true;
                 }
 
-                // Update PlannedAssistantId nếu có
                 if (command.PlannedAssistantId.HasValue)
                 {
                     session.PlannedAssistantId = command.PlannedAssistantId.Value;
                     hasChanges = true;
                 }
 
-                // Update ParticipationType nếu có
                 if (command.ParticipationType.HasValue)
                 {
                     session.ParticipationType = command.ParticipationType.Value;
@@ -194,4 +192,3 @@ public sealed class UpdateSessionsByClassCommandHandler(
         });
     }
 }
-

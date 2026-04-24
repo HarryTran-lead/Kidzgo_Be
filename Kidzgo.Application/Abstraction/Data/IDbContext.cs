@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Kidzgo.Domain.Users;
 using Kidzgo.Domain.Schools;
 using Kidzgo.Domain.Classes;
@@ -24,6 +25,8 @@ namespace Kidzgo.Application.Abstraction.Data;
 
 public interface IDbContext
 {
+    DatabaseFacade Database { get; }
+
     // Users
     DbSet<User> Users { get; }
     DbSet<RefreshToken> RefreshTokens { get; }

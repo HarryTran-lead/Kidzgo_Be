@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Profiles.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Users;
 using Kidzgo.Domain.Users.Errors;
@@ -18,6 +19,16 @@ public sealed class DeleteProfileCommandHandler(IDbContext context)
         if (profile is null)
         {
             return Result.Failure(ProfileErrors.NotFound(command.Id));
+        }
+
+        var dependencyValidation = await ProfileDependencyGuard.EnsureCanDeactivateOrDeleteAsync(
+            context,
+            profile,
+            cancellationToken);
+
+        if (dependencyValidation.IsFailure)
+        {
+            return Result.Failure(dependencyValidation.Error);
         }
         
         profile.IsDeleted = true;

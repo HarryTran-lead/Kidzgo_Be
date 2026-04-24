@@ -42,7 +42,43 @@ public static class ClassErrors
 
     public static readonly Error HasActiveEnrollments = Error.Conflict(
         "Class.HasActiveEnrollments",
-        "Cannot delete class with active enrollments");
+        "Cannot change class while it has active or paused enrollments");
+
+    public static readonly Error HasFutureSessions = Error.Conflict(
+        "Class.HasFutureSessions",
+        "Cannot change class while it has future sessions");
+
+    public static readonly Error HasOperationalDependencies = Error.Conflict(
+        "Class.HasOperationalDependencies",
+        "Cannot change branch or program while class has enrollments or sessions");
+
+    public static readonly Error CapacityBelowActiveEnrollments = Error.Conflict(
+        "Class.CapacityBelowActiveEnrollments",
+        "Capacity cannot be lower than the number of active enrollments");
+
+    public static readonly Error RoomNotFound = Error.NotFound(
+        "Class.RoomNotFound",
+        "Room not found or inactive");
+
+    public static readonly Error RoomBranchMismatch = Error.Conflict(
+        "Class.RoomBranchMismatch",
+        "Room must belong to the same branch as the class");
+
+    public static readonly Error TeacherAndAssistantMustDiffer = Error.Validation(
+        "Class.TeacherAndAssistantMustDiffer",
+        "Main teacher and assistant teacher must be different users");
+
+    public static readonly Error InvalidActiveDependencies = Error.Conflict(
+        "Class.InvalidActiveDependencies",
+        "Class cannot be activated while branch, program, room, or teachers are inactive");
+
+    public static readonly Error CannotCloseWithActiveEnrollments = Error.Conflict(
+        "Class.CannotCloseWithActiveEnrollments",
+        "Cannot close, suspend, complete, or cancel class with active or paused enrollments");
+
+    public static readonly Error CannotCloseWithFutureSessions = Error.Conflict(
+        "Class.CannotCloseWithFutureSessions",
+        "Cannot close, suspend, complete, or cancel class with future sessions");
 
     public static readonly Error StatusUnchanged = Error.Validation(
         "Class.StatusUnchanged",

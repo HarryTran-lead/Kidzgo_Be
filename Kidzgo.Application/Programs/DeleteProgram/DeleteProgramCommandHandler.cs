@@ -21,18 +21,30 @@ public sealed class DeleteProgramCommandHandler(
             return Result.Failure(ProgramErrors.NotFound(command.Id));
         }
 
-        // Check if program is being used by any active classes
         bool hasActiveClasses = await context.Classes
-            .AnyAsync(c => c.ProgramId == program.Id && c.Status == ClassStatus.Active, cancellationToken);
+            .AnyAsync(
+                c => c.ProgramId == program.Id &&
+                     (c.Status == ClassStatus.Active || c.Status == ClassStatus.Planned),
+                cancellationToken);
 
         if (hasActiveClasses)
         {
             return Result.Failure(ProgramErrors.HasActiveClasses);
         }
 
-        // Soft delete
+        bool hasActiveEnrollments = await context.ClassEnrollments
+            .AnyAsync(
+                e => e.Class.ProgramId == program.Id &&
+                     (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Paused),
+                cancellationToken);
+
+        if (hasActiveEnrollments)
+        {
+            return Result.Failure(ProgramErrors.HasActiveEnrollments);
+        }
+
         program.IsDeleted = true;
-        program.IsActive = false; // Deactivate when soft deleting
+        program.IsActive = false;
         program.UpdatedAt = VietnamTime.UtcNow();
         await context.SaveChangesAsync(cancellationToken);
 

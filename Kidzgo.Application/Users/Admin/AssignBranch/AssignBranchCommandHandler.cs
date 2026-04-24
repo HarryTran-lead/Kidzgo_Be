@@ -29,7 +29,6 @@ public sealed class AssignBranchCommandHandler(IDbContext context)
             return Result.Failure<AssignBranchResponse>(UserErrors.InvalidRoleForBranchAssignment);
         }
 
-        // If BranchId is provided, verify branch exists
         if (command.BranchId.HasValue)
         {
             var branch = await context.Branches
@@ -38,6 +37,11 @@ public sealed class AssignBranchCommandHandler(IDbContext context)
             if (branch is null)
             {
                 return Result.Failure<AssignBranchResponse>(BranchErrors.NotFound(command.BranchId));
+            }
+
+            if (!branch.IsActive)
+            {
+                return Result.Failure<AssignBranchResponse>(UserErrors.BranchInactive);
             }
 
             user.BranchId = command.BranchId.Value;

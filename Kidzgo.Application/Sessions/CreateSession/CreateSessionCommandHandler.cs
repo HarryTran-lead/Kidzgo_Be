@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Time;
 using Kidzgo.Domain.Classes;
@@ -33,12 +34,24 @@ public sealed class CreateSessionCommandHandler(
             return Result.Failure<CreateSessionResponse>(SessionErrors.InvalidClassStatus);
         }
 
+        var resourceValidation = await SessionResourceValidator.ValidateAsync(
+            context,
+            classEntity.BranchId,
+            command.PlannedRoomId,
+            command.PlannedTeacherId,
+            command.PlannedAssistantId,
+            cancellationToken);
+
+        if (resourceValidation.IsFailure)
+        {
+            return Result.Failure<CreateSessionResponse>(resourceValidation.Error);
+        }
+
         var now = VietnamTime.UtcNow();
         var plannedUtc = VietnamTime.NormalizeToUtc(command.PlannedDatetime);
 
-        // Check for conflicts (warning only, không block)
         var conflictResult = await conflictChecker.CheckConflictsAsync(
-            Guid.Empty, // New session, no ID yet
+            Guid.Empty,
             plannedUtc,
             command.DurationMinutes,
             command.PlannedRoomId,
@@ -46,7 +59,11 @@ public sealed class CreateSessionCommandHandler(
             command.PlannedAssistantId,
             cancellationToken);
 
-        // Note: Conflicts are logged but don't block creation - business logic decision
+        if (conflictResult.HasConflicts)
+        {
+            return Result.Failure<CreateSessionResponse>(
+                ToSessionConflictError(conflictResult.Conflicts.First()));
+        }
 
         var session = new Session
         {
@@ -76,6 +93,26 @@ public sealed class CreateSessionCommandHandler(
             BranchId = session.BranchId,
             PlannedDatetime = session.PlannedDatetime,
             DurationMinutes = session.DurationMinutes
+        };
+    }
+
+    private static Error ToSessionConflictError(SessionConflict conflict)
+    {
+        return conflict.Type switch
+        {
+            ConflictType.Room => SessionErrors.RoomOccupied(
+                conflict.ClassCode,
+                conflict.ClassTitle,
+                conflict.ConflictDatetime),
+            ConflictType.Teacher => SessionErrors.TeacherOccupied(
+                conflict.ClassCode,
+                conflict.ClassTitle,
+                conflict.ConflictDatetime),
+            ConflictType.Assistant => SessionErrors.AssistantOccupied(
+                conflict.ClassCode,
+                conflict.ClassTitle,
+                conflict.ConflictDatetime),
+            _ => SessionErrors.InvalidStatus
         };
     }
 }

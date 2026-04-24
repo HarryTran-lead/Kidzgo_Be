@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Profiles.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Users;
 using Kidzgo.Domain.Users.Errors;
@@ -27,6 +28,19 @@ public sealed class UpdateProfileCommandHandler(IDbContext context)
 
         if (command.IsActive.HasValue)
         {
+            if (profile.IsActive && !command.IsActive.Value)
+            {
+                var dependencyValidation = await ProfileDependencyGuard.EnsureCanDeactivateOrDeleteAsync(
+                    context,
+                    profile,
+                    cancellationToken);
+
+                if (dependencyValidation.IsFailure)
+                {
+                    return Result.Failure<UpdateProfileResponse>(dependencyValidation.Error);
+                }
+            }
+
             profile.IsActive = command.IsActive.Value;
         }
 

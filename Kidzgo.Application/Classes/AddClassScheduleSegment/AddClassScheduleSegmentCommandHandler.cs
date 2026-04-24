@@ -20,6 +20,16 @@ public sealed class AddClassScheduleSegmentCommandHandler(
         AddClassScheduleSegmentCommand command,
         CancellationToken cancellationToken)
     {
+        var normalizedPatternResult = SchedulePatternSupport.NormalizeWeeklyScheduleJson(
+            command.WeeklyScheduleSlots,
+            requireValue: true);
+        if (normalizedPatternResult.IsFailure)
+        {
+            return Result.Failure<AddClassScheduleSegmentResponse>(normalizedPatternResult.Error);
+        }
+
+        var normalizedWeeklyScheduleJson = normalizedPatternResult.Value!;
+
         var classEntity = await context.Classes
             .Include(c => c.Program)
             .Include(c => c.ScheduleSegments)
@@ -35,11 +45,6 @@ public sealed class AddClassScheduleSegmentCommandHandler(
         {
             return Result.Failure<AddClassScheduleSegmentResponse>(
                 ClassErrors.SupplementaryProgramRequired);
-        }
-
-        if (string.IsNullOrWhiteSpace(command.SchedulePattern))
-        {
-            return Result.Failure<AddClassScheduleSegmentResponse>(ScheduleErrors.Empty);
         }
 
         if (command.EffectiveFrom < classEntity.StartDate)
@@ -75,8 +80,8 @@ public sealed class AddClassScheduleSegmentCommandHandler(
         var validationEndDate = command.EffectiveTo
             ?? classEntity.EndDate
             ?? command.EffectiveFrom.AddMonths(3);
-        var parseResult = patternParser.ParseAndGenerateOccurrences(
-            command.SchedulePattern,
+        var parseResult = patternParser.ParseAndGenerateOccurrenceDetails(
+            normalizedWeeklyScheduleJson,
             command.EffectiveFrom,
             validationEndDate);
         if (parseResult.IsFailure)
@@ -88,14 +93,7 @@ public sealed class AddClassScheduleSegmentCommandHandler(
         {
             return Result.Failure<AddClassScheduleSegmentResponse>(
                 ClassErrors.InvalidScheduleSegmentEffectiveDate(
-                    "Schedule pattern does not generate any sessions in the effective range."));
-        }
-
-        var durationMinutes = patternParser.ParseDuration(command.SchedulePattern) ?? 90;
-        if (durationMinutes <= 0)
-        {
-            return Result.Failure<AddClassScheduleSegmentResponse>(
-                SessionErrors.InvalidDuration(durationMinutes));
+                    "Weekly schedule does not generate any sessions in the effective range."));
         }
 
         var existingSegments = classEntity.ScheduleSegments
@@ -117,7 +115,7 @@ public sealed class AddClassScheduleSegmentCommandHandler(
         var now = VietnamTime.UtcNow();
         if (existingSegments.Count == 0 && command.EffectiveFrom > classEntity.StartDate)
         {
-            if (string.IsNullOrWhiteSpace(classEntity.SchedulePattern))
+            if (string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
             {
                 return Result.Failure<AddClassScheduleSegmentResponse>(
                     SessionErrors.MissingSchedulePattern(classEntity.Id));
@@ -129,7 +127,7 @@ public sealed class AddClassScheduleSegmentCommandHandler(
                 ClassId = classEntity.Id,
                 EffectiveFrom = classEntity.StartDate,
                 EffectiveTo = command.EffectiveFrom.AddDays(-1),
-                SchedulePattern = classEntity.SchedulePattern,
+                WeeklyScheduleJson = classEntity.WeeklyScheduleJson,
                 CreatedAt = now,
                 UpdatedAt = now
             });
@@ -153,13 +151,13 @@ public sealed class AddClassScheduleSegmentCommandHandler(
             ClassId = classEntity.Id,
             EffectiveFrom = command.EffectiveFrom,
             EffectiveTo = command.EffectiveTo,
-            SchedulePattern = command.SchedulePattern,
+            WeeklyScheduleJson = normalizedWeeklyScheduleJson,
             CreatedAt = now,
             UpdatedAt = now
         };
 
         context.ClassScheduleSegments.Add(newSegment);
-        classEntity.SchedulePattern = command.SchedulePattern;
+        classEntity.WeeklyScheduleJson = normalizedWeeklyScheduleJson;
         classEntity.UpdatedAt = now;
 
         await context.SaveChangesAsync(cancellationToken);
@@ -186,7 +184,7 @@ public sealed class AddClassScheduleSegmentCommandHandler(
             ProgramId = classEntity.ProgramId,
             EffectiveFrom = newSegment.EffectiveFrom,
             EffectiveTo = newSegment.EffectiveTo,
-            SchedulePattern = newSegment.SchedulePattern,
+            WeeklyScheduleSlots = patternParser.ParseScheduleSlots(newSegment.WeeklyScheduleJson).Value,
             GeneratedSessionsCount = generatedSessionsCount
         };
     }

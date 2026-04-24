@@ -6,7 +6,6 @@ namespace Kidzgo.API.Extensions;
 
 public sealed class SchedulePatternSchemaFilter : ISchemaFilter
 {
-    private const string ExamplePattern = "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=8;BYMINUTE=30;DURATION=60";
     private const string SessionSelectionExample = "FREQ=WEEKLY;BYDAY=WE;BYHOUR=8;BYMINUTE=30";
     private const string SessionSelectionDescription =
         "Optional subset of the class schedule for this student. " +
@@ -19,12 +18,6 @@ public sealed class SchedulePatternSchemaFilter : ISchemaFilter
         if (schema?.Properties is not { Count: > 0 })
         {
             return;
-        }
-
-        if (schema.Properties.TryGetValue("schedulePattern", out var scheduleProperty) ||
-            schema.Properties.TryGetValue("SchedulePattern", out scheduleProperty))
-        {
-            scheduleProperty.Example ??= new OpenApiString(ExamplePattern);
         }
 
         if (schema.Properties.TryGetValue("sessionSelectionPattern", out var sessionSelectionProperty) ||

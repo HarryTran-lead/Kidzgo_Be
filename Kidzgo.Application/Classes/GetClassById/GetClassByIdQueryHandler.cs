@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
@@ -7,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Classes.GetClassById;
 
 public sealed class GetClassByIdQueryHandler(
-    IDbContext context
+    IDbContext context,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<GetClassByIdQuery, GetClassByIdResponse>
 {
     public async Task<Result<GetClassByIdResponse>> Handle(GetClassByIdQuery query, CancellationToken cancellationToken)
@@ -63,7 +65,9 @@ public sealed class GetClassByIdQueryHandler(
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
             CurrentEnrollmentCount = currentEnrollmentCount,
-            SchedulePattern = classEntity.SchedulePattern,
+            WeeklyScheduleSlots = classEntity.WeeklyScheduleJson is null
+                ? []
+                : ParseSlots(classEntity.WeeklyScheduleJson),
             TeacherIds = new[] { classEntity.MainTeacherId, classEntity.AssistantTeacherId }
                 .Where(x => x.HasValue)
                 .Select(x => x!.Value)
@@ -81,12 +85,18 @@ public sealed class GetClassByIdQueryHandler(
                     Id = segment.Id,
                     EffectiveFrom = segment.EffectiveFrom,
                     EffectiveTo = segment.EffectiveTo,
-                    SchedulePattern = segment.SchedulePattern
+                    WeeklyScheduleSlots = ParseSlots(segment.WeeklyScheduleJson)
                 })
                 .ToList(),
             CreatedAt = classEntity.CreatedAt,
             UpdatedAt = classEntity.UpdatedAt
         };
+    }
+
+    private List<ScheduleSlot> ParseSlots(string weeklyScheduleJson)
+    {
+        var parseResult = schedulePatternParser.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : [];
     }
 }
 

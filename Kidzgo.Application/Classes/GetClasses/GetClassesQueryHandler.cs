@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
 using Kidzgo.Domain.Common;
@@ -9,7 +10,8 @@ namespace Kidzgo.Application.Classes.GetClasses;
 
 public sealed class GetClassesQueryHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<GetClassesQuery, GetClassesResponse>
 {
     public async Task<Result<GetClassesResponse>> Handle(GetClassesQuery query, CancellationToken cancellationToken)
@@ -62,14 +64,6 @@ public sealed class GetClassesQueryHandler(
                     ce.Status == Domain.Classes.EnrollmentStatus.Active));
         }
 
-        if (!string.IsNullOrWhiteSpace(query.SchedulePattern))
-        {
-            var schedulePattern = query.SchedulePattern.Trim();
-            classesQuery = classesQuery.Where(c =>
-                c.SchedulePattern != null &&
-                c.SchedulePattern.Contains(schedulePattern));
-        }
-
         // Filter by search term
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
@@ -107,12 +101,35 @@ public sealed class GetClassesQueryHandler(
                 Status = c.Status.ToString(),
                 Capacity = c.Capacity,
                 CurrentEnrollmentCount = c.ClassEnrollments.Count(ce => ce.Status == Domain.Classes.EnrollmentStatus.Active),
-                SchedulePattern = c.SchedulePattern,
                 Description = c.Description,
                 TotalSessions = c.Sessions.Count(),
                 CompletedSessions = c.Sessions.Count(s => s.Status == Domain.Sessions.SessionStatus.Completed)
             })
             .ToListAsync(cancellationToken);
+
+        var classWeeklySchedules = await classesQuery
+            .OrderByDescending(c => c.CreatedAt)
+            .ThenBy(c => c.Code)
+            .ApplyPagination(query.PageNumber, query.PageSize)
+            .Select(c => new { c.Id, c.WeeklyScheduleJson })
+            .ToListAsync(cancellationToken);
+
+        var weeklyScheduleByClassId = classWeeklySchedules.ToDictionary(item => item.Id, item => item.WeeklyScheduleJson);
+
+        foreach (var classDto in classes)
+        {
+            if (!weeklyScheduleByClassId.TryGetValue(classDto.Id, out var weeklyScheduleJson) ||
+                string.IsNullOrWhiteSpace(weeklyScheduleJson))
+            {
+                continue;
+            }
+
+            var parseResult = schedulePatternParser.ParseScheduleSlots(weeklyScheduleJson);
+            if (parseResult.IsSuccess)
+            {
+                classDto.WeeklyScheduleSlots.AddRange(parseResult.Value);
+            }
+        }
 
         var page = new Page<ClassDto>(
             classes,

@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 
 namespace Kidzgo.Application.Classes.GetClassById;
@@ -20,7 +22,7 @@ public sealed class GetClassByIdResponse
     public string Status { get; init; } = null!;
     public int Capacity { get; init; }
     public int CurrentEnrollmentCount { get; init; }
-    public string? SchedulePattern { get; init; }
+    public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
     public string Name => Title;
@@ -29,7 +31,7 @@ public sealed class GetClassByIdResponse
     public string? Description { get; init; }
     public List<Guid> TeacherIds { get; init; } = new();
     public List<string> TeacherNames { get; init; } = new();
-    public string? ScheduleText => SchedulePattern;
+    public string? ScheduleText => SchedulePatternSupport.BuildDisplayText(WeeklyScheduleSlots);
     public int StudentCount => CurrentEnrollmentCount;
     public int TotalSessions { get; init; }
     public int CompletedSessions { get; init; }
@@ -44,6 +46,6 @@ public sealed class ClassScheduleSegmentDto
     public Guid Id { get; init; }
     public DateOnly EffectiveFrom { get; init; }
     public DateOnly? EffectiveTo { get; init; }
-    public string SchedulePattern { get; init; } = null!;
+    public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
 }
 

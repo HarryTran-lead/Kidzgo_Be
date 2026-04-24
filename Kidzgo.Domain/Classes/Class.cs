@@ -28,7 +28,7 @@ public class Class : Entity
     public DateOnly? EndDate { get; set; }
     public ClassStatus Status { get; set; }
     public int Capacity { get; set; }
-    public string? SchedulePattern { get; set; }
+    public string? WeeklyScheduleJson { get; set; }
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
 using Kidzgo.Domain.Common;
@@ -10,7 +11,8 @@ namespace Kidzgo.Application.Classes.GetTeacherClasses;
 
 public sealed class GetTeacherClassesQueryHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<GetTeacherClassesQuery, GetTeacherClassesResponse>
 {
     public async Task<Result<GetTeacherClassesResponse>> Handle(GetTeacherClassesQuery query, CancellationToken cancellationToken)
@@ -66,10 +68,33 @@ public sealed class GetTeacherClassesQueryHandler(
                 Status = c.Status.ToString(),
                 Capacity = c.Capacity,
                 CurrentEnrollmentCount = c.ClassEnrollments.Count(ce => ce.Status == EnrollmentStatus.Active),
-                SchedulePattern = c.SchedulePattern,
                 Role = c.MainTeacherId == userId ? "MainTeacher" : "AssistantTeacher"
             })
             .ToListAsync(cancellationToken);
+
+        var classWeeklySchedules = await classesQuery
+            .OrderByDescending(c => c.CreatedAt)
+            .ThenBy(c => c.Title)
+            .ApplyPagination(query.PageNumber, query.PageSize)
+            .Select(c => new { c.Id, c.WeeklyScheduleJson })
+            .ToListAsync(cancellationToken);
+
+        var weeklyScheduleByClassId = classWeeklySchedules.ToDictionary(item => item.Id, item => item.WeeklyScheduleJson);
+
+        foreach (var classDto in classes)
+        {
+            if (!weeklyScheduleByClassId.TryGetValue(classDto.Id, out var weeklyScheduleJson) ||
+                string.IsNullOrWhiteSpace(weeklyScheduleJson))
+            {
+                continue;
+            }
+
+            var parseResult = schedulePatternParser.ParseScheduleSlots(weeklyScheduleJson);
+            if (parseResult.IsSuccess)
+            {
+                classDto.WeeklyScheduleSlots.AddRange(parseResult.Value);
+            }
+        }
 
         var page = new Page<TeacherClassDto>(
             classes,

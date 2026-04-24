@@ -27,14 +27,14 @@ public sealed class AssignClassRequest
     public DateOnly? FirstStudyDate { get; set; }
 
     /// <summary>
-    /// Optional subset of class schedule for this student, using RRULE format.
+    /// Optional subset of the class weekly schedule for this student, using RRULE format.
     /// If omitted, the student attends all sessions of the class.
     /// Examples:
     /// - If class runs Wednesday 08:30: FREQ=WEEKLY;BYDAY=WE;BYHOUR=8;BYMINUTE=30
     /// - If class runs Tuesday 18:00: FREQ=WEEKLY;BYDAY=TU;BYHOUR=18;BYMINUTE=0
     /// - If class runs Tuesday and Thursday 18:00: FREQ=WEEKLY;BYDAY=TU,TH;BYHOUR=18;BYMINUTE=0
     /// Note: the selection pattern must match the class slot time, not only the weekday.
-    /// The pattern must be a subset of the class SchedulePattern.
+    /// The pattern must be a subset of the class weekly schedule slots.
     /// </summary>
     public string? SessionSelectionPattern { get; set; }
 }

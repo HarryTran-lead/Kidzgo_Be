@@ -1,4 +1,6 @@
 using Kidzgo.Domain.Classes;
+using Kidzgo.Application.Abstraction.Services;
+using Kidzgo.Application.Services;
 
 namespace Kidzgo.Application.Registrations;
 
@@ -10,7 +12,7 @@ public sealed class RegistrationActualStudyScheduleDto
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
     public bool UsesClassDefaultSchedule { get; init; }
-    public string? ClassSchedulePattern { get; init; }
+    public List<ScheduleSlot> ClassWeeklyScheduleSlots { get; init; } = new();
     public string? SessionSelectionPattern { get; init; }
     public string? EffectiveSchedulePattern { get; init; }
     public List<string> StudyDayCodes { get; init; } = new();
@@ -78,7 +80,7 @@ internal static class RegistrationActualStudyScheduleMapper
         var classEntity = enrollment.Class;
         var usesClassDefaultSchedule = string.IsNullOrWhiteSpace(enrollment.SessionSelectionPattern);
         var effectiveSchedulePattern = usesClassDefaultSchedule
-            ? classEntity.SchedulePattern
+            ? classEntity.WeeklyScheduleJson
             : enrollment.SessionSelectionPattern;
         var studyDayCodes = ExtractOrderedDayCodes(effectiveSchedulePattern);
         var studyDays = studyDayCodes
@@ -93,7 +95,7 @@ internal static class RegistrationActualStudyScheduleMapper
             ProgramId = classEntity.ProgramId,
             ProgramName = classEntity.Program.Name,
             UsesClassDefaultSchedule = usesClassDefaultSchedule,
-            ClassSchedulePattern = classEntity.SchedulePattern,
+            ClassWeeklyScheduleSlots = ParseWeeklyScheduleSlots(classEntity.WeeklyScheduleJson),
             SessionSelectionPattern = enrollment.SessionSelectionPattern,
             EffectiveSchedulePattern = effectiveSchedulePattern,
             StudyDayCodes = studyDayCodes,
@@ -101,7 +103,7 @@ internal static class RegistrationActualStudyScheduleMapper
             StudyDaySummary = studyDays.Count > 0 ? string.Join(", ", studyDays) : null,
             ScheduleSegments = enrollment.ScheduleSegments
                 .OrderBy(segment => segment.EffectiveFrom)
-                .Select(segment => MapSegment(segment, classEntity.SchedulePattern))
+                .Select(segment => MapSegment(segment, classEntity.WeeklyScheduleJson))
                 .ToList()
         };
     }
@@ -133,28 +135,20 @@ internal static class RegistrationActualStudyScheduleMapper
 
     private static List<string> ExtractOrderedDayCodes(string? schedulePattern)
     {
-        if (string.IsNullOrWhiteSpace(schedulePattern))
+        var dayCodes = SchedulePatternSupport.ExtractOrderedDayCodes(schedulePattern);
+        return dayCodes.Count == 0
+            ? new List<string>()
+            : dayCodes.ToList();
+    }
+
+    private static List<ScheduleSlot> ParseWeeklyScheduleSlots(string? weeklyScheduleJson)
+    {
+        if (string.IsNullOrWhiteSpace(weeklyScheduleJson))
         {
-            return new List<string>();
+            return new List<ScheduleSlot>();
         }
 
-        var dayMatch = System.Text.RegularExpressions.Regex.Match(
-            schedulePattern,
-            @"BYDAY=([A-Z,]+)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        if (!dayMatch.Success)
-        {
-            return new List<string>();
-        }
-
-        var daySet = dayMatch.Groups[1].Value
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(day => day.ToUpperInvariant())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return DayOrder
-            .Where(daySet.Contains)
-            .ToList();
+        var parseResult = SchedulePatternSupport.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : new List<ScheduleSlot>();
     }
 }

@@ -8,7 +8,7 @@ public class ClassScheduleSegment : Entity
     public Guid ClassId { get; set; }
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly? EffectiveTo { get; set; }
-    public string SchedulePattern { get; set; } = null!;
+    public string WeeklyScheduleJson { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

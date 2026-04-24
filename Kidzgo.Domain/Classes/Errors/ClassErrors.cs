@@ -128,5 +128,5 @@ public static class ScheduleErrors
 
     public static Error Invalid(string message) => Error.Validation(
         "SchedulePattern.Invalid",
-        $"Invalid RRULE pattern: {message}");
+        $"Invalid schedule pattern: {message}");
 }

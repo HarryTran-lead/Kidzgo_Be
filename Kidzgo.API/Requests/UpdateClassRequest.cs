@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+
 namespace Kidzgo.API.Requests;
 
 public sealed class UpdateClassRequest
@@ -13,7 +15,7 @@ public sealed class UpdateClassRequest
     public DateOnly StartDate { get; set; }
     public DateOnly? EndDate { get; set; }
     public int Capacity { get; set; }
-    public string? SchedulePattern { get; set; }
+    public List<ScheduleSlot>? WeeklyScheduleSlots { get; set; }
     public string? Description { get; set; }
 }
 

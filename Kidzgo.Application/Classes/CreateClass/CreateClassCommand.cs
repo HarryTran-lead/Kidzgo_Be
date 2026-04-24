@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Domain.Classes;
 
 namespace Kidzgo.Application.Classes.CreateClass;
@@ -15,7 +16,7 @@ public sealed class CreateClassCommand : ICommand<CreateClassResponse>
     public DateOnly StartDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public int Capacity { get; init; }
-    public string? SchedulePattern { get; init; }
+    public List<ScheduleSlot>? WeeklyScheduleSlots { get; init; }
     public string? Description { get; init; }
 }
 

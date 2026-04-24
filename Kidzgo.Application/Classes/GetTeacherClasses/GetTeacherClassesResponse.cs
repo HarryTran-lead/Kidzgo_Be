@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+
 using Kidzgo.Domain.Common;
 
 namespace Kidzgo.Application.Classes.GetTeacherClasses;
@@ -25,7 +27,7 @@ public sealed class TeacherClassDto
     public string Status { get; init; } = null!;
     public int Capacity { get; init; }
     public int CurrentEnrollmentCount { get; init; }
-    public string? SchedulePattern { get; init; }
+    public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
     public string Role { get; init; } = null!; // "MainTeacher" or "AssistantTeacher"
 }
 

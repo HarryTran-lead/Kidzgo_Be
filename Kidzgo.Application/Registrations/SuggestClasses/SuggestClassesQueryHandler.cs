@@ -1,5 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
@@ -12,7 +14,8 @@ using System.Text.RegularExpressions;
 namespace Kidzgo.Application.Registrations.SuggestClasses.Handler;
 
 public sealed class SuggestClassesQueryHandler(
-    IDbContext context
+    IDbContext context,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<SuggestClassesQuery, SuggestClassesResponse>
 {
     public async Task<Result<SuggestClassesResponse>> Handle(
@@ -77,7 +80,7 @@ public sealed class SuggestClassesQueryHandler(
             .ToListAsync(cancellationToken);
 
         var filteredClasses = matchingClasses
-            .Where(c => IsScheduleMatching(preferredSchedule ?? string.Empty, c.SchedulePattern))
+            .Where(c => IsScheduleMatching(preferredSchedule ?? string.Empty, c.WeeklyScheduleJson, schedulePatternParser))
             .ToList();
 
         var now = VietnamTime.TodayDateOnly();
@@ -110,14 +113,28 @@ public sealed class SuggestClassesQueryHandler(
             CurrentEnrollment = currentEnrollment,
             StartDate = classEntity.StartDate,
             EndDate = classEntity.EndDate,
-            SchedulePattern = classEntity.SchedulePattern,
+            WeeklyScheduleSlots = ParseWeeklyScheduleSlots(classEntity.WeeklyScheduleJson),
             MainTeacherName = classEntity.MainTeacher != null ? classEntity.MainTeacher.Name : "Not assigned",
             ClassroomName = null,
             IsClassStarted = classEntity.StartDate <= now
         };
     }
 
-    private static bool IsScheduleMatching(string preferredSchedule, string? schedulePattern)
+    private static List<ScheduleSlot> ParseWeeklyScheduleSlots(string? weeklyScheduleJson)
+    {
+        if (string.IsNullOrWhiteSpace(weeklyScheduleJson))
+        {
+            return [];
+        }
+
+        var parseResult = SchedulePatternSupport.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : [];
+    }
+
+    private static bool IsScheduleMatching(
+        string preferredSchedule,
+        string? schedulePattern,
+        ISchedulePatternParser schedulePatternParser)
     {
         if (string.IsNullOrWhiteSpace(preferredSchedule) || string.IsNullOrWhiteSpace(schedulePattern))
         {
@@ -130,7 +147,13 @@ public sealed class SuggestClassesQueryHandler(
             return true;
         }
 
-        var classSchedule = ParseSchedulePattern(schedulePattern);
+        var slotParseResult = schedulePatternParser.ParseScheduleSlots(schedulePattern);
+        if (slotParseResult.IsFailure || slotParseResult.Value.Count == 0)
+        {
+            return true;
+        }
+
+        var classSchedule = ParseSchedulePattern(slotParseResult.Value);
 
         if (criteria.IsWeekendPreference.HasValue)
         {
@@ -147,17 +170,20 @@ public sealed class SuggestClassesQueryHandler(
             return false;
         }
 
-        if (criteria.TimeBucket.HasValue && !IsHourInBucket(classSchedule.Hour, criteria.TimeBucket.Value))
+        if (criteria.TimeBucket.HasValue &&
+            !classSchedule.Slots.Any(slot => IsHourInBucket(slot.Hour, criteria.TimeBucket.Value)))
         {
             return false;
         }
 
-        if (criteria.ExactHour.HasValue && classSchedule.Hour != criteria.ExactHour.Value)
+        if (criteria.ExactHour.HasValue &&
+            !classSchedule.Slots.Any(slot => slot.Hour == criteria.ExactHour.Value))
         {
             return false;
         }
 
-        if (criteria.ExactMinute.HasValue && classSchedule.Minute != criteria.ExactMinute.Value)
+        if (criteria.ExactMinute.HasValue &&
+            !classSchedule.Slots.Any(slot => slot.Minute == criteria.ExactMinute.Value))
         {
             return false;
         }
@@ -216,22 +242,22 @@ public sealed class SuggestClassesQueryHandler(
             explicitTime.Minute);
     }
 
-    private static SchedulePatternInfo ParseSchedulePattern(string schedulePattern)
+    private static SchedulePatternInfo ParseSchedulePattern(IReadOnlyCollection<ScheduleSlot> slots)
     {
-        var hourMatch = Regex.Match(schedulePattern, @"BYHOUR=(\d{1,2})", RegexOptions.IgnoreCase);
-        var minuteMatch = Regex.Match(schedulePattern, @"BYMINUTE=(\d{1,2})", RegexOptions.IgnoreCase);
-        var dayMatch = Regex.Match(schedulePattern, @"BYDAY=([A-Z,]+)", RegexOptions.IgnoreCase);
+        var normalizedSlots = slots
+            .Select(slot =>
+            {
+                var parts = slot.StartTime.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var hour = parts.Length > 0 && int.TryParse(parts[0], out var parsedHour) ? parsedHour : -1;
+                var minute = parts.Length > 1 && int.TryParse(parts[1], out var parsedMinute) ? parsedMinute : 0;
 
-        var days = dayMatch.Success
-            ? dayMatch.Groups[1].Value
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                return new ScheduleSlotInfo(slot.DayOfWeek, hour, minute);
+            })
+            .ToList();
 
-        var hour = hourMatch.Success ? int.Parse(hourMatch.Groups[1].Value) : -1;
-        var minute = minuteMatch.Success ? int.Parse(minuteMatch.Groups[1].Value) : 0;
-
-        return new SchedulePatternInfo(days, hour, minute);
+        return new SchedulePatternInfo(
+            normalizedSlots.Select(slot => slot.Day).ToHashSet(StringComparer.OrdinalIgnoreCase),
+            normalizedSlots);
     }
 
     private static (int? Hour, int? Minute) ParseExplicitTime(string normalizedPreferredSchedule)
@@ -368,6 +394,10 @@ public sealed class SuggestClassesQueryHandler(
 
     private sealed record SchedulePatternInfo(
         HashSet<string> Days,
+        List<ScheduleSlotInfo> Slots);
+
+    private sealed record ScheduleSlotInfo(
+        string Day,
         int Hour,
         int Minute);
 

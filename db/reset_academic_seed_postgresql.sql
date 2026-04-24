@@ -1,201 +1,265 @@
--- Run this script in the `kidzgo` database, schema `public`.
--- If your SQL console is still holding an old transaction, run `ROLLBACK;` first.
+-- Run this script in the target PostgreSQL database, schema `public`.
+-- If the SQL console is still holding an old transaction, run `ROLLBACK;` first.
+--
+-- This reset keeps only:
+--   Branches, Users, Profiles, Blogs, NotificationTemplates, EmailTemplates
 --
 -- Assumptions:
--- 1. Keep all users with role Admin / ManagementStaff / Teacher, plus the explicit user id below.
--- 2. Keep profiles belonging to kept users to avoid orphaned staff/admin profile references.
--- 3. Keep `Branches`, `EmailTemplates`, `NotificationTemplates`, `TeacherCompensationSettings`,
---    and other system/master tables not listed below.
--- 4. "English Club" tuition is mapped to program "Speaking Club".
--- 5. Cambridge Starters receives the same 3 tuition tiers as Movers/Flyers/KET/PET.
--- 6. Kem LMS package pricing is assumed as:
+-- 1. QuestionBankItems can be deleted.
+-- 2. Tuition plans are seeded as global plans (`BranchId = NULL`).
+-- 3. BranchPrograms are seeded for every active branch. If no active branch exists,
+--    the script uses every branch instead.
+-- 4. Seeded classes/classrooms are created in the first active branch, or the first
+--    available branch if none are active.
+-- 5. Cambridge Starters is missing in the tuition-plan note from the source input,
+--    but it is seeded with the same 3 tiers as Movers/Flyers/KET/PET so Starters
+--    classes still have fee data.
+-- 6. The source note "English Club" is mapped to the supplementary program
+--    "Speaking Club".
+-- 7. Kem LMS package pricing is assumed as:
 --      12 buoi @ 100,000
 --      24 buoi @ 90,000
 --      36 buoi @ 80,000
 --      48 buoi @ 70,000
--- 7. Current RRULE parser supports only one BYHOUR/BYMINUTE pair per class.
---    Classes with 2 study days but different times are forced to the first listed time.
+-- 8. Supplementary class capacities default to 10 because the source did not specify them.
+-- 9. Weekly schedules are seeded as structured weekly slot JSON.
+--    Some legacy rows may still use RRULE for backward compatibility.
 
-DROP TABLE IF EXISTS keep_users;
-DROP TABLE IF EXISTS keep_profiles;
-DROP TABLE IF EXISTS seed_context;
+BEGIN;
 
 CREATE TEMP TABLE seed_context AS
 SELECT
-    'b3bf97ee-0489-4458-ae8a-4f18e77572fe'::uuid AS keep_user_id,
-    '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid AS keep_program_id,
-    'cc509804-5b7d-8005-5ebb-0a21a8300253'::uuid AS keep_class_id,
-    '47399a72-e948-4461-a09a-319ffce9f359'::uuid AS keep_room_id,
-    DATE '2026-04-21' AS start_date,
-    DATE '2027-04-30' AS end_date,
     timezone('UTC', now()) AS now_utc,
+    CURRENT_DATE::date AS start_date,
+    (CURRENT_DATE + INTERVAL '12 months' - INTERVAL '1 day')::date AS end_date,
     COALESCE(
-        (SELECT "BranchId" FROM public."Classes" WHERE "Id" = 'cc509804-5b7d-8005-5ebb-0a21a8300253'::uuid),
-        (
-            SELECT "BranchId"
-            FROM public."BranchPrograms"
-            WHERE "ProgramId" = '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid
-            ORDER BY "CreatedAt" NULLS LAST, "Id"
-            LIMIT 1
-        ),
-        (SELECT "BranchId" FROM public."Classrooms" WHERE "Id" = '47399a72-e948-4461-a09a-319ffce9f359'::uuid),
-        (SELECT "BranchId" FROM public."Users" WHERE "Id" = 'b3bf97ee-0489-4458-ae8a-4f18e77572fe'::uuid),
         (SELECT "Id" FROM public."Branches" WHERE "IsActive" = TRUE ORDER BY "CreatedAt" NULLS LAST, "Id" LIMIT 1),
         (SELECT "Id" FROM public."Branches" ORDER BY "CreatedAt" NULLS LAST, "Id" LIMIT 1)
-    )::uuid AS branch_id;
+    )::uuid AS primary_branch_id;
 
-CREATE TEMP TABLE keep_users AS
-SELECT DISTINCT u."Id"
-FROM public."Users" u
-JOIN seed_context ctx ON TRUE
-WHERE u."Id" = ctx.keep_user_id
-   OR u."Role" IN ('Admin', 'ManagementStaff', 'Teacher');
-
-CREATE TEMP TABLE keep_profiles AS
-SELECT p."Id"
-FROM public."Profiles" p
-WHERE EXISTS (
-    SELECT 1
-    FROM keep_users ku
-    WHERE ku."Id" = p."UserId"
+CREATE TEMP TABLE required_branch
+(
+    primary_branch_id uuid NOT NULL
 );
+
+INSERT INTO required_branch (primary_branch_id)
+SELECT primary_branch_id
+FROM seed_context;
+
+CREATE TEMP TABLE target_branches AS
+SELECT b."Id" AS branch_id
+FROM public."Branches" b
+WHERE b."IsActive" = TRUE;
+
+INSERT INTO target_branches (branch_id)
+SELECT b."Id"
+FROM public."Branches" b
+WHERE NOT EXISTS (SELECT 1 FROM target_branches);
+
+CREATE TEMP TABLE seed_programs
+(
+    program_id uuid PRIMARY KEY,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    is_supplementary boolean NOT NULL
+);
+
+INSERT INTO seed_programs (program_id, code, name, description, is_supplementary)
+VALUES
+    ('11111111-1111-1111-1111-111111111201'::uuid, 'APPLE2', 'Apple 2',
+        'Apple 2 là chương trình dành cho học viên nhỏ tuổi, thường từ 4 đến 6 tuổi. Chương trình giúp các bé làm quen với tiếng Anh thông qua hình ảnh, âm thanh, trò chơi, bài hát và các hoạt động tương tác trong lớp. Mục tiêu của chương trình là giúp học viên xây dựng sự tự tin khi nghe và nói tiếng Anh, nhận diện từ vựng quen thuộc, luyện phát âm cơ bản và hình thành thói quen học tiếng Anh tích cực ngay từ giai đoạn đầu.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111202'::uuid, 'PHONICS', 'Phonics Foundation',
+        'Phonics Foundation là chương trình nền tảng phát âm dành cho học viên từ 5 đến 6 tuổi hoặc học viên mới bắt đầu học tiếng Anh. Học viên được học âm chữ cái, cách ghép âm, nhận diện mặt chữ và luyện đọc các từ đơn giản. Chương trình giúp học viên phát âm rõ hơn, đọc tốt hơn và có nền tảng vững chắc trước khi chuyển sang các cấp độ Cambridge như Starters, Movers và Flyers.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111203'::uuid, 'STARTERS', 'Cambridge Starters',
+        'Cambridge Starters là chương trình dành cho học viên ở trình độ sơ cấp, thường từ 6 đến 8 tuổi. Nội dung học tập trung phát triển 4 kỹ năng: Listening, Speaking, Reading và Writing theo định hướng Cambridge. Học viên được học từ vựng, mẫu câu giao tiếp cơ bản, luyện nghe hiểu, đọc hiểu đơn giản và làm quen với cấu trúc bài thi Cambridge Starters.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS', 'Cambridge Movers',
+        'Cambridge Movers là chương trình dành cho học viên đã có nền tảng tiếng Anh cơ bản và muốn phát triển kỹ năng ở mức cao hơn Starters. Chương trình giúp học viên mở rộng vốn từ vựng, luyện giao tiếp theo chủ đề, phát triển khả năng đọc hiểu, viết câu hoặc đoạn ngắn và luyện các dạng bài theo chuẩn Cambridge Movers.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111205'::uuid, 'FLYERS', 'Cambridge Flyers',
+        'Cambridge Flyers là chương trình dành cho học viên có trình độ tiền trung cấp, chuẩn bị hoàn thiện cấp độ Young Learners của Cambridge. Nội dung học tập trung nâng cao khả năng nghe, nói, đọc, viết; sử dụng ngữ pháp linh hoạt hơn; đọc hiểu đoạn văn dài hơn và luyện kỹ năng làm bài thi Cambridge Flyers.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111206'::uuid, 'KETA2', 'KET (A2 Key)',
+        'KET, còn gọi là A2 Key, là chương trình dành cho học viên ở trình độ A2 theo khung năng lực châu Âu CEFR. Học viên được rèn luyện khả năng giao tiếp trong các tình huống quen thuộc, đọc hiểu văn bản ngắn, viết email hoặc ghi chú đơn giản và luyện đề theo cấu trúc bài thi A2 Key của Cambridge.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111207'::uuid, 'PETB1', 'PET (B1 Preliminary)',
+        'PET, còn gọi là B1 Preliminary, là chương trình dành cho học viên ở trình độ B1, hướng đến khả năng sử dụng tiếng Anh độc lập trong học tập và giao tiếp hằng ngày. Học viên được luyện kỹ năng đọc hiểu văn bản dài hơn, viết đoạn văn hoặc email, nghe hiểu hội thoại thực tế và trình bày ý kiến bằng tiếng Anh theo chuẩn bài thi B1 Preliminary.',
+        FALSE),
+    ('11111111-1111-1111-1111-111111111208'::uuid, 'KEMLMS', 'Kèm LMS',
+        'Kèm LMS là chương trình phụ hỗ trợ học viên học thêm các môn hoặc nội dung tiếng Anh theo nhu cầu cá nhân, ví dụ ESL, Science hoặc chương trình học quốc tế. Hình thức học linh hoạt theo gói buổi, giúp học viên củng cố kiến thức trên lớp, hoàn thành bài tập LMS, cải thiện kỹ năng học thuật và theo kịp chương trình đang học.',
+        TRUE),
+    ('11111111-1111-1111-1111-111111111209'::uuid, 'SPKCLUB', 'Speaking Club',
+        'Speaking Club là chương trình câu lạc bộ giao tiếp cuối tuần, giúp học viên tăng phản xạ nói tiếng Anh thông qua trò chơi, thảo luận, thuyết trình ngắn, hoạt động nhóm và các tình huống thực tế. Mục tiêu của chương trình là giúp học viên tự tin hơn khi giao tiếp, cải thiện phát âm, mở rộng vốn từ và sử dụng tiếng Anh tự nhiên hơn.',
+        TRUE),
+    ('11111111-1111-1111-1111-111111111210'::uuid, 'WRBOOST', 'Writing Booster',
+        'Writing Booster là chương trình tăng cường kỹ năng viết, phù hợp với học viên cần cải thiện khả năng viết câu, đoạn văn, email hoặc bài viết ngắn. Học viên được hướng dẫn cách xây dựng ý tưởng, sử dụng từ vựng và ngữ pháp phù hợp, sắp xếp nội dung rõ ràng và hạn chế lỗi sai thường gặp khi viết.',
+        TRUE),
+    ('11111111-1111-1111-1111-111111111211'::uuid, 'SUMCAMP', 'Summer Camp',
+        'Summer Camp là chương trình hè kết hợp giữa học tiếng Anh và các hoạt động trải nghiệm. Học viên được tham gia các hoạt động giao tiếp, trò chơi, dự án nhóm, thuyết trình, thủ công, kỹ năng sống hoặc khám phá chủ đề theo tuần. Chương trình giúp học viên vừa học vừa chơi, tăng sự tự tin và duy trì môi trường tiếng Anh trong kỳ nghỉ hè.',
+        TRUE);
+
+CREATE TEMP TABLE seed_tuition_plans
+(
+    tuition_plan_id uuid PRIMARY KEY,
+    program_id uuid NOT NULL,
+    name text NOT NULL,
+    total_sessions integer NOT NULL,
+    tuition_amount numeric NOT NULL,
+    unit_price_session numeric NOT NULL
+);
+
+INSERT INTO seed_tuition_plans (tuition_plan_id, program_id, name, total_sessions, tuition_amount, unit_price_session)
+VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000002'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000003'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000004'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000005'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000006'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000007'::uuid, '11111111-1111-1111-1111-111111111203'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000008'::uuid, '11111111-1111-1111-1111-111111111203'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000009'::uuid, '11111111-1111-1111-1111-111111111203'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000010'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000011'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000012'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000013'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000014'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000015'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000016'::uuid, '11111111-1111-1111-1111-111111111206'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000017'::uuid, '11111111-1111-1111-1111-111111111206'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000018'::uuid, '11111111-1111-1111-1111-111111111206'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000019'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'Basic Plan', 24, 4200000, 175000),
+    ('aaaaaaaa-0000-0000-0000-000000000020'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'Standard Plan', 48, 7800000, 162500),
+    ('aaaaaaaa-0000-0000-0000-000000000021'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'Premium Plan', 96, 15600000, 162500),
+
+    ('aaaaaaaa-0000-0000-0000-000000000022'::uuid, '11111111-1111-1111-1111-111111111209'::uuid, 'Speaking Club Weekend Pack', 12, 600000, 50000),
+
+    ('aaaaaaaa-0000-0000-0000-000000000023'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 12 Sessions', 12, 1200000, 100000),
+    ('aaaaaaaa-0000-0000-0000-000000000024'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 24 Sessions', 24, 2160000, 90000),
+    ('aaaaaaaa-0000-0000-0000-000000000025'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 36 Sessions', 36, 2880000, 80000),
+    ('aaaaaaaa-0000-0000-0000-000000000026'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 48 Sessions', 48, 3360000, 70000);
+
+CREATE TEMP TABLE seed_classes
+(
+    class_id uuid PRIMARY KEY,
+    room_id uuid NOT NULL,
+    program_id uuid NOT NULL,
+    code text NOT NULL,
+    title text NOT NULL,
+    capacity integer NOT NULL,
+    weekly_schedule_json text NOT NULL,
+    description text
+);
+
+INSERT INTO seed_classes (class_id, room_id, program_id, code, title, capacity, weekly_schedule_json, description)
+VALUES
+    ('22222222-2222-2222-2222-222222222301'::uuid, '44444444-4444-4444-4444-444444444301'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'APPLE-A2', 'Apple A2', 8, '{"type":"weekly-slots","slots":[{"dayOfWeek":"TH","startTime":"18:00","durationMinutes":60},{"dayOfWeek":"SA","startTime":"17:00","durationMinutes":60}]}', 'Độ tuổi 4-6. Lịch: Thứ 5 18:00-19:00, Thứ 7 17:00-18:00.'),
+    ('22222222-2222-2222-2222-222222222302'::uuid, '44444444-4444-4444-4444-444444444302'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'PHONICS-P1', 'Phonics P1', 6, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=19;BYMINUTE=0;DURATION=90', 'Độ tuổi 5-6. 1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 2 19:00-20:30, Thứ 4 19:00-20:30.'),
+    ('22222222-2222-2222-2222-222222222303'::uuid, '44444444-4444-4444-4444-444444444303'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'PHONICS-P3', 'Phonics P3 + Thuyết trình', 4, '{"type":"weekly-slots","slots":[{"dayOfWeek":"TU","startTime":"16:30","durationMinutes":90},{"dayOfWeek":"FR","startTime":"17:30","durationMinutes":90}]}', 'Lịch: Thứ 3 16:30-18:00, Thứ 6 17:30-19:00.'),
+    ('22222222-2222-2222-2222-222222222304'::uuid, '44444444-4444-4444-4444-444444444304'::uuid, '11111111-1111-1111-1111-111111111203'::uuid, 'STARTERS-S1', 'Starters S1', 10, '{"type":"weekly-slots","slots":[{"dayOfWeek":"TH","startTime":"16:00","durationMinutes":90},{"dayOfWeek":"FR","startTime":"19:30","durationMinutes":90}]}', 'Độ tuổi 6-8. 1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 5 16:00-17:30, Thứ 6 19:30-21:00.'),
+    ('22222222-2222-2222-2222-222222222305'::uuid, '44444444-4444-4444-4444-444444444305'::uuid, '11111111-1111-1111-1111-111111111203'::uuid, 'STARTERS-S5', 'Starters S5', 10, '{"type":"weekly-slots","slots":[{"dayOfWeek":"WE","startTime":"19:30","durationMinutes":90},{"dayOfWeek":"FR","startTime":"18:00","durationMinutes":90}]}', 'Độ tuổi 6-8. 1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 4 19:30-21:00, Thứ 6 18:00-19:30.'),
+    ('22222222-2222-2222-2222-222222222306'::uuid, '44444444-4444-4444-4444-444444444306'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS-M4', 'Movers M4', 7, 'RRULE:FREQ=WEEKLY;BYDAY=TU,TH;BYHOUR=19;BYMINUTE=30;DURATION=90', '1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 3 19:30-21:00, Thứ 5 19:30-21:00.'),
+    ('22222222-2222-2222-2222-222222222307'::uuid, '44444444-4444-4444-4444-444444444307'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS-M2', 'Movers M2', 8, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=17;BYMINUTE=30;DURATION=90', '1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 2 17:30-19:00, Thứ 4 17:30-19:00.'),
+    ('22222222-2222-2222-2222-222222222308'::uuid, '44444444-4444-4444-4444-444444444308'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS-M3', 'Movers M3', 4, '{"type":"weekly-slots","slots":[{"dayOfWeek":"WE","startTime":"16:00","durationMinutes":90},{"dayOfWeek":"SA","startTime":"15:30","durationMinutes":90}]}', '2 buổi GVVN. Lịch: Thứ 4 16:00-17:30, Thứ 7 15:30-17:00.'),
+    ('22222222-2222-2222-2222-222222222309'::uuid, '44444444-4444-4444-4444-444444444309'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'FLYERS-F1', 'Flyers F1', 10, '{"type":"weekly-slots","slots":[{"dayOfWeek":"TU","startTime":"18:00","durationMinutes":90},{"dayOfWeek":"TH","startTime":"18:30","durationMinutes":90}]}', '1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 3 18:00-19:30, Thứ 5 18:30-20:00.'),
+    ('22222222-2222-2222-2222-222222222310'::uuid, '44444444-4444-4444-4444-444444444310'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'FLYERS-F2', 'Flyers F2', 5, '{"type":"weekly-slots","slots":[{"dayOfWeek":"MO","startTime":"16:00","durationMinutes":90},{"dayOfWeek":"SA","startTime":"17:00","durationMinutes":90}]}', '1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 2 16:00-17:30, Thứ 7 17:00-18:30.'),
+    ('22222222-2222-2222-2222-222222222311'::uuid, '44444444-4444-4444-4444-444444444311'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'PET-K1', 'PET K1', 5, '{"type":"weekly-slots","slots":[{"dayOfWeek":"FR","startTime":"19:30","durationMinutes":90},{"dayOfWeek":"SA","startTime":"10:00","durationMinutes":90}]}', '1 buổi GVNN, 1 buổi GVVN. Lịch: Thứ 6 19:30-21:00, Thứ 7 10:00-11:30.'),
+    ('22222222-2222-2222-2222-222222222312'::uuid, '44444444-4444-4444-4444-444444444312'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS-ESL-WED', 'Kèm LMS - ESL Grade 3 - Cam (Wed)', 10, 'RRULE:FREQ=WEEKLY;BYDAY=WE;BYHOUR=16;BYMINUTE=0;DURATION=90', 'Lịch: Thứ 4 16:00-17:30.'),
+    ('22222222-2222-2222-2222-222222222313'::uuid, '44444444-4444-4444-4444-444444444313'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS-ESL-THU', 'Kèm LMS - ESL Grade 3 - Cam (Thu)', 10, 'RRULE:FREQ=WEEKLY;BYDAY=TH;BYHOUR=19;BYMINUTE=30;DURATION=90', 'Lịch: Thứ 5 19:30-21:00.'),
+    ('22222222-2222-2222-2222-222222222314'::uuid, '44444444-4444-4444-4444-444444444314'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS-SCI-WED', 'Kèm LMS - Science Grade 3 - Cam', 10, 'RRULE:FREQ=WEEKLY;BYDAY=WE;BYHOUR=17;BYMINUTE=30;DURATION=90', 'Lịch: Thứ 4 17:30-19:00.');
 
 TRUNCATE TABLE
     public."RefreshTokens",
     public."PasswordResetTokens",
     public."ParentPinResetTokens",
-    public."DeviceTokens",
     public."ParentStudentLinks",
+    public."DeviceTokens",
+    public."Classrooms",
+    public."Classes",
+    public."ClassEnrollments",
+    public."ClassScheduleSegments",
+    public."ClassEnrollmentScheduleSegments",
+    public."PauseEnrollmentRequests",
+    public."PauseEnrollmentRequestHistories",
+    public."Leads",
     public."LeadActivities",
     public."LeadChildren",
     public."PlacementTests",
-    public."Leads",
-    public."ExamSubmissionAnswers",
-    public."ExamSubmissions",
-    public."ExamQuestions",
-    public."ExamResults",
     public."Exams",
+    public."ExamResults",
+    public."ExamQuestions",
+    public."ExamSubmissions",
+    public."ExamSubmissionAnswers",
+    public."Invoices",
     public."InvoiceLines",
     public."Payments",
     public."CashbookEntries",
-    public."Invoices",
-    public."AttendanceStreaks",
+    public."Missions",
     public."MissionProgresses",
     public."RewardRedemptions",
+    public."RewardStoreItems",
     public."StarTransactions",
     public."StudentLevels",
-    public."HomeworkSubmissionAttempts",
-    public."HomeworkStudents",
-    public."HomeworkQuestions",
+    public."AttendanceStreaks",
+    public."GamificationSettings",
+    public."MissionRewardRules",
     public."HomeworkAssignments",
+    public."HomeworkStudents",
+    public."HomeworkSubmissionAttempts",
+    public."HomeworkQuestions",
+    public."QuestionBankItems",
     public."LessonPlans",
     public."LessonPlanTemplates",
     public."MediaAssets",
+    public."FaqCategories",
+    public."FaqItems",
     public."Notifications",
     public."Contracts",
-    public."MonthlyWorkHours",
     public."PayrollLines",
     public."PayrollPayments",
     public."PayrollRuns",
     public."SessionRoles",
     public."ShiftAttendances",
-    public."QuestionBankItems",
-    public."TeachingMaterialAnnotations",
-    public."TeachingMaterialBookmarks",
-    public."TeachingMaterialViewProgresses",
-    public."TeachingMaterialSlides",
-    public."TeachingMaterials",
+    public."MonthlyWorkHours",
+    public."TeacherCompensationSettings",
+    public."Programs",
     public."BranchPrograms",
-    public."ProgramLeavePolicies",
     public."ExtracurricularPrograms",
-    public."EnrollmentConfirmationPdfs",
+    public."ProgramLeavePolicies",
+    public."TuitionPlans",
+    public."TeachingMaterials",
+    public."TeachingMaterialSlides",
+    public."TeachingMaterialViewProgresses",
+    public."TeachingMaterialBookmarks",
+    public."TeachingMaterialAnnotations",
     public."Registrations",
+    public."EnrollmentConfirmationPdfs",
+    public."EnrollmentConfirmationPaymentSettings",
+    public."MonthlyReportJobs",
+    public."MonthlyReportData",
     public."ReportComments",
     public."ReportRequests",
-    public."MonthlyReportData",
-    public."MonthlyReportJobs",
     public."StudentMonthlyReports",
     public."SessionReports",
     public."Attendances",
+    public."LeaveRequests",
     public."MakeupAllocations",
     public."MakeupCredits",
-    public."LeaveRequests",
-    public."StudentSessionAssignments",
     public."Sessions",
-    public."ClassEnrollmentScheduleSegments",
-    public."PauseEnrollmentRequestHistories",
-    public."PauseEnrollmentRequests",
-    public."ClassEnrollments",
-    public."ClassScheduleSegments",
-    public."TuitionPlans",
-    public."TicketComments",
+    public."StudentSessionAssignments",
     public."Tickets",
-    public."AuditLogs",
-    public."MissionRewardRules",
-    public."Missions",
-    public."RewardStoreItems",
-    public."Blogs"
+    public."TicketComments",
+    public."AuditLogs"
 RESTART IDENTITY CASCADE;
-
-DELETE FROM public."Profiles" p
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM keep_profiles kp
-    WHERE kp."Id" = p."Id"
-);
-
-DELETE FROM public."Users" u
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM keep_users ku
-    WHERE ku."Id" = u."Id"
-);
-
-DELETE FROM public."Classes" c
-USING seed_context ctx
-WHERE c."Id" <> ctx.keep_class_id;
-
-DELETE FROM public."Programs" p
-USING seed_context ctx
-WHERE p."Id" <> ctx.keep_program_id;
-
-DELETE FROM public."Classrooms" r
-USING seed_context ctx
-WHERE r."Id" <> ctx.keep_room_id;
-
-INSERT INTO public."Classrooms"
-(
-    "Id",
-    "BranchId",
-    "Name",
-    "Capacity",
-    "Note",
-    "Floor",
-    "Area",
-    "EquipmentJson",
-    "IsActive"
-)
-SELECT
-    ctx.keep_room_id,
-    ctx.branch_id,
-    'Seed Room',
-    20,
-    'Preserved room used by reset_academic_seed_postgresql.sql',
-    NULL,
-    NULL,
-    NULL,
-    TRUE
-FROM seed_context ctx
-ON CONFLICT ("Id") DO UPDATE
-SET
-    "BranchId" = EXCLUDED."BranchId",
-    "Name" = EXCLUDED."Name",
-    "Capacity" = EXCLUDED."Capacity",
-    "Note" = EXCLUDED."Note",
-    "Floor" = EXCLUDED."Floor",
-    "Area" = EXCLUDED."Area",
-    "EquipmentJson" = EXCLUDED."EquipmentJson",
-    "IsActive" = EXCLUDED."IsActive";
 
 INSERT INTO public."Programs"
 (
@@ -211,41 +275,18 @@ INSERT INTO public."Programs"
     "UpdatedAt"
 )
 SELECT
-    v.id,
-    v.name,
-    v.code,
-    v.description,
+    sp.program_id,
+    sp.name,
+    sp.code,
+    sp.description,
     TRUE,
     FALSE,
     FALSE,
-    v.is_supplementary,
+    sp.is_supplementary,
     ctx.now_utc,
     ctx.now_utc
-FROM seed_context ctx
-CROSS JOIN (
-    VALUES
-        ('5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid, 'Cambridge Starters', 'STARTERS', 'Chuong trinh Cambridge Starters.', FALSE),
-        ('11111111-1111-1111-1111-111111111201'::uuid, 'Apple 2', 'APPLE2', 'Chuong trinh chinh Apple 2.', FALSE),
-        ('11111111-1111-1111-1111-111111111202'::uuid, 'Phonics Foundation', 'PHONICS', 'Chuong trinh chinh Phonics Foundation.', FALSE),
-        ('11111111-1111-1111-1111-111111111204'::uuid, 'Cambridge Movers', 'MOVERS', 'Chuong trinh Cambridge Movers.', FALSE),
-        ('11111111-1111-1111-1111-111111111205'::uuid, 'Cambridge Flyers', 'FLYERS', 'Chuong trinh Cambridge Flyers.', FALSE),
-        ('11111111-1111-1111-1111-111111111206'::uuid, 'KET (A2 Key)', 'KETA2', 'Chuong trinh Cambridge KET (A2 Key).', FALSE),
-        ('11111111-1111-1111-1111-111111111207'::uuid, 'PET (B1 Preliminary)', 'PETB1', 'Chuong trinh Cambridge PET (B1 Preliminary).', FALSE),
-        ('11111111-1111-1111-1111-111111111208'::uuid, 'Kem LMS', 'KEMLMS', 'Chuong trinh phu Kem LMS.', TRUE),
-        ('11111111-1111-1111-1111-111111111209'::uuid, 'Speaking Club', 'SPKCLUB', 'Chuong trinh phu Speaking Club cuoi tuan.', TRUE),
-        ('11111111-1111-1111-1111-111111111210'::uuid, 'Writing Booster', 'WRBOOST', 'Chuong trinh phu Writing Booster.', TRUE),
-        ('11111111-1111-1111-1111-111111111211'::uuid, 'Summer Camp', 'SUMCAMP', 'Chuong trinh phu Summer Camp.', TRUE)
-) AS v(id, name, code, description, is_supplementary)
-ON CONFLICT ("Id") DO UPDATE
-SET
-    "Name" = EXCLUDED."Name",
-    "Code" = EXCLUDED."Code",
-    "Description" = EXCLUDED."Description",
-    "IsActive" = TRUE,
-    "IsDeleted" = FALSE,
-    "IsMakeup" = FALSE,
-    "IsSupplementary" = EXCLUDED."IsSupplementary",
-    "UpdatedAt" = EXCLUDED."UpdatedAt";
+FROM seed_programs sp
+CROSS JOIN seed_context ctx;
 
 INSERT INTO public."BranchPrograms"
 (
@@ -258,33 +299,22 @@ INSERT INTO public."BranchPrograms"
     "UpdatedAt"
 )
 SELECT
-    ('90000000-0000-0000-0000-' || right(replace(v.id::text, '-', ''), 12))::uuid,
-    ctx.branch_id,
-    v.id,
+    (
+        substr(md5(tb.branch_id::text || sp.program_id::text), 1, 8) || '-' ||
+        substr(md5(tb.branch_id::text || sp.program_id::text), 9, 4) || '-' ||
+        substr(md5(tb.branch_id::text || sp.program_id::text), 13, 4) || '-' ||
+        substr(md5(tb.branch_id::text || sp.program_id::text), 17, 4) || '-' ||
+        substr(md5(tb.branch_id::text || sp.program_id::text), 21, 12)
+    )::uuid,
+    tb.branch_id,
+    sp.program_id,
     TRUE,
     NULL,
     ctx.now_utc,
     ctx.now_utc
-FROM seed_context ctx
-CROSS JOIN (
-    VALUES
-        ('5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid),
-        ('11111111-1111-1111-1111-111111111201'::uuid),
-        ('11111111-1111-1111-1111-111111111202'::uuid),
-        ('11111111-1111-1111-1111-111111111204'::uuid),
-        ('11111111-1111-1111-1111-111111111205'::uuid),
-        ('11111111-1111-1111-1111-111111111206'::uuid),
-        ('11111111-1111-1111-1111-111111111207'::uuid),
-        ('11111111-1111-1111-1111-111111111208'::uuid),
-        ('11111111-1111-1111-1111-111111111209'::uuid),
-        ('11111111-1111-1111-1111-111111111210'::uuid),
-        ('11111111-1111-1111-1111-111111111211'::uuid)
-) AS v(id)
-ON CONFLICT ("BranchId", "ProgramId") DO UPDATE
-SET
-    "IsActive" = TRUE,
-    "DefaultMakeupClassId" = NULL,
-    "UpdatedAt" = EXCLUDED."UpdatedAt";
+FROM target_branches tb
+CROSS JOIN seed_programs sp
+CROSS JOIN seed_context ctx;
 
 INSERT INTO public."TuitionPlans"
 (
@@ -302,56 +332,45 @@ INSERT INTO public."TuitionPlans"
     "UpdatedAt"
 )
 SELECT
-    v.id,
-    ctx.branch_id,
-    v.program_id,
-    v.plan_name,
-    v.total_sessions,
-    v.tuition_amount,
-    v.unit_price_session,
+    stp.tuition_plan_id,
+    NULL,
+    stp.program_id,
+    stp.name,
+    stp.total_sessions,
+    stp.tuition_amount,
+    stp.unit_price_session,
     'VND',
     TRUE,
     FALSE,
     ctx.now_utc,
     ctx.now_utc
-FROM seed_context ctx
-CROSS JOIN (
-    VALUES
-        ('aaaaaaaa-0000-0000-0000-000000000001'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000002'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000003'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
+FROM seed_tuition_plans stp
+CROSS JOIN seed_context ctx;
 
-        ('aaaaaaaa-0000-0000-0000-000000000004'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000005'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000006'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000007'::uuid, '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000008'::uuid, '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000009'::uuid, '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000010'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000011'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000012'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000013'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000014'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000015'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000016'::uuid, '11111111-1111-1111-1111-111111111206'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000017'::uuid, '11111111-1111-1111-1111-111111111206'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000018'::uuid, '11111111-1111-1111-1111-111111111206'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000019'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'Basic Plan', 24, 4200000::numeric, 175000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000020'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'Standard Plan', 48, 7800000::numeric, 162500::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000021'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'Premium Plan', 96, 15600000::numeric, 162500::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000022'::uuid, '11111111-1111-1111-1111-111111111209'::uuid, 'Weekend Pack', 12, 600000::numeric, 50000::numeric),
-
-        ('aaaaaaaa-0000-0000-0000-000000000023'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 12 Sessions', 12, 1200000::numeric, 100000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000024'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 24 Sessions', 24, 2160000::numeric, 90000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000025'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 36 Sessions', 36, 2880000::numeric, 80000::numeric),
-        ('aaaaaaaa-0000-0000-0000-000000000026'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS 48 Sessions', 48, 3360000::numeric, 70000::numeric)
-) AS v(id, program_id, plan_name, total_sessions, tuition_amount, unit_price_session);
+INSERT INTO public."Classrooms"
+(
+    "Id",
+    "BranchId",
+    "Name",
+    "Capacity",
+    "Note",
+    "Floor",
+    "Area",
+    "EquipmentJson",
+    "IsActive"
+)
+SELECT
+    sc.room_id,
+    ctx.primary_branch_id,
+    'Room ' || sc.code,
+    sc.capacity,
+    'Seed room for ' || sc.title,
+    NULL,
+    NULL,
+    NULL,
+    TRUE
+FROM seed_classes sc
+CROSS JOIN seed_context ctx;
 
 INSERT INTO public."Classes"
 (
@@ -373,56 +392,24 @@ INSERT INTO public."Classes"
     "UpdatedAt"
 )
 SELECT
-    v.id,
-    ctx.branch_id,
-    v.program_id,
-    v.code,
-    v.title,
-    ctx.keep_room_id,
+    sc.class_id,
+    ctx.primary_branch_id,
+    sc.program_id,
+    sc.code,
+    sc.title,
+    sc.room_id,
     NULL,
     NULL,
     ctx.start_date,
     ctx.end_date,
     'Recruiting',
-    v.capacity,
-    v.schedule_pattern,
-    v.description,
+    sc.capacity,
+    sc.weekly_schedule_json,
+    sc.description,
     ctx.now_utc,
     ctx.now_utc
-FROM seed_context ctx
-CROSS JOIN (
-    VALUES
-        ('22222222-2222-2222-2222-222222222301'::uuid, '11111111-1111-1111-1111-111111111201'::uuid, 'APPLE-A2', 'Apple A2', 8, 'RRULE:FREQ=WEEKLY;BYDAY=TH,SA;BYHOUR=18;BYMINUTE=0;DURATION=60', '4-6 tuoi. Lich goc: Thu 18:00-19:00, Sat 17:00-18:00. Seed force ca 2 buoi thanh 18:00-19:00.'),
-        ('22222222-2222-2222-2222-222222222302'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'PHONICS-P1', 'Phonics P1', 6, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=19;BYMINUTE=0;DURATION=90', '5-6 tuoi. Mon 19:00-20:30, Wed 19:00-20:30.'),
-        ('22222222-2222-2222-2222-222222222303'::uuid, '11111111-1111-1111-1111-111111111202'::uuid, 'PHONICS-P3', 'Phonics P3 + Thuyet trinh', 4, 'RRULE:FREQ=WEEKLY;BYDAY=TU,FR;BYHOUR=16;BYMINUTE=30;DURATION=90', 'Lich goc: Tue 16:30-18:00, Fri 17:30-19:00. Seed force ca 2 buoi thanh 16:30-18:00.'),
-        ('cc509804-5b7d-8005-5ebb-0a21a8300253'::uuid, '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid, 'STARTERS-S1', 'Starters S1', 10, 'RRULE:FREQ=WEEKLY;BYDAY=TH,FR;BYHOUR=16;BYMINUTE=0;DURATION=90', '6-8 tuoi. Lich goc: Thu 16:00-17:30, Fri 19:30-21:00. Seed force ca 2 buoi thanh 16:00-17:30.'),
-        ('22222222-2222-2222-2222-222222222305'::uuid, '5524df75-5a84-e66e-c862-973cbf1c7cc9'::uuid, 'STARTERS-S5', 'Starters S5', 10, 'RRULE:FREQ=WEEKLY;BYDAY=WE,FR;BYHOUR=19;BYMINUTE=30;DURATION=90', 'Lich goc: Wed 19:30-21:00, Fri 18:00-19:30. Seed force ca 2 buoi thanh 19:30-21:00.'),
-        ('22222222-2222-2222-2222-222222222306'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS-M4', 'Movers M4', 7, 'RRULE:FREQ=WEEKLY;BYDAY=TU,TH;BYHOUR=19;BYMINUTE=30;DURATION=90', 'Tue 19:30-21:00, Thu 19:30-21:00.'),
-        ('22222222-2222-2222-2222-222222222307'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS-M2', 'Movers M2', 8, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=17;BYMINUTE=30;DURATION=90', 'Mon 17:30-19:00, Wed 17:30-19:00.'),
-        ('22222222-2222-2222-2222-222222222308'::uuid, '11111111-1111-1111-1111-111111111204'::uuid, 'MOVERS-M3', 'Movers M3', 4, 'RRULE:FREQ=WEEKLY;BYDAY=WE,SA;BYHOUR=16;BYMINUTE=0;DURATION=90', 'Lich goc: Wed 16:00-17:30, Sat 15:30-17:00. Seed force ca 2 buoi thanh 16:00-17:30.'),
-        ('22222222-2222-2222-2222-222222222309'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'FLYERS-F1', 'Flyers F1', 10, 'RRULE:FREQ=WEEKLY;BYDAY=TU,TH;BYHOUR=18;BYMINUTE=0;DURATION=90', 'Lich goc: Tue 18:00-19:30, Thu 18:30-20:00. Seed force ca 2 buoi thanh 18:00-19:30.'),
-        ('22222222-2222-2222-2222-222222222310'::uuid, '11111111-1111-1111-1111-111111111205'::uuid, 'FLYERS-F2', 'Flyers F2', 5, 'RRULE:FREQ=WEEKLY;BYDAY=MO,SA;BYHOUR=16;BYMINUTE=0;DURATION=90', 'Lich goc: Mon 16:00-17:30, Sat 17:00-18:30. Seed force ca 2 buoi thanh 16:00-17:30.'),
-        ('22222222-2222-2222-2222-222222222311'::uuid, '11111111-1111-1111-1111-111111111207'::uuid, 'PET-K1', 'PET K1', 5, 'RRULE:FREQ=WEEKLY;BYDAY=FR,SA;BYHOUR=19;BYMINUTE=30;DURATION=90', 'Lich goc: Fri 19:30-21:00, Sat 10:00-11:30. Seed force ca 2 buoi thanh 19:30-21:00.'),
-        ('22222222-2222-2222-2222-222222222312'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS-ESL-WED', 'Kem LMS - ESL Grade 3 - Cam (Wed)', 10, 'RRULE:FREQ=WEEKLY;BYDAY=WE;BYHOUR=16;BYMINUTE=0;DURATION=90', 'Wed 16:00-17:30.'),
-        ('22222222-2222-2222-2222-222222222313'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS-ESL-THU', 'Kem LMS - ESL Grade 3 - Cam (Thu)', 10, 'RRULE:FREQ=WEEKLY;BYDAY=TH;BYHOUR=19;BYMINUTE=30;DURATION=90', 'Thu 19:30-21:00.'),
-        ('22222222-2222-2222-2222-222222222314'::uuid, '11111111-1111-1111-1111-111111111208'::uuid, 'LMS-SCI-WED', 'Kem LMS - Science Grade 3 - Cam', 10, 'RRULE:FREQ=WEEKLY;BYDAY=WE;BYHOUR=17;BYMINUTE=30;DURATION=90', 'Wed 17:30-19:00.')
-) AS v(id, program_id, code, title, capacity, schedule_pattern, description)
-ON CONFLICT ("Id") DO UPDATE
-SET
-    "BranchId" = EXCLUDED."BranchId",
-    "ProgramId" = EXCLUDED."ProgramId",
-    "Code" = EXCLUDED."Code",
-    "Title" = EXCLUDED."Title",
-    "RoomId" = EXCLUDED."RoomId",
-    "MainTeacherId" = NULL,
-    "AssistantTeacherId" = NULL,
-    "StartDate" = EXCLUDED."StartDate",
-    "EndDate" = EXCLUDED."EndDate",
-    "Status" = EXCLUDED."Status",
-    "Capacity" = EXCLUDED."Capacity",
-    "SchedulePattern" = EXCLUDED."SchedulePattern",
-    "Description" = EXCLUDED."Description",
-    "UpdatedAt" = EXCLUDED."UpdatedAt";
+FROM seed_classes sc
+CROSS JOIN seed_context ctx;
 
 INSERT INTO public."ClassScheduleSegments"
 (
@@ -435,36 +422,21 @@ INSERT INTO public."ClassScheduleSegments"
     "UpdatedAt"
 )
 SELECT
-    v.id,
-    v.class_id,
+    (
+        substr(md5(sc.class_id::text || '-segment'), 1, 8) || '-' ||
+        substr(md5(sc.class_id::text || '-segment'), 9, 4) || '-' ||
+        substr(md5(sc.class_id::text || '-segment'), 13, 4) || '-' ||
+        substr(md5(sc.class_id::text || '-segment'), 17, 4) || '-' ||
+        substr(md5(sc.class_id::text || '-segment'), 21, 12)
+    )::uuid,
+    sc.class_id,
     ctx.start_date,
     NULL,
-    v.schedule_pattern,
+    sc.weekly_schedule_json,
     ctx.now_utc,
     ctx.now_utc
-FROM seed_context ctx
-CROSS JOIN (
-    VALUES
-        ('33333333-3333-3333-3333-333333333401'::uuid, '22222222-2222-2222-2222-222222222301'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=TH,SA;BYHOUR=18;BYMINUTE=0;DURATION=60'),
-        ('33333333-3333-3333-3333-333333333402'::uuid, '22222222-2222-2222-2222-222222222302'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=19;BYMINUTE=0;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333403'::uuid, '22222222-2222-2222-2222-222222222303'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=TU,FR;BYHOUR=16;BYMINUTE=30;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333404'::uuid, 'cc509804-5b7d-8005-5ebb-0a21a8300253'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=TH,FR;BYHOUR=16;BYMINUTE=0;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333405'::uuid, '22222222-2222-2222-2222-222222222305'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=WE,FR;BYHOUR=19;BYMINUTE=30;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333406'::uuid, '22222222-2222-2222-2222-222222222306'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=TU,TH;BYHOUR=19;BYMINUTE=30;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333407'::uuid, '22222222-2222-2222-2222-222222222307'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;BYHOUR=17;BYMINUTE=30;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333408'::uuid, '22222222-2222-2222-2222-222222222308'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=WE,SA;BYHOUR=16;BYMINUTE=0;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333409'::uuid, '22222222-2222-2222-2222-222222222309'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=TU,TH;BYHOUR=18;BYMINUTE=0;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333410'::uuid, '22222222-2222-2222-2222-222222222310'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=MO,SA;BYHOUR=16;BYMINUTE=0;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333411'::uuid, '22222222-2222-2222-2222-222222222311'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=FR,SA;BYHOUR=19;BYMINUTE=30;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333412'::uuid, '22222222-2222-2222-2222-222222222312'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=WE;BYHOUR=16;BYMINUTE=0;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333413'::uuid, '22222222-2222-2222-2222-222222222313'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=TH;BYHOUR=19;BYMINUTE=30;DURATION=90'),
-        ('33333333-3333-3333-3333-333333333414'::uuid, '22222222-2222-2222-2222-222222222314'::uuid, 'RRULE:FREQ=WEEKLY;BYDAY=WE;BYHOUR=17;BYMINUTE=30;DURATION=90')
-) AS v(id, class_id, schedule_pattern);
-
-SELECT 'Remaining users by role' AS check_name, "Role", COUNT(*) AS total
-FROM public."Users"
-GROUP BY "Role"
-ORDER BY "Role";
+FROM seed_classes sc
+CROSS JOIN seed_context ctx;
 
 SELECT 'Program count' AS check_name, COUNT(*) AS total
 FROM public."Programs";
@@ -474,3 +446,8 @@ FROM public."TuitionPlans";
 
 SELECT 'Class count' AS check_name, COUNT(*) AS total
 FROM public."Classes";
+
+SELECT 'Schedule segment count' AS check_name, COUNT(*) AS total
+FROM public."ClassScheduleSegments";
+
+COMMIT;

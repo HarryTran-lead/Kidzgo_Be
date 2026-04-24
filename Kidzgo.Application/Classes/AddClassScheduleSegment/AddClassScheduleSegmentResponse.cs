@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+
 namespace Kidzgo.Application.Classes.AddClassScheduleSegment;
 
 public sealed class AddClassScheduleSegmentResponse
@@ -7,6 +9,6 @@ public sealed class AddClassScheduleSegmentResponse
     public Guid ProgramId { get; init; }
     public DateOnly EffectiveFrom { get; init; }
     public DateOnly? EffectiveTo { get; init; }
-    public string SchedulePattern { get; init; } = null!;
+    public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
     public int GeneratedSessionsCount { get; init; }
 }

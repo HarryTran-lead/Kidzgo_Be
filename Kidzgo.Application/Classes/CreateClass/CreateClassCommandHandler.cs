@@ -19,6 +19,16 @@ public sealed class CreateClassCommandHandler(
 {
     public async Task<Result<CreateClassResponse>> Handle(CreateClassCommand command, CancellationToken cancellationToken)
     {
+        var normalizedPatternResult = SchedulePatternSupport.NormalizeWeeklyScheduleJson(
+            command.WeeklyScheduleSlots,
+            requireValue: false);
+        if (normalizedPatternResult.IsFailure)
+        {
+            return Result.Failure<CreateClassResponse>(normalizedPatternResult.Error);
+        }
+
+        var normalizedWeeklyScheduleJson = normalizedPatternResult.Value;
+
         var branchExists = await context.Branches
             .AnyAsync(b => b.Id == command.BranchId && b.IsActive, cancellationToken);
 
@@ -121,22 +131,21 @@ public sealed class CreateClassCommandHandler(
 
         var endDate = command.EndDate;
 
-        if (!string.IsNullOrWhiteSpace(command.SchedulePattern) && endDate.HasValue)
+        if (!string.IsNullOrWhiteSpace(normalizedWeeklyScheduleJson) && endDate.HasValue)
         {
-            var durationMinutes = patternParser.ParseDuration(command.SchedulePattern) ?? 90;
-            var parseResult = patternParser.ParseAndGenerateOccurrences(
-                command.SchedulePattern,
+            var parseResult = patternParser.ParseAndGenerateOccurrenceDetails(
+                normalizedWeeklyScheduleJson,
                 command.StartDate,
                 endDate.Value);
 
             if (parseResult.IsSuccess && parseResult.Value.Count > 0)
             {
-                foreach (var sessionDateTime in parseResult.Value.Take(10))
+                foreach (var occurrence in parseResult.Value.Take(10))
                 {
                     var conflictResult = await conflictChecker.CheckConflictsAsync(
                         Guid.Empty,
-                        sessionDateTime,
-                        durationMinutes,
+                        occurrence.PlannedDatetime,
+                        occurrence.DurationMinutes,
                         command.RoomId,
                         command.MainTeacherId,
                         command.AssistantTeacherId,
@@ -185,9 +194,9 @@ public sealed class CreateClassCommandHandler(
             AssistantTeacherId = command.AssistantTeacherId,
             StartDate = command.StartDate,
             EndDate = endDate,
-            Status = ClassStatus.Planned,
+            Status = ClassStatus.Active,
             Capacity = command.Capacity,
-            SchedulePattern = command.SchedulePattern,
+            WeeklyScheduleJson = normalizedWeeklyScheduleJson,
             Description = command.Description,
             CreatedAt = now,
             UpdatedAt = now
@@ -210,8 +219,20 @@ public sealed class CreateClassCommandHandler(
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
-            SchedulePattern = classEntity.SchedulePattern,
+            WeeklyScheduleSlots = ParseSlots(classEntity.WeeklyScheduleJson),
             Description = classEntity.Description
         };
     }
+
+    private List<ScheduleSlot> ParseSlots(string? weeklyScheduleJson)
+    {
+        if (string.IsNullOrWhiteSpace(weeklyScheduleJson))
+        {
+            return [];
+        }
+
+        var parseResult = patternParser.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : [];
+    }
+
 }

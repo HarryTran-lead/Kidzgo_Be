@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Services;
 
 namespace Kidzgo.Application.Registrations.AssignClass;
 
@@ -30,7 +31,8 @@ public sealed class AssignClassCommand : ICommand<AssignClassResponse>
     public DateOnly? FirstStudyDate { get; init; }
 
     /// <summary>
-    /// Optional RRULE subset of the class schedule pattern for this student.
+    /// Optional subset of the class schedule for this student.
+    /// Group days with the same startTime into one entry.
     /// </summary>
-    public string? SessionSelectionPattern { get; init; }
+    public IReadOnlyCollection<WeeklyPatternEntry>? WeeklyPattern { get; init; }
 }

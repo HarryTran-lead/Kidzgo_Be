@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Services;
 
 namespace Kidzgo.Application.PauseEnrollmentRequests.ReassignEquivalentClass;
 
@@ -8,6 +9,6 @@ public sealed class ReassignEquivalentClassCommand : ICommand<ReassignEquivalent
     public Guid RegistrationId { get; init; }
     public Guid NewClassId { get; init; }
     public string Track { get; init; } = "primary";
-    public string? SessionSelectionPattern { get; init; }
+    public IReadOnlyCollection<WeeklyPatternEntry>? WeeklyPattern { get; init; }
     public DateTime? EffectiveDate { get; init; }
 }

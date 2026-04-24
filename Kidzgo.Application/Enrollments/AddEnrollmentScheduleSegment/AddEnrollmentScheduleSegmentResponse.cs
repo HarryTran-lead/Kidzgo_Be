@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+
 namespace Kidzgo.Application.Enrollments.AddEnrollmentScheduleSegment;
 
 public sealed class AddEnrollmentScheduleSegmentResponse
@@ -8,6 +10,6 @@ public sealed class AddEnrollmentScheduleSegmentResponse
     public Guid ProgramId { get; init; }
     public DateOnly EffectiveFrom { get; init; }
     public DateOnly? EffectiveTo { get; init; }
-    public string? SessionSelectionPattern { get; init; }
-    public string? ActiveSessionSelectionPattern { get; init; }
+    public List<WeeklyPatternEntry>? WeeklyPattern { get; init; }
+    public List<WeeklyPatternEntry>? ActiveWeeklyPattern { get; init; }
 }

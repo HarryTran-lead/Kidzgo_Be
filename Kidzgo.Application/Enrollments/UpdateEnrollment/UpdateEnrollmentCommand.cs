@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Services;
 
 namespace Kidzgo.Application.Enrollments.UpdateEnrollment;
 
@@ -8,7 +9,7 @@ public sealed class UpdateEnrollmentCommand : ICommand<UpdateEnrollmentResponse>
     public DateOnly? EnrollDate { get; init; }
     public Guid? TuitionPlanId { get; init; }
     public string? Track { get; init; }
-    public string? SessionSelectionPattern { get; init; }
-    public bool ClearSessionSelectionPattern { get; init; }
+    public IReadOnlyCollection<WeeklyPatternEntry>? WeeklyPattern { get; init; }
+    public bool ClearWeeklyPattern { get; init; }
 }
 

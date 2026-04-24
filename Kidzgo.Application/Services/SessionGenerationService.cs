@@ -63,14 +63,8 @@ public sealed class SessionGenerationService
         var occurrenceCandidates = new List<ScheduleOccurrenceCandidate>();
         foreach (var window in scheduleWindowsResult.Value)
         {
-            var durationMinutes = _patternParser.ParseDuration(window.SchedulePattern) ?? 90;
-            if (durationMinutes <= 0)
-            {
-                return Result.Failure<int>(SessionErrors.InvalidDuration(durationMinutes));
-            }
-
-            var parseResult = _patternParser.ParseAndGenerateOccurrences(
-                window.SchedulePattern,
+            var parseResult = _patternParser.ParseAndGenerateOccurrenceDetails(
+                window.WeeklyScheduleJson,
                 window.EffectiveFrom,
                 window.EffectiveTo);
 
@@ -79,8 +73,14 @@ public sealed class SessionGenerationService
                 return Result.Failure<int>(parseResult.Error);
             }
 
+            if (parseResult.Value.Any(occurrence => occurrence.DurationMinutes <= 0))
+            {
+                var invalidDuration = parseResult.Value.First(occurrence => occurrence.DurationMinutes <= 0).DurationMinutes;
+                return Result.Failure<int>(SessionErrors.InvalidDuration(invalidDuration));
+            }
+
             occurrenceCandidates.AddRange(parseResult.Value.Select(occurrence =>
-                new ScheduleOccurrenceCandidate(occurrence, durationMinutes)));
+                new ScheduleOccurrenceCandidate(occurrence.PlannedDatetime, occurrence.DurationMinutes)));
         }
 
         if (occurrenceCandidates.Count == 0)
@@ -328,7 +328,7 @@ public sealed class SessionGenerationService
 
         if (scheduleSegments.Count == 0)
         {
-            if (string.IsNullOrWhiteSpace(classEntity.SchedulePattern))
+            if (string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
             {
                 return Result.Failure<List<ScheduleGenerationWindow>>(
                     SessionErrors.MissingSchedulePattern(classEntity.Id));
@@ -336,11 +336,22 @@ public sealed class SessionGenerationService
 
             return Result.Success(new List<ScheduleGenerationWindow>
             {
-                new(classEntity.StartDate, classEndDate, classEntity.SchedulePattern)
+                new(classEntity.StartDate, classEndDate, classEntity.WeeklyScheduleJson)
             });
         }
 
         var windows = new List<ScheduleGenerationWindow>();
+        var firstSegment = scheduleSegments[0];
+
+        if (firstSegment.EffectiveFrom > classEntity.StartDate && 
+            !string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
+        {
+            windows.Add(new ScheduleGenerationWindow(
+                classEntity.StartDate,
+                firstSegment.EffectiveFrom.AddDays(-1),
+                classEntity.WeeklyScheduleJson));
+        }
+
         foreach (var segment in scheduleSegments)
         {
             if (segment.EffectiveFrom > classEndDate ||
@@ -364,7 +375,7 @@ public sealed class SessionGenerationService
             windows.Add(new ScheduleGenerationWindow(
                 effectiveFrom,
                 effectiveTo,
-                segment.SchedulePattern));
+                segment.WeeklyScheduleJson));
         }
 
         return Result.Success(windows);
@@ -373,7 +384,7 @@ public sealed class SessionGenerationService
     private sealed record ScheduleGenerationWindow(
         DateOnly EffectiveFrom,
         DateOnly EffectiveTo,
-        string SchedulePattern);
+        string WeeklyScheduleJson);
 
     private sealed record ScheduleOccurrenceCandidate(
         DateTime PlannedDatetime,

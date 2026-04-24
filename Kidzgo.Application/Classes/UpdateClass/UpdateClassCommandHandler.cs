@@ -20,6 +20,16 @@ public sealed class UpdateClassCommandHandler(
 {
     public async Task<Result<UpdateClassResponse>> Handle(UpdateClassCommand command, CancellationToken cancellationToken)
     {
+        var normalizedPatternResult = SchedulePatternSupport.NormalizeWeeklyScheduleJson(
+            command.WeeklyScheduleSlots,
+            requireValue: false);
+        if (normalizedPatternResult.IsFailure)
+        {
+            return Result.Failure<UpdateClassResponse>(normalizedPatternResult.Error);
+        }
+
+        var normalizedWeeklyScheduleJson = normalizedPatternResult.Value;
+
         var classEntity = await context.Classes
             .FirstOrDefaultAsync(c => c.Id == command.Id, cancellationToken);
 
@@ -75,7 +85,7 @@ public sealed class UpdateClassCommandHandler(
                                       classEntity.ProgramId != command.ProgramId;
         bool scheduleChanged = classEntity.StartDate != command.StartDate ||
                                classEntity.EndDate != command.EndDate ||
-                               classEntity.SchedulePattern != command.SchedulePattern;
+                               classEntity.WeeklyScheduleJson != normalizedWeeklyScheduleJson;
 
         if (branchOrProgramChanged)
         {
@@ -222,23 +232,22 @@ public sealed class UpdateClassCommandHandler(
         }
 
         if (futureSessions.Count == 0 &&
-            !string.IsNullOrWhiteSpace(command.SchedulePattern) &&
+            !string.IsNullOrWhiteSpace(normalizedWeeklyScheduleJson) &&
             command.EndDate.HasValue)
         {
-            var durationMinutes = patternParser.ParseDuration(command.SchedulePattern) ?? 90;
-            var parseResult = patternParser.ParseAndGenerateOccurrences(
-                command.SchedulePattern,
+            var parseResult = patternParser.ParseAndGenerateOccurrenceDetails(
+                normalizedWeeklyScheduleJson,
                 command.StartDate,
                 command.EndDate.Value);
 
             if (parseResult.IsSuccess)
             {
-                foreach (var sessionDateTime in parseResult.Value.Take(10))
+                foreach (var occurrence in parseResult.Value.Take(10))
                 {
                     var conflictResult = await conflictChecker.CheckConflictsAsync(
                         Guid.Empty,
-                        sessionDateTime,
-                        durationMinutes,
+                        occurrence.PlannedDatetime,
+                        occurrence.DurationMinutes,
                         command.RoomId,
                         command.MainTeacherId,
                         command.AssistantTeacherId,
@@ -263,9 +272,14 @@ public sealed class UpdateClassCommandHandler(
         classEntity.StartDate = command.StartDate;
         classEntity.EndDate = command.EndDate;
         classEntity.Capacity = command.Capacity;
-        classEntity.SchedulePattern = command.SchedulePattern;
+        classEntity.WeeklyScheduleJson = normalizedWeeklyScheduleJson;
         classEntity.Description = command.Description;
         classEntity.UpdatedAt = VietnamTime.UtcNow();
+        classEntity.Status = ResolveLifecycleStatus(
+            classEntity.Status,
+            classEntity.StartDate,
+            classEntity.EndDate,
+            VietnamTime.ToVietnamDateOnly(classEntity.UpdatedAt));
 
         await context.SaveChangesAsync(cancellationToken);
 
@@ -283,7 +297,7 @@ public sealed class UpdateClassCommandHandler(
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
-            SchedulePattern = classEntity.SchedulePattern,
+            WeeklyScheduleSlots = ParseSlots(classEntity.WeeklyScheduleJson),
             Description = classEntity.Description
         };
     }
@@ -307,6 +321,38 @@ public sealed class UpdateClassCommandHandler(
                 conflict.ConflictDatetime),
             _ => ClassErrors.NotFound(null)
         };
+    }
+
+    private List<ScheduleSlot> ParseSlots(string? weeklyScheduleJson)
+    {
+        if (string.IsNullOrWhiteSpace(weeklyScheduleJson))
+        {
+            return [];
+        }
+
+        var parseResult = patternParser.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : [];
+    }
+
+    private static ClassStatus ResolveLifecycleStatus(
+        ClassStatus currentStatus,
+        DateOnly startDate,
+        DateOnly? endDate,
+        DateOnly today)
+    {
+        if (currentStatus is ClassStatus.Closed or ClassStatus.Completed or ClassStatus.Cancelled or ClassStatus.Suspended)
+        {
+            return currentStatus;
+        }
+
+        if (startDate <= today)
+        {
+            return currentStatus == ClassStatus.Full
+                ? ClassStatus.Full
+                : ClassStatus.Active;
+        }
+
+        return ClassStatus.Planned;
     }
 }
 

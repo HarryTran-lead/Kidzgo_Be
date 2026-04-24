@@ -33,7 +33,7 @@ public class SessionController : ControllerBase
         _mediator = mediator;
     }
 
-    /// UC-076: Sinh Sessions tự động từ schedule pattern cho Class/Program
+    /// UC-076: Sinh Sessions tự động từ weekly schedule cho Class/Program
     [HttpPost("generate-from-pattern")]
     [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> GenerateSessionsFromPattern(

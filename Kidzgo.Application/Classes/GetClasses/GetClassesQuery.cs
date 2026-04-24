@@ -11,7 +11,6 @@ public sealed class GetClassesQuery : IQuery<GetClassesResponse>, IPageableQuery
     public Guid? TeacherId { get; init; }
     public ClassStatus? Status { get; init; }
     public Guid? StudentId { get; init; }
-    public string? SchedulePattern { get; init; }
     public string? SearchTerm { get; init; }
     public int PageNumber { get; init; } = 1;
     public int PageSize { get; init; } = 10;

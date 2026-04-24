@@ -23,7 +23,10 @@ public sealed class StudentSessionAssignmentService(
     IDbContext context,
     ISchedulePatternParser patternParser)
 {
-    public Result ValidateSelectionPattern(Class classEntity, string? sessionSelectionPattern)
+    public async Task<Result> ValidateSelectionPatternAsync(
+        Class classEntity,
+        string? sessionSelectionPattern,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sessionSelectionPattern))
         {
@@ -50,24 +53,23 @@ public sealed class StudentSessionAssignmentService(
                 "Session selection pattern does not match any session slot in the validation range."));
         }
 
-        if (string.IsNullOrWhiteSpace(classEntity.SchedulePattern))
+        var classOccurrencesResult = await GetClassScheduleOccurrencesForPeriodAsync(
+            classEntity,
+            classEntity.StartDate,
+            validationEndDate,
+            cancellationToken);
+
+        if (classOccurrencesResult.IsFailure)
+        {
+            return Result.Failure(classOccurrencesResult.Error);
+        }
+
+        if (classOccurrencesResult.Value.Count == 0)
         {
             return Result.Success();
         }
 
-        var classResult = patternParser.ParseAndGenerateOccurrences(
-            classEntity.SchedulePattern,
-            classEntity.StartDate,
-            validationEndDate);
-
-        if (classResult.IsFailure)
-        {
-            return Result.Failure(Error.Validation(
-                "Enrollment.ClassSchedulePatternInvalid",
-                classResult.Error.Description));
-        }
-
-        var classOccurrences = classResult.Value
+        var classOccurrences = classOccurrencesResult.Value
             .Select(ToMinuteKey)
             .ToHashSet();
 
@@ -623,13 +625,13 @@ public sealed class StudentSessionAssignmentService(
 
         if (scheduleSegments.Count == 0)
         {
-            if (string.IsNullOrWhiteSpace(classEntity.SchedulePattern))
+            if (string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
             {
                 return Result.Success(new List<DateTime>());
             }
 
             var classResult = patternParser.ParseAndGenerateOccurrences(
-                classEntity.SchedulePattern,
+                classEntity.WeeklyScheduleJson,
                 validationStartDate,
                 validationEndDate);
 
@@ -660,7 +662,7 @@ public sealed class StudentSessionAssignmentService(
                 : validationEndDate;
 
             var classResult = patternParser.ParseAndGenerateOccurrences(
-                segment.SchedulePattern,
+                segment.WeeklyScheduleJson,
                 segmentStart,
                 segmentEnd);
 

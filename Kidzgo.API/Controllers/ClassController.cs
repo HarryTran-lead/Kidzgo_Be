@@ -48,7 +48,7 @@ public class ClassController : ControllerBase
             StartDate = request.StartDate,
             EndDate = request.EndDate, 
             Capacity = request.Capacity,
-            SchedulePattern = request.SchedulePattern,
+            WeeklyScheduleSlots = request.WeeklyScheduleSlots,
             Description = request.Description
         };
 
@@ -61,7 +61,6 @@ public class ClassController : ControllerBase
     /// <param name="programId">Filter by program ID</param>
     /// <param name="studentId">Filter by enrolled student ID</param>
     /// <param name="status">Class status: Planned, Active, or Closed</param>
-    /// <param name="schedulePattern">Filter by class schedule pattern (partial match)</param>
     /// <param name="searchTerm">Search by class code or title</param>
     /// <param name="pageNumber">Page number (default: 1)</param>
     /// <param name="pageSize">Page size (default: 10)</param>
@@ -73,7 +72,6 @@ public class ClassController : ControllerBase
         [FromQuery] Guid? teacherId,
         [FromQuery] Guid? studentId,
         [FromQuery] string? status,
-        [FromQuery] string? schedulePattern,
         [FromQuery] string? searchTerm,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -92,7 +90,6 @@ public class ClassController : ControllerBase
             TeacherId = teacherId,
             StudentId = studentId,
             Status = classStatus,
-            SchedulePattern = schedulePattern,
             SearchTerm = searchTerm,
             PageNumber = pageNumber,
             PageSize = pageSize
@@ -130,7 +127,7 @@ public class ClassController : ControllerBase
             ClassId = id,
             EffectiveFrom = request.EffectiveFrom,
             EffectiveTo = request.EffectiveTo,
-            SchedulePattern = request.SchedulePattern,
+            WeeklyScheduleSlots = request.WeeklyScheduleSlots,
             GenerateSessions = request.GenerateSessions,
             OnlyFutureSessions = request.OnlyFutureSessions
         };
@@ -179,7 +176,7 @@ public class ClassController : ControllerBase
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Capacity = request.Capacity,
-            SchedulePattern = request.SchedulePattern,
+            WeeklyScheduleSlots = request.WeeklyScheduleSlots,
             Description = request.Description
         };
 

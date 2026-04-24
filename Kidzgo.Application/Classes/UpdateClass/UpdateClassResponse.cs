@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 
 namespace Kidzgo.Application.Classes.UpdateClass;
@@ -16,9 +18,9 @@ public sealed class UpdateClassResponse
     public DateOnly? EndDate { get; init; }
     public string Status { get; init; } = null!;
     public int Capacity { get; init; }
-    public string? SchedulePattern { get; init; }
+    public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
     public string? Description { get; init; }
     public string Name => Title;
-    public string? ScheduleText => SchedulePattern;
+    public string? ScheduleText => SchedulePatternSupport.BuildDisplayText(WeeklyScheduleSlots);
 }
 

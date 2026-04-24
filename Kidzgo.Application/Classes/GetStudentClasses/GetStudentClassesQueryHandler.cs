@@ -1,7 +1,9 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Users.Errors;
@@ -11,7 +13,8 @@ namespace Kidzgo.Application.Classes.GetStudentClasses;
 
 public sealed class GetStudentClassesQueryHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<GetStudentClassesQuery, GetStudentClassesResponse>
 {
     public async Task<Result<GetStudentClassesResponse>> Handle(GetStudentClassesQuery query, CancellationToken cancellationToken)
@@ -71,6 +74,8 @@ public sealed class GetStudentClassesQueryHandler(
                 .ThenInclude(c => c.ClassEnrollments)
             .Include(ce => ce.Class!)
                 .ThenInclude(c => c.Sessions)
+            .Include(ce => ce.Class!)
+                .ThenInclude(c => c.ScheduleSegments)
             .OrderByDescending(ce => ce.Class!.CreatedAt)
             .ThenBy(ce => ce.Class!.Title)
             .ApplyPagination(query.PageNumber, query.PageSize)
@@ -94,7 +99,9 @@ public sealed class GetStudentClassesQueryHandler(
             Status = ce.Class.Status.ToString(),
             Capacity = ce.Class.Capacity,
             CurrentEnrollmentCount = ce.Class.ClassEnrollments.Count(e => e.Status == EnrollmentStatus.Active),
-            SchedulePattern = ce.Class.SchedulePattern,
+            WeeklyScheduleSlots = ResolveEffectiveWeeklyScheduleJson(ce.Class) is null
+                ? []
+                : ParseSlots(ResolveEffectiveWeeklyScheduleJson(ce.Class)!),
             TotalSessions = ce.Class.Sessions.Count,
             CompletedSessions = ce.Class.Sessions.Count(s => s.Status == Domain.Sessions.SessionStatus.Completed),
             EnrollDate = ce.EnrollDate,
@@ -111,6 +118,23 @@ public sealed class GetStudentClassesQueryHandler(
         {
             Classes = page
         });
+    }
+
+    private List<ScheduleSlot> ParseSlots(string weeklyScheduleJson)
+    {
+        var parseResult = schedulePatternParser.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : [];
+    }
+
+    private static string? ResolveEffectiveWeeklyScheduleJson(Kidzgo.Domain.Classes.Class classEntity)
+    {
+        return SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+            classEntity.WeeklyScheduleJson,
+            classEntity.ScheduleSegments.Select(segment => new WeeklyScheduleSegmentWindow(
+                segment.EffectiveFrom,
+                segment.EffectiveTo,
+                segment.WeeklyScheduleJson)),
+            VietnamTime.TodayDateOnly());
     }
 }
 

@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Services;
 
 namespace Kidzgo.Application.Classes.UpdateClass;
 
@@ -15,7 +16,7 @@ public sealed class UpdateClassCommand : ICommand<UpdateClassResponse>
     public DateOnly StartDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public int Capacity { get; init; }
-    public string? SchedulePattern { get; init; }
+    public List<ScheduleSlot>? WeeklyScheduleSlots { get; init; }
     public string? Description { get; init; }
 }
 

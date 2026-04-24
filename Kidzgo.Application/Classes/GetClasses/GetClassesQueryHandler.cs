@@ -1,7 +1,9 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +11,8 @@ namespace Kidzgo.Application.Classes.GetClasses;
 
 public sealed class GetClassesQueryHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<GetClassesQuery, GetClassesResponse>
 {
     public async Task<Result<GetClassesResponse>> Handle(GetClassesQuery query, CancellationToken cancellationToken)
@@ -62,14 +65,6 @@ public sealed class GetClassesQueryHandler(
                     ce.Status == Domain.Classes.EnrollmentStatus.Active));
         }
 
-        if (!string.IsNullOrWhiteSpace(query.SchedulePattern))
-        {
-            var schedulePattern = query.SchedulePattern.Trim();
-            classesQuery = classesQuery.Where(c =>
-                c.SchedulePattern != null &&
-                c.SchedulePattern.Contains(schedulePattern));
-        }
-
         // Filter by search term
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
@@ -107,12 +102,62 @@ public sealed class GetClassesQueryHandler(
                 Status = c.Status.ToString(),
                 Capacity = c.Capacity,
                 CurrentEnrollmentCount = c.ClassEnrollments.Count(ce => ce.Status == Domain.Classes.EnrollmentStatus.Active),
-                SchedulePattern = c.SchedulePattern,
                 Description = c.Description,
                 TotalSessions = c.Sessions.Count(),
                 CompletedSessions = c.Sessions.Count(s => s.Status == Domain.Sessions.SessionStatus.Completed)
             })
             .ToListAsync(cancellationToken);
+
+        var classWeeklySchedules = await classesQuery
+            .OrderByDescending(c => c.CreatedAt)
+            .ThenBy(c => c.Code)
+            .ApplyPagination(query.PageNumber, query.PageSize)
+            .Select(c => new { c.Id, c.WeeklyScheduleJson })
+            .ToListAsync(cancellationToken);
+
+        var weeklyScheduleByClassId = classWeeklySchedules.ToDictionary(item => item.Id, item => item.WeeklyScheduleJson);
+        var pagedClassIds = classWeeklySchedules.Select(item => item.Id).ToList();
+        var scheduleSegments = await context.ClassScheduleSegments
+            .AsNoTracking()
+            .Where(segment => pagedClassIds.Contains(segment.ClassId))
+            .OrderBy(segment => segment.EffectiveFrom)
+            .ToListAsync(cancellationToken);
+        var scheduleSegmentsByClassId = scheduleSegments
+            .GroupBy(segment => segment.ClassId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(segment => new WeeklyScheduleSegmentWindow(
+                        segment.EffectiveFrom,
+                        segment.EffectiveTo,
+                        segment.WeeklyScheduleJson))
+                    .ToList());
+        var today = VietnamTime.TodayDateOnly();
+
+        foreach (var classDto in classes)
+        {
+            if (!weeklyScheduleByClassId.TryGetValue(classDto.Id, out var weeklyScheduleJson) ||
+                (string.IsNullOrWhiteSpace(weeklyScheduleJson) &&
+                 !scheduleSegmentsByClassId.ContainsKey(classDto.Id)))
+            {
+                continue;
+            }
+
+            scheduleSegmentsByClassId.TryGetValue(classDto.Id, out var segmentWindows);
+            var effectiveWeeklyScheduleJson = SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+                weeklyScheduleJson,
+                segmentWindows ?? [],
+                today);
+            if (string.IsNullOrWhiteSpace(effectiveWeeklyScheduleJson))
+            {
+                continue;
+            }
+
+            var parseResult = schedulePatternParser.ParseScheduleSlots(effectiveWeeklyScheduleJson);
+            if (parseResult.IsSuccess)
+            {
+                classDto.WeeklyScheduleSlots.AddRange(parseResult.Value);
+            }
+        }
 
         var page = new Page<ClassDto>(
             classes,

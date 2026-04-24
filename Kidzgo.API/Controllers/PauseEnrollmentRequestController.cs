@@ -149,7 +149,7 @@ public class PauseEnrollmentRequestController : ControllerBase
             RegistrationId = request.RegistrationId,
             NewClassId = request.NewClassId,
             Track = request.Track,
-            SessionSelectionPattern = request.SessionSelectionPattern,
+            WeeklyPattern = request.WeeklyPattern,
             EffectiveDate = request.EffectiveDate
         };
 

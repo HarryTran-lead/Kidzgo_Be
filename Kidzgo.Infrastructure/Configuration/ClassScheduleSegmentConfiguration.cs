@@ -21,8 +21,9 @@ public sealed class ClassScheduleSegmentConfiguration : IEntityTypeConfiguration
 
         builder.Property(x => x.EffectiveTo);
 
-        builder.Property(x => x.SchedulePattern)
-            .HasMaxLength(500)
+        builder.Property(x => x.WeeklyScheduleJson)
+            .HasColumnName("SchedulePattern")
+            .HasColumnType("text")
             .IsRequired();
 
         builder.Property(x => x.CreatedAt)

@@ -28,6 +28,15 @@ public sealed class ReassignEquivalentClassCommandHandler(
         var track = RegistrationTrackHelper.NormalizeTrack(command.Track);
         var trackType = RegistrationTrackHelper.ToTrackType(track);
         var isSecondaryTrack = track == RegistrationTrackHelper.SecondaryTrack;
+        var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
+            command.WeeklyPattern,
+            requireValue: false);
+        if (weeklyPatternResult.IsFailure)
+        {
+            return Result.Failure<ReassignEquivalentClassResponse>(weeklyPatternResult.Error);
+        }
+
+        var sessionSelectionPattern = weeklyPatternResult.Value;
 
         var pauseRequest = await context.PauseEnrollmentRequests
             .FirstOrDefaultAsync(r => r.Id == command.PauseEnrollmentRequestId, cancellationToken);
@@ -154,8 +163,8 @@ public sealed class ReassignEquivalentClassCommandHandler(
                 RegistrationErrors.CannotTransferToSameClass());
         }
 
-        var selectionPatternValidation = studentSessionAssignmentService
-            .ValidateSelectionPattern(newClass, command.SessionSelectionPattern);
+        var selectionPatternValidation = await studentSessionAssignmentService
+            .ValidateSelectionPatternAsync(newClass, sessionSelectionPattern, cancellationToken);
         if (selectionPatternValidation.IsFailure)
         {
             return Result.Failure<ReassignEquivalentClassResponse>(selectionPatternValidation.Error);
@@ -195,7 +204,7 @@ public sealed class ReassignEquivalentClassCommandHandler(
             registration.StudentProfileId,
             newClass.Id,
             effectiveDate,
-            command.SessionSelectionPattern,
+            sessionSelectionPattern,
             cancellationToken,
             excludeEnrollmentId: oldEnrollment.Id,
             excludeLegacyClassId: oldEnrollment.ClassId,
@@ -222,7 +231,7 @@ public sealed class ReassignEquivalentClassCommandHandler(
             TuitionPlanId = registration.TuitionPlanId,
             RegistrationId = registration.Id,
             Track = trackType,
-            SessionSelectionPattern = command.SessionSelectionPattern,
+            SessionSelectionPattern = sessionSelectionPattern,
             CreatedAt = now,
             UpdatedAt = now
         };

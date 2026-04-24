@@ -72,9 +72,23 @@ public sealed class AddEnrollmentScheduleSegmentCommandHandler(
                     "EffectiveTo cannot be later than the class end date."));
         }
 
-        var sessionSelectionPattern = command.ClearSessionSelectionPattern
-            ? null
-            : command.SessionSelectionPattern;
+        string? sessionSelectionPattern;
+        if (command.ClearWeeklyPattern)
+        {
+            sessionSelectionPattern = null;
+        }
+        else
+        {
+            var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
+                command.WeeklyPattern,
+                requireValue: false);
+            if (weeklyPatternResult.IsFailure)
+            {
+                return Result.Failure<AddEnrollmentScheduleSegmentResponse>(weeklyPatternResult.Error);
+            }
+
+            sessionSelectionPattern = weeklyPatternResult.Value;
+        }
 
         var validationResult = await studentSessionAssignmentService.ValidateSelectionPatternForPeriodAsync(
             enrollment.Class,
@@ -120,6 +134,7 @@ public sealed class AddEnrollmentScheduleSegmentCommandHandler(
         }
 
         var now = VietnamTime.UtcNow();
+        var today = VietnamTime.TodayDateOnly();
         if (existingSegments.Count == 0 && command.EffectiveFrom > enrollment.EnrollDate)
         {
             context.ClassEnrollmentScheduleSegments.Add(new ClassEnrollmentScheduleSegment
@@ -158,12 +173,18 @@ public sealed class AddEnrollmentScheduleSegmentCommandHandler(
         };
 
         context.ClassEnrollmentScheduleSegments.Add(newSegment);
-        enrollment.SessionSelectionPattern = sessionSelectionPattern;
+        if (command.EffectiveFrom <= today || command.EffectiveFrom == enrollment.EnrollDate)
+        {
+            enrollment.SessionSelectionPattern = sessionSelectionPattern;
+        }
+
         enrollment.UpdatedAt = now;
 
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
         await studentSessionAssignmentService.SyncAssignmentsForEnrollmentAsync(enrollment, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new AddEnrollmentScheduleSegmentResponse
         {
@@ -173,8 +194,19 @@ public sealed class AddEnrollmentScheduleSegmentCommandHandler(
             ProgramId = enrollment.Class.ProgramId,
             EffectiveFrom = newSegment.EffectiveFrom,
             EffectiveTo = newSegment.EffectiveTo,
-            SessionSelectionPattern = newSegment.SessionSelectionPattern,
-            ActiveSessionSelectionPattern = enrollment.SessionSelectionPattern
+            WeeklyPattern = ParseWeeklyPatternOrNull(newSegment.SessionSelectionPattern),
+            ActiveWeeklyPattern = ParseWeeklyPatternOrNull(enrollment.SessionSelectionPattern)
         };
+    }
+
+    private static List<Kidzgo.Application.Abstraction.Services.WeeklyPatternEntry>? ParseWeeklyPatternOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var result = SchedulePatternSupport.ParseWeeklyPattern(value);
+        return result.IsSuccess ? result.Value : null;
     }
 }

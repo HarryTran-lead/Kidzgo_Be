@@ -22,7 +22,7 @@ public sealed class ClassEnrollmentScheduleSegmentConfiguration : IEntityTypeCon
         builder.Property(x => x.EffectiveTo);
 
         builder.Property(x => x.SessionSelectionPattern)
-            .HasMaxLength(500);
+            .HasColumnType("text");
 
         builder.Property(x => x.CreatedAt)
             .IsRequired();

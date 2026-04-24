@@ -192,7 +192,7 @@ public class RegistrationController : ControllerBase
             EntryType = request.EntryType,
             Track = request.Track,
             FirstStudyDate = request.FirstStudyDate,
-            SessionSelectionPattern = request.SessionSelectionPattern
+            WeeklyPattern = request.WeeklyPattern
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -330,19 +330,16 @@ public class RegistrationController : ControllerBase
     [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> TransferClass(
         Guid id,
-        [FromQuery] Guid newClassId,
-        [FromQuery] string track = "primary",
-        [FromQuery] string? sessionSelectionPattern = null,
-        [FromQuery] DateTime? effectiveDate = null,
+        [FromBody] TransferClassRequest request,
         CancellationToken cancellationToken = default)
     {
         var command = new TransferClassCommand
         {
             RegistrationId = id,
-            NewClassId = newClassId,
-            EffectiveDate = effectiveDate ?? VietnamTime.UtcNow(),
-            Track = track,
-            SessionSelectionPattern = sessionSelectionPattern
+            NewClassId = request.NewClassId,
+            EffectiveDate = request.EffectiveDate ?? VietnamTime.UtcNow(),
+            Track = request.Track,
+            WeeklyPattern = request.WeeklyPattern
         };
 
         var result = await _mediator.Send(command, cancellationToken);

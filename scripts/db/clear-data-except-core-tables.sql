@@ -1,29 +1,87 @@
 BEGIN;
 
-DO $$
-DECLARE
-    tables_to_truncate text;
-BEGIN
-    SELECT string_agg(format('%I.%I', schemaname, tablename), ', ' ORDER BY tablename)
-    INTO tables_to_truncate
-    FROM pg_tables
-    WHERE schemaname = 'public'
-      AND tablename NOT IN (
-          'Branches',
-          'Users',
-          'NotificationTemplates',
-          'EmailTemplates',
-          '__EFMigrationsHistory'
-      );
-
-    IF tables_to_truncate IS NULL THEN
-        RAISE NOTICE 'No tables found to truncate.';
-        RETURN;
-    END IF;
-
-    EXECUTE 'TRUNCATE TABLE ' || tables_to_truncate || ' RESTART IDENTITY';
-    RAISE NOTICE 'Truncated tables: %', tables_to_truncate;
-END
-$$;
+TRUNCATE TABLE
+    public."RefreshTokens",
+    public."PasswordResetTokens",
+    public."ParentPinResetTokens",
+    public."ParentStudentLinks",
+    public."DeviceTokens",
+    public."Classrooms",
+    public."Classes",
+    public."ClassEnrollments",
+    public."ClassScheduleSegments",
+    public."ClassEnrollmentScheduleSegments",
+    public."PauseEnrollmentRequests",
+    public."PauseEnrollmentRequestHistories",
+    public."Leads",
+    public."LeadActivities",
+    public."LeadChildren",
+    public."PlacementTests",
+    public."Exams",
+    public."ExamResults",
+    public."ExamQuestions",
+    public."ExamSubmissions",
+    public."ExamSubmissionAnswers",
+    public."Invoices",
+    public."InvoiceLines",
+    public."Payments",
+    public."CashbookEntries",
+    public."Missions",
+    public."MissionProgresses",
+    public."RewardRedemptions",
+    public."RewardStoreItems",
+    public."StarTransactions",
+    public."StudentLevels",
+    public."AttendanceStreaks",
+    public."GamificationSettings",
+    public."MissionRewardRules",
+    public."HomeworkAssignments",
+    public."HomeworkStudents",
+    public."HomeworkSubmissionAttempts",
+    public."HomeworkQuestions",
+    public."QuestionBankItems",
+    public."LessonPlans",
+    public."LessonPlanTemplates",
+    public."MediaAssets",
+    public."FaqCategories",
+    public."FaqItems",
+    public."Notifications",
+    public."Contracts",
+    public."PayrollLines",
+    public."PayrollPayments",
+    public."PayrollRuns",
+    public."SessionRoles",
+    public."ShiftAttendances",
+    public."MonthlyWorkHours",
+    public."TeacherCompensationSettings",
+    public."Programs",
+    public."BranchPrograms",
+    public."ExtracurricularPrograms",
+    public."ProgramLeavePolicies",
+    public."TuitionPlans",
+    public."TeachingMaterials",
+    public."TeachingMaterialSlides",
+    public."TeachingMaterialViewProgresses",
+    public."TeachingMaterialBookmarks",
+    public."TeachingMaterialAnnotations",
+    public."Registrations",
+    public."EnrollmentConfirmationPdfs",
+    public."EnrollmentConfirmationPaymentSettings",
+    public."MonthlyReportJobs",
+    public."MonthlyReportData",
+    public."ReportComments",
+    public."ReportRequests",
+    public."StudentMonthlyReports",
+    public."SessionReports",
+    public."Attendances",
+    public."LeaveRequests",
+    public."MakeupAllocations",
+    public."MakeupCredits",
+    public."Sessions",
+    public."StudentSessionAssignments",
+    public."Tickets",
+    public."TicketComments",
+    public."AuditLogs"
+RESTART IDENTITY CASCADE;
 
 COMMIT;

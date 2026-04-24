@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+
 namespace Kidzgo.Application.Registrations.SuggestClasses;
 
 public sealed class SuggestedClassDto
@@ -11,7 +13,7 @@ public sealed class SuggestedClassDto
     public int RemainingSlots => Capacity - CurrentEnrollment;
     public DateOnly StartDate { get; init; }
     public DateOnly? EndDate { get; init; }
-    public string? SchedulePattern { get; init; }
+    public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
     public string MainTeacherName { get; init; } = null!;
     public string? ClassroomName { get; init; }
     public bool IsClassStarted { get; init; }

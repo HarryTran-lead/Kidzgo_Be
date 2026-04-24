@@ -1,3 +1,5 @@
+using Kidzgo.Application.Abstraction.Services;
+
 namespace Kidzgo.API.Requests;
 
 public sealed class UpdateEnrollmentRequest
@@ -5,7 +7,7 @@ public sealed class UpdateEnrollmentRequest
     public DateOnly? EnrollDate { get; set; }
     public Guid? TuitionPlanId { get; set; }
     public string? Track { get; set; }
-    public string? SessionSelectionPattern { get; set; }
-    public bool ClearSessionSelectionPattern { get; set; }
+    public List<WeeklyPatternEntry>? WeeklyPattern { get; set; }
+    public bool ClearWeeklyPattern { get; set; }
 }
 

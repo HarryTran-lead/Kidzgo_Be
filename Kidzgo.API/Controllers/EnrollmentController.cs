@@ -43,7 +43,7 @@ public class EnrollmentController : ControllerBase
             EnrollDate = request.EnrollDate,
             TuitionPlanId = request.TuitionPlanId,
             Track = request.Track,
-            SessionSelectionPattern = request.SessionSelectionPattern
+            WeeklyPattern = request.WeeklyPattern
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -81,8 +81,8 @@ public class EnrollmentController : ControllerBase
             EnrollmentId = id,
             EffectiveFrom = request.EffectiveFrom,
             EffectiveTo = request.EffectiveTo,
-            SessionSelectionPattern = request.SessionSelectionPattern,
-            ClearSessionSelectionPattern = request.ClearSessionSelectionPattern
+            WeeklyPattern = request.WeeklyPattern,
+            ClearWeeklyPattern = request.ClearWeeklyPattern
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -154,8 +154,8 @@ public class EnrollmentController : ControllerBase
             EnrollDate = request.EnrollDate,
             TuitionPlanId = request.TuitionPlanId,
             Track = request.Track,
-            SessionSelectionPattern = request.SessionSelectionPattern,
-            ClearSessionSelectionPattern = request.ClearSessionSelectionPattern
+            WeeklyPattern = request.WeeklyPattern,
+            ClearWeeklyPattern = request.ClearWeeklyPattern
         };
 
         var result = await _mediator.Send(command, cancellationToken);

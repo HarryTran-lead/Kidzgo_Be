@@ -1,5 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Classes.GetClassById;
 
 public sealed class GetClassByIdQueryHandler(
-    IDbContext context
+    IDbContext context,
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<GetClassByIdQuery, GetClassByIdResponse>
 {
     public async Task<Result<GetClassByIdResponse>> Handle(GetClassByIdQuery query, CancellationToken cancellationToken)
@@ -42,6 +45,14 @@ public sealed class GetClassByIdQueryHandler(
                      s.Status == Domain.Sessions.SessionStatus.Completed,
                 cancellationToken);
 
+        var effectiveWeeklyScheduleJson = SchedulePatternSupport.ResolveEffectiveWeeklyScheduleJson(
+            classEntity.WeeklyScheduleJson,
+            classEntity.ScheduleSegments.Select(segment => new WeeklyScheduleSegmentWindow(
+                segment.EffectiveFrom,
+                segment.EffectiveTo,
+                segment.WeeklyScheduleJson)),
+            VietnamTime.TodayDateOnly());
+
         return new GetClassByIdResponse
         {
             Id = classEntity.Id,
@@ -63,7 +74,9 @@ public sealed class GetClassByIdQueryHandler(
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
             CurrentEnrollmentCount = currentEnrollmentCount,
-            SchedulePattern = classEntity.SchedulePattern,
+            WeeklyScheduleSlots = effectiveWeeklyScheduleJson is null
+                ? []
+                : ParseSlots(effectiveWeeklyScheduleJson),
             TeacherIds = new[] { classEntity.MainTeacherId, classEntity.AssistantTeacherId }
                 .Where(x => x.HasValue)
                 .Select(x => x!.Value)
@@ -81,12 +94,18 @@ public sealed class GetClassByIdQueryHandler(
                     Id = segment.Id,
                     EffectiveFrom = segment.EffectiveFrom,
                     EffectiveTo = segment.EffectiveTo,
-                    SchedulePattern = segment.SchedulePattern
+                    WeeklyScheduleSlots = ParseSlots(segment.WeeklyScheduleJson)
                 })
                 .ToList(),
             CreatedAt = classEntity.CreatedAt,
             UpdatedAt = classEntity.UpdatedAt
         };
+    }
+
+    private List<ScheduleSlot> ParseSlots(string weeklyScheduleJson)
+    {
+        var parseResult = schedulePatternParser.ParseScheduleSlots(weeklyScheduleJson);
+        return parseResult.IsSuccess ? parseResult.Value : [];
     }
 }
 

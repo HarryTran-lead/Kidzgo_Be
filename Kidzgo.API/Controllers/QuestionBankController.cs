@@ -4,6 +4,7 @@ using Kidzgo.Application.QuestionBank;
 using Kidzgo.Application.QuestionBank.CreateQuestionBankItems;
 using Kidzgo.Application.QuestionBank.DeleteQuestionBankItem;
 using Kidzgo.Application.QuestionBank.GetQuestionBank;
+using Kidzgo.Application.QuestionBank.GetQuestionBankItemById;
 using Kidzgo.Application.QuestionBank.ImportQuestionBank;
 using Kidzgo.Application.QuestionBank.UpdateQuestionBankItem;
 using Kidzgo.Domain.Common;
@@ -108,6 +109,24 @@ public class QuestionBankController : ControllerBase
             Level = parsedLevel,
             PageNumber = pageNumber,
             PageSize = pageSize
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Get question bank item detail by id
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    public async Task<IResult> GetQuestionBankItemById(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetQuestionBankItemByIdQuery
+        {
+            Id = id
         };
 
         var result = await _mediator.Send(query, cancellationToken);

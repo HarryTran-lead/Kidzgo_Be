@@ -1,5 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
+using Kidzgo.Application.Tickets.Notifications;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Tickets.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Tickets.AssignTicket;
 
 public sealed class AssignTicketCommandHandler(
-    IDbContext context
+    IDbContext context,
+    ITemplateRenderer templateRenderer
 ) : ICommandHandler<AssignTicketCommand, AssignTicketResponse>
 {
     public async Task<Result<AssignTicketResponse>> Handle(AssignTicketCommand command, CancellationToken cancellationToken)
@@ -41,6 +44,7 @@ public sealed class AssignTicketCommandHandler(
             return Result.Failure<AssignTicketResponse>(TicketErrors.AssignedUserBranchMismatch);
         }
 
+        var previousAssignedToUserId = ticket.AssignedToUserId;
         ticket.AssignedToUserId = command.AssignedToUserId;
         
         // Auto-update status to InProgress if ticket is Open
@@ -51,6 +55,19 @@ public sealed class AssignTicketCommandHandler(
 
         ticket.UpdatedAt = VietnamTime.UtcNow();
         await context.SaveChangesAsync(cancellationToken);
+
+        if (previousAssignedToUserId != command.AssignedToUserId)
+        {
+            await TicketNotificationHelper.NotifyAssignedSupportAsync(
+                context,
+                templateRenderer,
+                ticket,
+                assignedUser.Id,
+                assignedUser.Role.ToString(),
+                "System",
+                "System",
+                cancellationToken);
+        }
 
         // Query ticket with navigation properties for response
         var ticketWithNav = await context.Tickets

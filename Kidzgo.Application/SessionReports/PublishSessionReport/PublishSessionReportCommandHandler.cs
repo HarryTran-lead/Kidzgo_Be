@@ -114,7 +114,7 @@ public sealed class PublishSessionReportCommandHandler(
                 Kind = "session_report",
                 Priority = "normal",
                 SenderRole = "System",
-                SenderName = "KidzGo Centre",
+                SenderName = "Rex Centre",
                 ScopeClassId = sessionReport.Session.ClassId,
                 ScopeStudentProfileId = sessionReport.StudentProfileId
             })

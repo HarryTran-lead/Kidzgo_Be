@@ -241,7 +241,7 @@ public sealed class CreateMissionCommandHandler(
                     Kind = "system",
                     Priority = "normal",
                     SenderRole = "System",
-                    SenderName = "KidzGo Centre",
+                    SenderName = "Rex Centre",
                     ScopeClassId = mission.TargetClassId,
                     ScopeStudentProfileId = p.Id
                 })

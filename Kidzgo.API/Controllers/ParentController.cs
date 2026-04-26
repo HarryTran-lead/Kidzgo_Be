@@ -12,6 +12,10 @@ using Kidzgo.Application.Media.GetMedia;
 using Kidzgo.Application.Media.Shared;
 using Kidzgo.Application.Notifications.GetParentNotifications;
 using Kidzgo.Application.Payments.GetParentPayments;
+using Kidzgo.Application.Registrations.GetParentEnrollmentConfirmationPdfHistory;
+using Kidzgo.Application.Registrations.GetParentEnrollmentConfirmationPdfPreview;
+using Kidzgo.Application.Registrations.GetParentRegistrationById;
+using Kidzgo.Application.Registrations.GetParentRegistrations;
 using Kidzgo.Application.Sessions.GetStudentTimetable;
 using Kidzgo.Application.Users.GetCurrentUser;
 using Kidzgo.Application.Users.GetParentOverview;
@@ -65,6 +69,83 @@ public class ParentController : ControllerBase
         };
 
         var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("registrations")]
+    public async Task<IResult> GetRegistrations(
+        [FromQuery] Guid? studentProfileId,
+        [FromQuery] Guid? branchId,
+        [FromQuery] Guid? programId,
+        [FromQuery] string? status,
+        [FromQuery] Guid? classId,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetParentRegistrationsQuery
+        {
+            StudentProfileId = studentProfileId,
+            BranchId = branchId,
+            ProgramId = programId,
+            Status = status,
+            ClassId = classId,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("registrations/{id:guid}")]
+    public async Task<IResult> GetRegistrationById(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetParentRegistrationByIdQuery
+        {
+            Id = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpGet("registrations/{id:guid}/enrollment-confirmation-pdf")]
+    public async Task<IResult> GetEnrollmentConfirmationPdfPreview(
+        Guid id,
+        [FromQuery] string track = "primary",
+        [FromQuery] string formType = "auto",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetParentEnrollmentConfirmationPdfPreviewQuery
+        {
+            RegistrationId = id,
+            Track = track,
+            FormType = formType
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpGet("registrations/{id:guid}/enrollment-confirmation-pdf/history")]
+    public async Task<IResult> GetEnrollmentConfirmationPdfHistory(
+        Guid id,
+        [FromQuery] string? track,
+        [FromQuery] string? formType,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetParentEnrollmentConfirmationPdfHistoryQuery
+        {
+            RegistrationId = id,
+            Track = track,
+            FormType = formType,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 

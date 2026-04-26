@@ -17,6 +17,7 @@ public sealed class CreateProgramCommandHandler(
             Id = Guid.NewGuid(),
             Name = command.Name,
             Code = command.Code,
+            Description = command.Description?.Trim(),
             IsMakeup = command.IsMakeup,
             IsSupplementary = command.IsSupplementary,
             IsActive = true,

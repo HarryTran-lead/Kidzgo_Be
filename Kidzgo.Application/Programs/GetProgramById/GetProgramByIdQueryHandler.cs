@@ -21,20 +21,16 @@ public sealed class GetProgramByIdQueryHandler(
                 IsMakeup = p.IsMakeup,
                 IsSupplementary = p.IsSupplementary,
                 Code = p.Code,
-                DefaultTuitionAmount = p.TuitionPlans
+                BaseFee = p.TuitionPlans
                     .Where(tp => tp.IsActive && !tp.IsDeleted)
                     .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
-                UnitPriceSession = p.TuitionPlans
+                Fee = p.TuitionPlans
                     .Where(tp => tp.IsActive && !tp.IsDeleted)
-                    .Select(tp => (decimal?)tp.UnitPriceSession)
+                    .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
                 Description = p.Description,
                 IsActive = p.IsActive,
-                TotalSessions = p.TuitionPlans
-                    .Where(tp => tp.IsActive && !tp.IsDeleted)
-                    .Select(tp => (int?)tp.TotalSessions)
-                    .Max() ?? 0,
                 ClassCount = p.Classes.Count(c => c.Status != Domain.Classes.ClassStatus.Cancelled),
                 StudentCount = p.Classes
                     .SelectMany(c => c.ClassEnrollments)
@@ -66,11 +62,10 @@ public sealed class GetProgramByIdQueryHandler(
             Code = program.Code,
             IsMakeup = program.IsMakeup,
             IsSupplementary = program.IsSupplementary,
-            DefaultTuitionAmount = program.DefaultTuitionAmount,
-            UnitPriceSession = program.UnitPriceSession,
+            BaseFee = program.BaseFee,
+            Fee = program.Fee,
             Description = program.Description,
             IsActive = program.IsActive,
-            TotalSessions = program.TotalSessions,
             BranchAssignments = branchAssignments,
             ClassCount = program.ClassCount,
             StudentCount = program.StudentCount

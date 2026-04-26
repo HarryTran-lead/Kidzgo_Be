@@ -21,6 +21,7 @@ using Kidzgo.Domain.Audit;
 using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.TeachingMaterials;
+using Kidzgo.Domain.Website;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -132,6 +133,7 @@ public sealed class ApplicationDbContext(
     public DbSet<Registration> Registrations => Set<Registration>();
     public DbSet<EnrollmentConfirmationPdf> EnrollmentConfirmationPdfs => Set<EnrollmentConfirmationPdf>();
     public DbSet<EnrollmentConfirmationPaymentSetting> EnrollmentConfirmationPaymentSettings => Set<EnrollmentConfirmationPaymentSetting>();
+    public DbSet<LandingPageSettings> LandingPageSettings => Set<LandingPageSettings>();
 
     // Reports
     public DbSet<MonthlyReportJob> MonthlyReportJobs => Set<MonthlyReportJob>();

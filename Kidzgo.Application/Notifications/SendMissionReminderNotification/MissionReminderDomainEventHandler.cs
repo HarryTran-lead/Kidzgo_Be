@@ -64,7 +64,7 @@ public sealed class MissionReminderDomainEventHandler(
                 Kind = "mission_reminder",
                 Priority = "normal",
                 SenderRole = "System",
-                SenderName = "KidzGo Centre",
+                SenderName = "Rex Centre",
                 ScopeStudentProfileId = notification.RecipientProfileId
             };
         }

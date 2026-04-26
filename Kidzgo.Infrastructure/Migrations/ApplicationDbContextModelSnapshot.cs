@@ -4731,6 +4731,97 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.ToTable("DeviceTokens", "public");
                 });
 
+            modelBuilder.Entity("Kidzgo.Domain.Website.LandingPageSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FeaturedClassesSectionSubtitle")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("FeaturedClassesSectionTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FeaturedClassIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedClassConfigsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedProgramsSectionSubtitle")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("FeaturedProgramsSectionTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FeaturedProgramIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedProgramConfigsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedTeachersSectionSubtitle")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("FeaturedTeachersSectionTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FeaturedTeacherIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FooterAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FooterAddressesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FooterContactEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FooterContactPhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FooterContactPhonesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FooterSocialLinksJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LandingPageSettings", "public");
+                });
+
             modelBuilder.Entity("Kidzgo.Domain.Users.ParentPinResetToken", b =>
                 {
                     b.Property<Guid>("Id")

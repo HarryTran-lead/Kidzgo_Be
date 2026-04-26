@@ -14,6 +14,9 @@ public sealed class CreateProgramCommandValidator : AbstractValidator<CreateProg
             .NotEmpty().WithMessage("Program code is required")
             .MaximumLength(10).WithMessage("Program code must not exceed 10 characters");
 
+        RuleFor(command => command.Description)
+            .MaximumLength(2000).WithMessage("Program description must not exceed 2000 characters");
+
         RuleFor(command => command)
             .Must(command => !command.IsMakeup || !command.IsSupplementary)
             .WithMessage("A program cannot be both makeup and supplementary.");

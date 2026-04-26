@@ -53,7 +53,7 @@ public sealed class GetProgramsQueryHandler(
                 Code = p.Code,
                 IsMakeup = p.IsMakeup,
                 IsSupplementary = p.IsSupplementary,
-                DefaultTuitionAmount = p.TuitionPlans
+                BaseFee = p.TuitionPlans
                     .Where(tp => tp.IsActive &&
                                  !tp.IsDeleted &&
                                  (!branchId.HasValue ||
@@ -61,24 +61,16 @@ public sealed class GetProgramsQueryHandler(
                                   tp.BranchId == branchId))
                     .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
-                UnitPriceSession = p.TuitionPlans
+                Fee = p.TuitionPlans
                     .Where(tp => tp.IsActive &&
                                  !tp.IsDeleted &&
                                  (!branchId.HasValue ||
                                   tp.BranchId == null ||
                                   tp.BranchId == branchId))
-                    .Select(tp => (decimal?)tp.UnitPriceSession)
+                    .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
                 Description = p.Description,
                 IsActive = p.IsActive,
-                TotalSessions = p.TuitionPlans
-                    .Where(tp => tp.IsActive &&
-                                 !tp.IsDeleted &&
-                                 (!branchId.HasValue ||
-                                  tp.BranchId == null ||
-                                  tp.BranchId == branchId))
-                    .Select(tp => (int?)tp.TotalSessions)
-                    .Max() ?? 0,
                 AssignedBranchCount = p.BranchPrograms.Count(bp => bp.IsActive),
                 ClassCount = p.Classes.Count(c =>
                     c.Status != Domain.Classes.ClassStatus.Cancelled &&

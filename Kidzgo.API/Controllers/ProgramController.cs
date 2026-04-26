@@ -35,6 +35,7 @@ public class ProgramController : ControllerBase
         {
             Name = request.Name,
             Code = request.Code,
+            Description = request.Description,
             IsMakeup = request.IsMakeup,
             IsSupplementary = request.IsSupplementary
         };
@@ -121,6 +122,7 @@ public class ProgramController : ControllerBase
             Id = id,
             Name = request.Name,
             Code = request.Code,
+            Description = request.Description,
             IsMakeup = request.IsMakeup,
             IsSupplementary = request.IsSupplementary
         };

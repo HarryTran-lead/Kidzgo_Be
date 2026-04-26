@@ -22,6 +22,7 @@ public sealed class UpdateProgramCommandHandler(
 
         program.Name = command.Name;
         program.Code = command.Code;
+        program.Description = command.Description?.Trim();
         program.IsMakeup = command.IsMakeup;
         program.IsSupplementary = command.IsSupplementary;
         program.UpdatedAt = VietnamTime.UtcNow();

@@ -20,6 +20,7 @@ using Kidzgo.Domain.Audit;
 using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.TeachingMaterials;
+using Kidzgo.Domain.Website;
 
 namespace Kidzgo.Application.Abstraction.Data;
 
@@ -128,6 +129,7 @@ public interface IDbContext
     DbSet<Registration> Registrations { get; }
     DbSet<EnrollmentConfirmationPdf> EnrollmentConfirmationPdfs { get; }
     DbSet<EnrollmentConfirmationPaymentSetting> EnrollmentConfirmationPaymentSettings { get; }
+    DbSet<LandingPageSettings> LandingPageSettings { get; }
 
     // Reports
     DbSet<MonthlyReportJob> MonthlyReportJobs { get; }

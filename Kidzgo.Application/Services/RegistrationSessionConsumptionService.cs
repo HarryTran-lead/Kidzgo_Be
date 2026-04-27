@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Registrations.Notifications;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
@@ -55,6 +56,8 @@ public sealed class RegistrationSessionConsumptionService(IDbContext context)
             {
                 registration.Status = RegistrationStatus.Completed;
             }
+
+            await LowRemainingSessionsNotificationHelper.QueueAsync(context, registration, cancellationToken);
 
             if (registration.ClassId.HasValue)
             {

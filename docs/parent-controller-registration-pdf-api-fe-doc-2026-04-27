@@ -1,0 +1,480 @@
+# Tai Lieu API FE - ParentController - Registration va PDF - 2026-04-27
+
+Tai lieu nay tong hop 4 API lien quan den registration va enrollment confirmation PDF trong `ParentController.cs`.
+
+Pham vi tai lieu:
+
+- Xem danh sach registration cua be
+- Xem chi tiet registration
+- Preview du lieu enrollment confirmation PDF
+- Xem lich su file enrollment confirmation PDF
+
+## Tong quan role va pham vi du lieu
+
+Tat ca API ben duoi deu nam trong `ParentController` va controller co `[Authorize]`.
+
+| Role | Du lieu duoc xem | Pham vi du lieu | Hanh dong duoc phep |
+| --- | --- | --- | --- |
+| Parent | Registration va PDF cua cac hoc sinh dang linked voi parent hien tai | `own` | `view` |
+| Admin | Khong dung nhom API nay de xem du lieu staff scope | `none` | `none` |
+| ManagementStaff | Khong dung nhom API nay | `none` | `none` |
+| Teacher | Khong dung nhom API nay | `none` | `none` |
+| Student | Khong dung nhom API nay | `none` | `none` |
+| Anonymous | Khong duoc truy cap | `none` | `none` |
+
+Ghi chu:
+
+- Code khong dat `[Authorize(Roles = "Parent")]` tren endpoint, nhung handler se verify current user phai co `Parent profile` active.
+- Parent chi xem duoc registration cua hoc sinh dang linked voi parent.
+- Neu khong truyen `studentProfileId` o API list, backend se uu tien:
+  1. `studentId` trong token
+  2. hoc sinh dau tien dang linked voi parent
+
+## Dinh dang response chung
+
+Success tu `MatchOk()`:
+
+```json
+{
+  "isSuccess": true,
+  "data": {}
+}
+```
+
+Error domain/validation:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+  "title": "Profile.StudentNotLinkedToParent",
+  "status": 404,
+  "detail": "Student not linked to this parent"
+}
+```
+
+Validation pipeline/domain error khac:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Registration.InvalidEnrollmentConfirmationPdfFormType",
+  "status": 400,
+  "detail": "Invalid enrollment confirmation PDF form type: auto2. Allowed values are auto, new, newStudent, continuing, continuingStudent."
+}
+```
+
+## Danh sach API
+
+### 1. GET `/api/parent/registrations`
+
+Dung de lay danh sach registration cua 1 hoc sinh dang linked voi parent.
+
+Roles: `Parent`
+
+Query params:
+
+| Field | Type | Required | Default | Mo ta |
+| --- | --- | --- | --- | --- |
+| `studentProfileId` | `Guid?` | No | token/first linked student | Hoc sinh can xem |
+| `branchId` | `Guid?` | No | null | Loc theo branch |
+| `programId` | `Guid?` | No | null | Loc theo primary hoac secondary program |
+| `status` | `string?` | No | null | Loc theo `RegistrationStatus` |
+| `classId` | `Guid?` | No | null | Loc theo primary hoac secondary class |
+| `pageNumber` | `int` | No | 1 | Trang |
+| `pageSize` | `int` | No | 10 | So item/trang |
+
+Response success:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "page": {
+      "items": [
+        {
+          "id": "guid",
+          "studentProfileId": "guid",
+          "studentName": "Nguyen Van A",
+          "branchId": "guid",
+          "branchName": "HCM",
+          "programId": "guid",
+          "programName": "Apple",
+          "secondaryProgramId": null,
+          "secondaryProgramName": null,
+          "secondaryProgramSkillFocus": null,
+          "tuitionPlanId": "guid",
+          "tuitionPlanName": "Goi 48 buoi",
+          "registrationDate": "2026-04-25T09:00:00Z",
+          "expectedStartDate": "2026-05-01T00:00:00Z",
+          "actualStartDate": null,
+          "preferredSchedule": "Thu 2, Thu 4",
+          "note": null,
+          "status": "New",
+          "classId": null,
+          "className": null,
+          "secondaryClassId": null,
+          "secondaryClassName": null,
+          "totalSessions": 48,
+          "usedSessions": 0,
+          "remainingSessions": 48,
+          "createdAt": "2026-04-25T09:00:00Z"
+        }
+      ],
+      "pageNumber": 1,
+      "totalPages": 1,
+      "totalCount": 1
+    }
+  }
+}
+```
+
+Response loi:
+
+| HTTP | Code/message | Khi nao |
+| --- | --- | --- |
+| 401 | Unauthorized | Chua dang nhap |
+| 404 | `Profile.ParentNotFound` | Current user khong co parent profile active |
+| 404 | `Profile.StudentNotLinkedToParent` | `studentProfileId` khong linked voi parent, hoac parent khong co hoc sinh nao |
+
+Ghi chu:
+
+- Neu `status` query khong parse duoc enum, backend bo qua filter thay vi tra loi.
+
+### 2. GET `/api/parent/registrations/{id}`
+
+Dung de lay chi tiet registration cua be, bao gom first study session va actual study schedules.
+
+Roles: `Parent`
+
+Path params:
+
+| Field | Type | Required | Mo ta |
+| --- | --- | --- | --- |
+| `id` | `Guid` | Yes | Registration id |
+
+Response success:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "guid",
+    "studentProfileId": "guid",
+    "studentName": "Nguyen Van A",
+    "branchId": "guid",
+    "branchName": "HCM",
+    "programId": "guid",
+    "programName": "Apple",
+    "secondaryProgramId": null,
+    "secondaryProgramName": null,
+    "secondaryProgramSkillFocus": null,
+    "tuitionPlanId": "guid",
+    "tuitionPlanName": "Goi 48 buoi",
+    "registrationDate": "2026-04-25T09:00:00Z",
+    "expectedStartDate": "2026-05-01T00:00:00Z",
+    "actualStartDate": null,
+    "preferredSchedule": "Thu 2, Thu 4",
+    "note": null,
+    "status": "ClassAssigned",
+    "classId": "guid",
+    "className": "Apple A2",
+    "entryType": "Immediate",
+    "secondaryClassId": null,
+    "secondaryClassName": null,
+    "secondaryEntryType": null,
+    "totalSessions": 48,
+    "usedSessions": 0,
+    "remainingSessions": 48,
+    "originalRegistrationId": null,
+    "operationType": null,
+    "firstStudySession": {
+      "sessionId": "guid",
+      "classEnrollmentId": "guid",
+      "track": "primary",
+      "classId": "guid",
+      "className": "Apple A2",
+      "plannedDatetime": "2026-05-03T11:00:00Z",
+      "studyDate": "2026-05-03"
+    },
+    "actualStudySchedules": [
+      {
+        "track": "primary",
+        "classId": "guid",
+        "className": "Apple A2",
+        "programId": "guid",
+        "programName": "Apple",
+        "usesClassDefaultSchedule": true,
+        "classWeeklyScheduleSlots": [
+          {
+            "dayOfWeek": "MO",
+            "startTime": "18:00",
+            "durationMinutes": 90
+          }
+        ],
+        "weeklyPattern": null,
+        "effectiveWeeklyPattern": null,
+        "studyDayCodes": ["MO"],
+        "studyDays": ["Thu 2"],
+        "studyDaySummary": "Thu 2",
+        "scheduleSegments": []
+      }
+    ],
+    "createdAt": "2026-04-25T09:00:00Z",
+    "updatedAt": "2026-04-25T10:00:00Z"
+  }
+}
+```
+
+Field bo sung can luu y:
+
+| Field | Type | Mo ta |
+| --- | --- | --- |
+| `entryType` | `string?` | Track primary dang hoc theo `Immediate`, `Wait`, `Retake` |
+| `secondaryEntryType` | `string?` | Entry type cua track secondary |
+| `operationType` | `string?` | `Initial`, `Upgrade`, `Renewal`, ... |
+| `actualStudySchedules[].classWeeklyScheduleSlots` | `array<object>` | Lich class goc |
+| `actualStudySchedules[].weeklyPattern` | `array<object>?` | Pattern student chon, null neu hoc full lich class |
+| `actualStudySchedules[].scheduleSegments` | `array<object>` | Lich co hieu luc theo tung giai doan |
+
+Response loi:
+
+| HTTP | Code/message | Khi nao |
+| --- | --- | --- |
+| 401 | Unauthorized | Chua dang nhap |
+| 404 | `Profile.ParentNotFound` | Current user khong co parent profile active |
+| 404 | `Registration.NotFound` | Registration khong ton tai hoac khong thuoc hoc sinh linked voi parent |
+
+### 3. GET `/api/parent/registrations/{id}/enrollment-confirmation-pdf`
+
+Dung de preview du lieu enrollment confirmation PDF cho parent xem.
+
+Roles: `Parent`
+
+Query params:
+
+| Field | Type | Required | Default | Mo ta |
+| --- | --- | --- | --- | --- |
+| `track` | `string` | No | `primary` | `primary` hoac `secondary`; gia tri khac se duoc normalize ve `primary` |
+| `formType` | `string` | No | `auto` | `auto`, `new`, `newStudent`, `continuing`, `continuingStudent` |
+
+Response success:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "registrationId": "guid",
+    "enrollmentId": "guid",
+    "trackRequested": "primary",
+    "trackResolved": "primary",
+    "formTypeRequested": "auto",
+    "formTypeResolved": "newStudent",
+    "canGenerate": true,
+    "paymentSettingScope": "branch",
+    "warnings": [],
+    "activePdf": {
+      "pdfRecordId": "guid",
+      "pdfUrl": "https://...",
+      "generatedAt": "2026-04-25T11:30:00Z",
+      "generatedBy": "guid",
+      "generatedByName": "Staff A",
+      "isActive": true,
+      "hasSnapshot": true
+    },
+    "preview": {
+      "studentName": "Nguyen Van A",
+      "studentDateOfBirth": "2018-05-10",
+      "parentName": "Nguyen Thi B",
+      "parentPhoneNumber": "0909000000",
+      "branchName": "HCM",
+      "branchAddress": "Dia chi chi nhanh",
+      "branchPhoneNumber": "028...",
+      "programName": "Apple",
+      "programCode": "APPLE",
+      "classCode": "APPLE-A2",
+      "classTitle": "Apple A2",
+      "teacherName": "Teacher A",
+      "enrollDate": "2026-05-03",
+      "firstStudyDate": "2026-05-03",
+      "expectedEndDate": "2026-08-31",
+      "studyDaySummary": "Thu 2, Thu 4",
+      "tuitionPlanName": "Goi 48 buoi",
+      "courseDurationText": "48 buoi",
+      "totalSessions": 48,
+      "tuitionAmount": 30000000,
+      "unitPriceSession": 625000,
+      "discountAmount": 0,
+      "materialFee": 0,
+      "totalPayment": 30000000,
+      "currency": "VND",
+      "track": "primary",
+      "entryType": "Immediate",
+      "generatedAt": "2026-04-25T11:30:00Z",
+      "issuedByName": "Staff A",
+      "paymentMethod": "Chuyen khoan",
+      "paymentAccountName": "TRINH DUC ANH",
+      "paymentAccountNumber": "0123456789",
+      "paymentBankName": "MB Bank",
+      "paymentTransferContent": "Nguyen Van A - APPLE-A2",
+      "paymentQrUrl": "https://...",
+      "headerLogoUrl": "https://...",
+      "newStudentPolicyLines": ["Khong ap dung hoan phi."],
+      "reservationPolicyLines": ["Chinh sach bao luu toi da 01 lan."],
+      "reconciliation": null
+    }
+  }
+}
+```
+
+Response loi hay gap:
+
+| HTTP | Code/message | Khi nao |
+| --- | --- | --- |
+| 401 | Unauthorized | Chua dang nhap |
+| 404 | `Profile.ParentNotFound` | Current user khong co parent profile active |
+| 404 | `Registration.NotFound` | Registration khong ton tai hoac khong linked voi parent |
+| 400 | `Registration.InvalidEnrollmentConfirmationPdfFormType` | `formType` khong hop le |
+| 404 | `Registration.EnrollmentNotFound` | Track duoc chon chua co enrollment active |
+| 400/404 | Validation/NotFound khac | Thieu payment setting, thieu du lieu bat buoc de build preview, loi business trong qua trinh resolve preview |
+
+### 4. GET `/api/parent/registrations/{id}/enrollment-confirmation-pdf/history`
+
+Dung de lay lich su file enrollment confirmation PDF da generate cua registration.
+
+Roles: `Parent`
+
+Query params:
+
+| Field | Type | Required | Default | Mo ta |
+| --- | --- | --- | --- | --- |
+| `track` | `string?` | No | null | `primary` / `secondary`; neu khac se normalize ve `primary` khi builder loc |
+| `formType` | `string?` | No | null | `new`, `newStudent`, `continuing`, `continuingStudent`, `auto` |
+| `pageNumber` | `int` | No | 1 | Trang |
+| `pageSize` | `int` | No | 10 | So item/trang |
+
+Response success:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "pdfs": {
+      "items": [
+        {
+          "pdfRecordId": "guid",
+          "registrationId": "guid",
+          "enrollmentId": "guid",
+          "track": "primary",
+          "formType": "newStudent",
+          "pdfUrl": "https://...",
+          "generatedAt": "2026-04-25T11:30:00Z",
+          "generatedBy": "guid",
+          "generatedByName": "Staff A",
+          "isActive": true,
+          "hasSnapshot": true,
+          "studentName": "Nguyen Van A",
+          "classCode": "APPLE-A2",
+          "classTitle": "Apple A2",
+          "programName": "Apple"
+        }
+      ],
+      "pageNumber": 1,
+      "totalPages": 1,
+      "totalCount": 1
+    }
+  }
+}
+```
+
+Response loi:
+
+| HTTP | Code/message | Khi nao |
+| --- | --- | --- |
+| 401 | Unauthorized | Chua dang nhap |
+| 404 | `Profile.ParentNotFound` | Current user khong co parent profile active |
+| 404 | `Registration.NotFound` | Registration khong ton tai hoac khong linked voi parent |
+| 400 | `Registration.InvalidEnrollmentConfirmationPdfFormType` | `formType` khong hop le |
+
+## Status definition
+
+### RegistrationStatus
+
+| Status | Y nghia |
+| --- | --- |
+| `New` | Moi tao registration |
+| `WaitingForClass` | Dang cho xep lop |
+| `ClassAssigned` | Da co lop, chua vao hoc ngay theo logic he thong |
+| `Studying` | Dang hoc |
+| `Paused` | Dang bao luu |
+| `Completed` | Da hoan thanh |
+| `Cancelled` | Da huy |
+
+### EntryType
+
+| Value | Y nghia |
+| --- | --- |
+| `Immediate` | Vao hoc ngay / hoc cac buoi con lai |
+| `Wait` | Cho lop moi |
+| `Retake` | Thi lai / vao lop sau retake |
+
+### OperationType
+
+| Value | Y nghia |
+| --- | --- |
+| `Initial` | Dang ky lan dau |
+| `Upgrade` | Nang goi hoc |
+| `Renewal` | Gia han |
+| `Transfer` | Chuyen lop |
+| `TransferBranch` | Chuyen chi nhanh |
+| `Retake` | Thi lai |
+
+### FormType cua PDF
+
+| Value | Y nghia |
+| --- | --- |
+| `auto` | Backend tu resolve form type |
+| `newStudent` | Mau hoc vien moi |
+| `continuingStudent` | Mau hoc vien tiep tuc |
+
+## Luong chuyen trang thai
+
+Luong tong quat cua registration:
+
+1. Staff tao registration -> `New`
+2. Cho xep lop -> `WaitingForClass`
+3. Da co lop -> `ClassAssigned` hoac `Studying`
+4. Bao luu -> `Paused`
+5. Ket thuc -> `Completed`
+6. Huy -> `Cancelled`
+
+Parent o nhom API nay chi co quyen `view`, khong co API tac dong de doi status.
+
+## Permission matrix theo role
+
+| API | Parent | Admin | ManagementStaff | Teacher | Student | Anonymous |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/parent/registrations` | Yes | No | No | No | No | No |
+| `GET /api/parent/registrations/{id}` | Yes | No | No | No | No | No |
+| `GET /api/parent/registrations/{id}/enrollment-confirmation-pdf` | Yes | No | No | No | No | No |
+| `GET /api/parent/registrations/{id}/enrollment-confirmation-pdf/history` | Yes | No | No | No | No | No |
+
+## Validation rule tong hop
+
+| Rule | API ap dung | Ket qua khi sai |
+| --- | --- | --- |
+| User phai dang nhap | Tat ca | 401 |
+| Current user phai co `Parent profile` active | Tat ca | 404 `Profile.ParentNotFound` |
+| Hoc sinh duoc chon phai linked voi parent | List API | 404 `Profile.StudentNotLinkedToParent` |
+| Registration phai thuoc ve hoc sinh linked voi parent | Detail/PDF APIs | 404 `Registration.NotFound` |
+| `status` query chi filter khi parse duoc enum | List API | Parse fail thi bo qua filter |
+| `track` query duoc normalize: chi `secondary` giu nguyen, gia tri khac tro ve `primary` | PDF preview/history | Khong tra loi, mac dinh `primary` |
+| `formType` chi nhan `auto`, `new`, `newStudent`, `continuing`, `continuingStudent` | PDF preview/history | 400 `Registration.InvalidEnrollmentConfirmationPdfFormType` |
+| Track PDF phai co enrollment active | PDF preview | 404 `Registration.EnrollmentNotFound` |
+| Builder preview phai resolve du payment setting va du lieu can thiet | PDF preview | 400/404 loi domain tuong ung |
+
+## Luu y FE quan trong
+
+- `GET /api/parent/registrations` va `GET /api/parent/registrations/{id}` dung cung data shape voi registration staff APIs, nhung scope da bi gioi han theo parent-student link.
+- `GET /api/parent/registrations/{id}` da tra `firstStudySession` va `actualStudySchedules`.
+- `GET /api/parent/registrations/{id}/enrollment-confirmation-pdf` chi la preview/read-only, khong generate file moi.
+- `GET /api/parent/registrations/{id}/enrollment-confirmation-pdf/history` tra `pdfUrl` da qua `fileStorage.GetDownloadUrl()` neu tao duoc download URL.

@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.MakeupCredits.Settings;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
@@ -135,6 +136,7 @@ public sealed class CreateLeaveRequestCommandHandler(
 
         var createdLeaves = new List<LeaveRequest>();
         var now = VietnamTime.UtcNow();
+        var makeupSettings = await MakeupSettingsHelper.GetOrCreateAsync(context, cancellationToken);
 
         // Create one LeaveRequest per session date (not per session)
         // sessionDate và endDate cách nhau bao nhiêu ngày thì tạo bấy nhiêu LeaveRequest
@@ -177,7 +179,7 @@ public sealed class CreateLeaveRequestCommandHandler(
                         SourceSessionId = session.Id,
                         Status = MakeupCreditStatus.Available,
                         CreatedReason = CreatedReason.ApprovedLeave24H,
-                        ExpiresAt = null,
+                        ExpiresAt = MakeupSettingsHelper.CalculateExpiresAt(session.PlannedDatetime, makeupSettings),
                         CreatedAt = now
                     };
                     context.MakeupCredits.Add(credit);

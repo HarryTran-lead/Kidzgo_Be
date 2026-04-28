@@ -83,7 +83,8 @@ public sealed class SuggestMakeupSessionsQueryHandler(
             .Where(s => s.Status == SessionStatus.Scheduled && s.PlannedDatetime >= now)
             .Where(s => s.PlannedDatetime >= fromUtc && s.PlannedDatetime <= toUtc)
             .Where(s => s.BranchId == sourceSession.BranchId)
-            .Where(s => s.ClassId != sourceSession.ClassId);
+            .Where(s => s.ClassId != sourceSession.ClassId)
+            .Where(s => s.Class.Program.IsMakeup == true);
 
         if (restrictedProgramId.HasValue)
         {

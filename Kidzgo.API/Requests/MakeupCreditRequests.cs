@@ -20,3 +20,8 @@ public sealed class ExpireMakeupCreditRequest
     public DateTime? ExpiresAt { get; set; }
 }
 
+public sealed class UpdateMakeupSettingsRequest
+{
+    public int CreditExpiryDays { get; set; }
+}
+

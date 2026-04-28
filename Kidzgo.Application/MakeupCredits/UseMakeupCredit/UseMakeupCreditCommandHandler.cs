@@ -110,12 +110,6 @@ public sealed class UseMakeupCreditCommandHandler(
             return Result.Failure(MakeupCreditErrors.CannotUsePastDate);
         }
 
-        if (targetDate.DayOfWeek != DayOfWeek.Saturday &&
-            targetDate.DayOfWeek != DayOfWeek.Sunday)
-        {
-            return Result.Failure(MakeupCreditErrors.MustBeWeekend);
-        }
-
         if (!MakeupSessionRuleHelper.IsEligibleMakeupDate(sourceDate, targetDate))
         {
             return Result.Failure(MakeupCreditErrors.MustBeFutureWeek);
@@ -124,6 +118,11 @@ public sealed class UseMakeupCreditCommandHandler(
         if (targetSession.ClassId != command.ClassId)
         {
             return Result.Failure(MakeupCreditErrors.SessionNotBelongToClass);
+        }
+
+        if (targetSession.Class.Program.IsMakeup != true)
+        {
+            return Result.Failure(MakeupCreditErrors.TargetClassMustBeMakeupProgram);
         }
 
         if (isFutureReschedule &&

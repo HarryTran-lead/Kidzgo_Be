@@ -7,6 +7,7 @@ using Kidzgo.Application.MakeupCredits.GetMakeupAllocations;
 using Kidzgo.Application.MakeupCredits.GetMakeupCreditById;
 using Kidzgo.Application.MakeupCredits.GetMakeupCredits;
 using Kidzgo.Application.MakeupCredits.GetStudentsWithMakeupOrLeave;
+using Kidzgo.Application.MakeupCredits.Settings;
 using Kidzgo.Application.MakeupCredits.SuggestSessions;
 using Kidzgo.Application.MakeupCredits.UseMakeupCredit;
 using Kidzgo.Domain.Sessions;
@@ -29,6 +30,30 @@ public class MakeupController : ControllerBase
     }
 
     /// Tạo Makeup Credit thủ công
+    [HttpGet("settings")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetSettings(CancellationToken cancellationToken)
+    {
+        var query = new GetMakeupSettingsQuery();
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpPut("settings")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UpdateSettings(
+        [FromBody] UpdateMakeupSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateMakeupSettingsCommand
+        {
+            CreditExpiryDays = request.CreditExpiryDays
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
     // [HttpPost]
     // public async Task<IResult> Create([FromBody] CreateMakeupCreditRequest request, CancellationToken cancellationToken)
     // {

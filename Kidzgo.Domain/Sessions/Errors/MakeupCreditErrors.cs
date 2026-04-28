@@ -20,9 +20,9 @@ public static class MakeupCreditErrors
         "MakeupCredit.NotBelongToStudent",
         "This makeup credit does not belong to the specified student.");
 
-    public static Error MustBeWeekend => Error.Validation(
-        "MakeupCredit.MustBeWeekend",
-        "Makeup session must be on Saturday or Sunday.");
+    public static Error TargetClassMustBeMakeupProgram => Error.Validation(
+        "MakeupCredit.TargetClassMustBeMakeupProgram",
+        "Target session must belong to a makeup program.");
 
     public static Error MustBeFutureWeek => Error.Validation(
         "MakeupCredit.MustBeFutureWeek",

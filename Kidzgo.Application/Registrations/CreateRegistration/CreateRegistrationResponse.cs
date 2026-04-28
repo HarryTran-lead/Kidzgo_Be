@@ -17,9 +17,18 @@ public sealed class CreateRegistrationResponse
     public string? PreferredSchedule { get; init; }
     public string? Note { get; init; }
     public string Status { get; init; } = null!;
+    public string? OperationType { get; init; }
     public Guid? ClassId { get; init; }
     public string? ClassName { get; init; }
     public Guid? SecondaryClassId { get; init; }
     public string? SecondaryClassName { get; init; }
+    public Guid? DiscountCampaignId { get; init; }
+    public string? DiscountCampaignName { get; init; }
+    public string? DiscountType { get; init; }
+    public decimal? DiscountValue { get; init; }
+    public decimal OriginalTuitionAmount { get; init; }
+    public decimal DiscountAmount { get; init; }
+    public decimal CarryOverCreditAmount { get; init; }
+    public decimal FinalTuitionAmount { get; init; }
     public DateTime CreatedAt { get; init; }
 }

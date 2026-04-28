@@ -47,6 +47,28 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
             .HasConversion<string>()
             .HasMaxLength(20);
 
+        builder.Property(x => x.DiscountCampaignName)
+            .HasMaxLength(200);
+
+        builder.Property(x => x.DiscountType)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(x => x.DiscountValue)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(x => x.OriginalTuitionAmount)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(x => x.DiscountAmount)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(x => x.CarryOverCreditAmount)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(x => x.FinalTuitionAmount)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(x => x.SecondaryProgramSkillFocus)
             .HasMaxLength(50);
 
@@ -106,6 +128,11 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
             .HasForeignKey(x => x.OriginalRegistrationId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.DiscountCampaign)
+            .WithMany()
+            .HasForeignKey(x => x.DiscountCampaignId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Indexes
         builder.HasIndex(x => x.StudentProfileId);
         builder.HasIndex(x => x.BranchId);
@@ -115,5 +142,6 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.HasIndex(x => x.ClassId);
         builder.HasIndex(x => x.SecondaryClassId);
         builder.HasIndex(x => x.OriginalRegistrationId);
+        builder.HasIndex(x => x.DiscountCampaignId);
     }
 }

@@ -122,7 +122,10 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
         var schedule = RegistrationActualStudyScheduleMapper
             .Map(new[] { enrollment })
             .FirstOrDefault();
-        var totalPayment = tuitionPlan.TuitionAmount;
+        var originalTuitionAmount = registration.OriginalTuitionAmount ?? tuitionPlan.TuitionAmount;
+        var discountAmount = registration.DiscountAmount ?? 0m;
+        var carryOverCreditAmount = registration.CarryOverCreditAmount ?? 0m;
+        var totalPayment = registration.FinalTuitionAmount ?? Math.Max(0m, originalTuitionAmount - discountAmount - carryOverCreditAmount);
         var paymentResolution = await GetPaymentSettingAsync(context, registration.BranchId, cancellationToken);
         var paymentSetting = paymentResolution.Setting;
         var paymentTransferContent = $"{registration.StudentProfile.DisplayName} - {enrollment.Class.Code}";
@@ -134,7 +137,7 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
                 paymentSetting.AccountNumber,
                 paymentSetting.AccountName,
                 paymentTransferContent,
-                tuitionPlan.TuitionAmount,
+                totalPayment,
                 paymentSetting.VietQrTemplate);
 
         var warnings = new List<string>();
@@ -181,9 +184,10 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
             TuitionPlanName = tuitionPlan.Name,
             CourseDurationText = BuildCourseDurationText(tuitionPlan, firstStudyDate, expectedEndDate),
             TotalSessions = tuitionPlan.TotalSessions,
-            TuitionAmount = tuitionPlan.TuitionAmount,
+            TuitionAmount = originalTuitionAmount,
             UnitPriceSession = tuitionPlan.UnitPriceSession,
-            DiscountAmount = 0m,
+            DiscountAmount = discountAmount,
+            CarryOverCreditAmount = carryOverCreditAmount,
             MaterialFee = 0m,
             TotalPayment = totalPayment,
             Currency = tuitionPlan.Currency,

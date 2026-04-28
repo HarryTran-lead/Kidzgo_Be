@@ -2335,7 +2335,7 @@ namespace Kidzgo.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("c1f73d87-8d4c-45c2-bf8f-3d79e2f4b6a1"),
-                            Body = "<div style=\"margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;\">\n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background:#f4f7fb;padding:24px 12px;\">\n    <tr>\n      <td align=\"center\">\n        <table role=\"presentation\" width=\"640\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width:640px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,.08);\">\n          <tr>\n            <td style=\"padding:0;background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);\">\n              <div style=\"padding:28px 30px 24px 30px;color:#ffffff;\">\n                <p style=\"margin:0 0 8px 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.9;\">KidzGo Learning Center</p>\n                <h1 style=\"margin:0;font-size:28px;line-height:1.3;font-weight:700;\">Đặt lại PIN phụ huynh</h1>\n                <p style=\"margin:10px 0 0 0;font-size:15px;line-height:1.6;opacity:.95;\">\n                  Xin chào {{user_name}}, chúng tôi đã nhận được yêu cầu đặt lại PIN cho hồ sơ {{profile_name}}.\n                </p>\n              </div>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding:26px 30px 12px 30px;\">\n              <p style=\"margin:0 0 14px 0;font-size:14px;line-height:1.7;color:#475569;\">\n                Để tiếp tục, vui lòng bấm vào nút bên dưới. Liên kết này chỉ có hiệu lực trong 1 giờ.\n              </p>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding:8px 30px 28px 30px;\">\n              <a href=\"{{reset_link}}\" style=\"display:inline-block;background:#ea580c;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 18px;border-radius:10px;\">Đặt lại PIN</a>\n              <p style=\"margin:14px 0 0 0;font-size:12px;line-height:1.6;color:#64748b;\">\n                Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email hoặc liên hệ bộ phận hỗ trợ của KidzGo.\n              </p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</div>",
+                            Body = "<div style=\"margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;\">\r\n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background:#f4f7fb;padding:24px 12px;\">\r\n    <tr>\r\n      <td align=\"center\">\r\n        <table role=\"presentation\" width=\"640\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width:640px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,.08);\">\r\n          <tr>\r\n            <td style=\"padding:0;background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);\">\r\n              <div style=\"padding:28px 30px 24px 30px;color:#ffffff;\">\r\n                <p style=\"margin:0 0 8px 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.9;\">KidzGo Learning Center</p>\r\n                <h1 style=\"margin:0;font-size:28px;line-height:1.3;font-weight:700;\">Đặt lại PIN phụ huynh</h1>\r\n                <p style=\"margin:10px 0 0 0;font-size:15px;line-height:1.6;opacity:.95;\">\r\n                  Xin chào {{user_name}}, chúng tôi đã nhận được yêu cầu đặt lại PIN cho hồ sơ {{profile_name}}.\r\n                </p>\r\n              </div>\r\n            </td>\r\n          </tr>\r\n          <tr>\r\n            <td style=\"padding:26px 30px 12px 30px;\">\r\n              <p style=\"margin:0 0 14px 0;font-size:14px;line-height:1.7;color:#475569;\">\r\n                Để tiếp tục, vui lòng bấm vào nút bên dưới. Liên kết này chỉ có hiệu lực trong 1 giờ.\r\n              </p>\r\n            </td>\r\n          </tr>\r\n          <tr>\r\n            <td style=\"padding:8px 30px 28px 30px;\">\r\n              <a href=\"{{reset_link}}\" style=\"display:inline-block;background:#ea580c;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 18px;border-radius:10px;\">Đặt lại PIN</a>\r\n              <p style=\"margin:14px 0 0 0;font-size:12px;line-height:1.6;color:#64748b;\">\r\n                Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email hoặc liên hệ bộ phận hỗ trợ của KidzGo.\r\n              </p>\r\n            </td>\r\n          </tr>\r\n        </table>\r\n      </td>\r\n    </tr>\r\n  </table>\r\n</div>",
                             Code = "PARENT_PIN_RESET",
                             CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
@@ -3361,6 +3361,9 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<Guid>("BranchId")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("CarryOverCreditAmount")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<DateTime?>("ClassAssignedDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -3369,6 +3372,23 @@ namespace Kidzgo.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("DiscountAmount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("DiscountCampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DiscountCampaignName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DiscountType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal?>("DiscountValue")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("EntryType")
                         .HasMaxLength(20)
@@ -3380,6 +3400,9 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<DateTime?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal?>("FinalTuitionAmount")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("Note")
                         .HasColumnType("text");
 
@@ -3390,8 +3413,14 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<Guid?>("OriginalRegistrationId")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("OriginalTuitionAmount")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("PreferredSchedule")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("PricingAppliedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("ProgramId")
                         .HasColumnType("uuid");
@@ -3445,6 +3474,8 @@ namespace Kidzgo.Infrastructure.Migrations
 
                     b.HasIndex("ClassId");
 
+                    b.HasIndex("DiscountCampaignId");
+
                     b.HasIndex("OriginalRegistrationId");
 
                     b.HasIndex("ProgramId");
@@ -3458,6 +3489,82 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.HasIndex("TuitionPlanId");
 
                     b.ToTable("Registrations", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Registrations.RegistrationDiscountCampaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ApplyForInitialRegistration")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ApplyForRenewal")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ApplyForUpgrade")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ProgramId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("TuitionPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ProgramId");
+
+                    b.HasIndex("TuitionPlanId");
+
+                    b.HasIndex("IsActive", "StartDate", "EndDate", "Priority");
+
+                    b.ToTable("RegistrationDiscountCampaigns", "public");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Reports.MonthlyReportData", b =>
@@ -4731,97 +4838,6 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.ToTable("DeviceTokens", "public");
                 });
 
-            modelBuilder.Entity("Kidzgo.Domain.Website.LandingPageSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FeaturedClassesSectionSubtitle")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("FeaturedClassesSectionTitle")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("FeaturedClassIdsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FeaturedClassConfigsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FeaturedProgramsSectionSubtitle")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("FeaturedProgramsSectionTitle")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("FeaturedProgramIdsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FeaturedProgramConfigsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FeaturedTeachersSectionSubtitle")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("FeaturedTeachersSectionTitle")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("FeaturedTeacherIdsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FooterAddress")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("FooterAddressesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FooterContactEmail")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("FooterContactPhone")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("FooterContactPhonesJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FooterSocialLinksJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("LogoUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("LandingPageSettings", "public");
-                });
-
             modelBuilder.Entity("Kidzgo.Domain.Users.ParentPinResetToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5091,6 +5107,97 @@ namespace Kidzgo.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Website.LandingPageSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FeaturedClassConfigsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedClassIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedClassesSectionSubtitle")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("FeaturedClassesSectionTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FeaturedProgramConfigsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedProgramIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedProgramsSectionSubtitle")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("FeaturedProgramsSectionTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FeaturedTeacherIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FeaturedTeachersSectionSubtitle")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("FeaturedTeachersSectionTitle")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FooterAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FooterAddressesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FooterContactEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FooterContactPhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FooterContactPhonesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FooterSocialLinksJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LandingPageSettings", "public");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Audit.AuditLog", b =>
@@ -6213,6 +6320,11 @@ namespace Kidzgo.Infrastructure.Migrations
                         .HasForeignKey("ClassId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Kidzgo.Domain.Registrations.RegistrationDiscountCampaign", "DiscountCampaign")
+                        .WithMany()
+                        .HasForeignKey("DiscountCampaignId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Kidzgo.Domain.Registrations.Registration", "OriginalRegistration")
                         .WithMany()
                         .HasForeignKey("OriginalRegistrationId")
@@ -6250,6 +6362,8 @@ namespace Kidzgo.Infrastructure.Migrations
 
                     b.Navigation("Class");
 
+                    b.Navigation("DiscountCampaign");
+
                     b.Navigation("OriginalRegistration");
 
                     b.Navigation("Program");
@@ -6259,6 +6373,30 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("SecondaryProgram");
 
                     b.Navigation("StudentProfile");
+
+                    b.Navigation("TuitionPlan");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Registrations.RegistrationDiscountCampaign", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Schools.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Programs.Program", "Program")
+                        .WithMany()
+                        .HasForeignKey("ProgramId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Programs.TuitionPlan", "TuitionPlan")
+                        .WithMany()
+                        .HasForeignKey("TuitionPlanId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Program");
 
                     b.Navigation("TuitionPlan");
                 });

@@ -73,6 +73,7 @@ internal static class EnrollmentConfirmationPdfPreviewResponseMapper
             TuitionAmount = document.TuitionAmount,
             UnitPriceSession = document.UnitPriceSession,
             DiscountAmount = document.DiscountAmount,
+            CarryOverCreditAmount = document.CarryOverCreditAmount,
             MaterialFee = document.MaterialFee,
             TotalPayment = document.TotalPayment,
             Currency = document.Currency,

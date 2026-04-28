@@ -11,5 +11,14 @@ public sealed class UpdateRegistrationResponse
     public Guid? SecondaryProgramId { get; init; }
     public string? SecondaryProgramName { get; init; }
     public string? SecondaryProgramSkillFocus { get; init; }
+    public string? OperationType { get; init; }
+    public Guid? DiscountCampaignId { get; init; }
+    public string? DiscountCampaignName { get; init; }
+    public string? DiscountType { get; init; }
+    public decimal? DiscountValue { get; init; }
+    public decimal? OriginalTuitionAmount { get; init; }
+    public decimal DiscountAmount { get; init; }
+    public decimal CarryOverCreditAmount { get; init; }
+    public decimal? FinalTuitionAmount { get; init; }
     public DateTime UpdatedAt { get; init; }
 }

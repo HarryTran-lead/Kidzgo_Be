@@ -130,6 +130,7 @@ public sealed class ApplicationDbContext(
     public DbSet<TeachingMaterialAnnotation> TeachingMaterialAnnotations => Set<TeachingMaterialAnnotation>();
 
     // Registrations
+    public DbSet<RegistrationDiscountCampaign> RegistrationDiscountCampaigns => Set<RegistrationDiscountCampaign>();
     public DbSet<Registration> Registrations => Set<Registration>();
     public DbSet<EnrollmentConfirmationPdf> EnrollmentConfirmationPdfs => Set<EnrollmentConfirmationPdf>();
     public DbSet<EnrollmentConfirmationPaymentSetting> EnrollmentConfirmationPaymentSettings => Set<EnrollmentConfirmationPaymentSetting>();

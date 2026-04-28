@@ -126,6 +126,7 @@ public interface IDbContext
     DbSet<TeachingMaterialAnnotation> TeachingMaterialAnnotations { get; }
 
     // Registrations
+    DbSet<RegistrationDiscountCampaign> RegistrationDiscountCampaigns { get; }
     DbSet<Registration> Registrations { get; }
     DbSet<EnrollmentConfirmationPdf> EnrollmentConfirmationPdfs { get; }
     DbSet<EnrollmentConfirmationPaymentSetting> EnrollmentConfirmationPaymentSettings { get; }

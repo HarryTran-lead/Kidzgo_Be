@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Programs.Shared;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
@@ -110,6 +111,22 @@ public sealed class ImportActiveRegistrationCommandHandler(
                     $"Imported used/remaining sessions must add up to the tuition plan total sessions ({tuitionPlan.TotalSessions})."));
         }
 
+        var operationType = await RegistrationDiscountPricingHelper.ResolveInitialOrRenewalOperationTypeAsync(
+            context,
+            command.StudentProfileId,
+            excludeRegistrationId: null,
+            cancellationToken);
+        var pricing = await RegistrationDiscountPricingHelper.ResolveAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            tuitionPlan.Id,
+            operationType,
+            now,
+            tuitionPlan.TuitionAmount,
+            carryOverCreditAmount: 0m,
+            cancellationToken);
+
         var registration = new Registration
         {
             Id = Guid.NewGuid(),
@@ -129,6 +146,7 @@ public sealed class ImportActiveRegistrationCommandHandler(
             CreatedAt = now,
             UpdatedAt = now
         };
+        RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         context.Registrations.Add(registration);
         await context.SaveChangesAsync(cancellationToken);
@@ -148,9 +166,18 @@ public sealed class ImportActiveRegistrationCommandHandler(
             PreferredSchedule = registration.PreferredSchedule,
             Note = registration.Note,
             Status = registration.Status.ToString(),
+            OperationType = registration.OperationType?.ToString(),
             TotalSessions = registration.TotalSessions,
             UsedSessions = registration.UsedSessions,
             RemainingSessions = registration.RemainingSessions,
+            DiscountCampaignId = registration.DiscountCampaignId,
+            DiscountCampaignName = registration.DiscountCampaignName,
+            DiscountType = registration.DiscountType?.ToString(),
+            DiscountValue = registration.DiscountValue,
+            OriginalTuitionAmount = registration.OriginalTuitionAmount ?? tuitionPlan.TuitionAmount,
+            DiscountAmount = registration.DiscountAmount ?? 0m,
+            CarryOverCreditAmount = registration.CarryOverCreditAmount ?? 0m,
+            FinalTuitionAmount = registration.FinalTuitionAmount ?? tuitionPlan.TuitionAmount,
             CreatedAt = registration.CreatedAt
         };
     }

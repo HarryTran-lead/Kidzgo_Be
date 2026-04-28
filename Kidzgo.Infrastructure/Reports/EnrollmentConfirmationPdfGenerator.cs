@@ -24,7 +24,7 @@ public sealed class EnrollmentConfirmationPdfGenerator(
     {
         try
         {
-            var html = BuildHtml(document);
+            var html = ApplyPricingPlaceholders(BuildHtml(document), document);
             var pdfBytes = await GeneratePdfBytesAsync(html, cancellationToken);
             var fileName = BuildFileName(document);
 
@@ -51,6 +51,21 @@ public sealed class EnrollmentConfirmationPdfGenerator(
         => document.FormType == EnrollmentConfirmationPdfFormType.ContinuingStudent
             ? BuildContinuingStudentHtml(document)
             : BuildNewStudentHtml(document);
+
+    private static string ApplyPricingPlaceholders(
+        string html,
+        EnrollmentConfirmationPdfDocument document)
+    {
+        var discountRow = $"<tr><th>Æ¯u Ä‘Ã£i (náº¿u cÃ³)</th><td class=\"amount\">{H(FormatAmount(document.DiscountAmount, document.Currency))}</td></tr>";
+        var carryOverRow = $"<tr><th>Cáº¥n trá»« khÃ³a cÅ© (náº¿u cÃ³)</th><td class=\"amount\">{H(FormatAmount(document.CarryOverCreditAmount, document.Currency))}</td></tr>";
+        var materialRow = $"<tr><th>TÃ i liá»‡u</th><td class=\"amount\">{H(FormatAmount(document.MaterialFee, document.Currency))}</td></tr>";
+        var totalRow = $"<tr><th>Tá»•ng thanh toÃ¡n</th><td class=\"amount\">{H(FormatAmount(document.TotalPayment, document.Currency))}</td></tr>";
+
+        return html
+            .Replace("<tr><th>Æ¯u Ä‘Ã£i (náº¿u cÃ³)</th><td>.....</td></tr>", discountRow)
+            .Replace("<tr><th>TÃ i liá»‡u</th><td>.....</td></tr>", $"{carryOverRow}{Environment.NewLine}                {materialRow}")
+            .Replace("<tr><th>Tá»•ng thanh toÃ¡n</th><td class=\"amount\">.....</td></tr>", totalRow);
+    }
 
     private static string BuildNewStudentHtml(EnrollmentConfirmationPdfDocument document)
     {

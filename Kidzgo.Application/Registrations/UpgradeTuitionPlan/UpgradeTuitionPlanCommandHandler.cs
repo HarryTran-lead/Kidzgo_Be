@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Registrations;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
@@ -67,14 +68,28 @@ public sealed class UpgradeTuitionPlanCommandHandler(
         var upgradedRemainingSessions = carriedForwardSessions + newTuitionPlan.TotalSessions;
         var upgradedTotalSessions = registration.UsedSessions + upgradedRemainingSessions;
         var oldTuitionPlanName = registration.TuitionPlan.Name;
+        var carryOverCreditAmount = Math.Round(
+            Math.Max(registration.RemainingSessions, 0) * registration.TuitionPlan.UnitPriceSession,
+            2,
+            MidpointRounding.AwayFromZero);
+        var pricing = await RegistrationDiscountPricingHelper.ResolveAsync(
+            context,
+            registration.BranchId,
+            registration.ProgramId,
+            newTuitionPlan.Id,
+            OperationType.Upgrade,
+            now,
+            newTuitionPlan.TuitionAmount,
+            carryOverCreditAmount,
+            cancellationToken);
 
         registration.TuitionPlanId = newTuitionPlan.Id;
         registration.TuitionPlan = newTuitionPlan;
         registration.TotalSessions = upgradedTotalSessions;
         registration.RemainingSessions = upgradedRemainingSessions;
-        registration.OperationType = OperationType.Upgrade;
         registration.Status = RegistrationTrackHelper.ResolveStatus(registration);
         registration.UpdatedAt = now;
+        RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         /*
         // 7. Create new registration with upgraded tuition plan
@@ -137,6 +152,14 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             OldTotalSessions = oldTotalSessions,
             NewTotalSessions = upgradedTotalSessions,
             AddedSessions = newTuitionPlan.TotalSessions,
+            DiscountCampaignId = registration.DiscountCampaignId,
+            DiscountCampaignName = registration.DiscountCampaignName,
+            DiscountType = registration.DiscountType?.ToString(),
+            DiscountValue = registration.DiscountValue,
+            OriginalTuitionAmount = registration.OriginalTuitionAmount ?? newTuitionPlan.TuitionAmount,
+            DiscountAmount = registration.DiscountAmount ?? 0m,
+            CarryOverCreditAmount = registration.CarryOverCreditAmount ?? carryOverCreditAmount,
+            FinalTuitionAmount = registration.FinalTuitionAmount ?? Math.Max(0m, newTuitionPlan.TuitionAmount - carryOverCreditAmount),
             Status = registration.Status.ToString()
         };
     }

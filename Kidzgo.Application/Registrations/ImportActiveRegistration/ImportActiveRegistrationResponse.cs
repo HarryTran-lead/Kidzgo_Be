@@ -15,8 +15,17 @@ public sealed class ImportActiveRegistrationResponse
     public string? PreferredSchedule { get; init; }
     public string? Note { get; init; }
     public string Status { get; init; } = null!;
+    public string? OperationType { get; init; }
     public int TotalSessions { get; init; }
     public int UsedSessions { get; init; }
     public int RemainingSessions { get; init; }
+    public Guid? DiscountCampaignId { get; init; }
+    public string? DiscountCampaignName { get; init; }
+    public string? DiscountType { get; init; }
+    public decimal? DiscountValue { get; init; }
+    public decimal OriginalTuitionAmount { get; init; }
+    public decimal DiscountAmount { get; init; }
+    public decimal CarryOverCreditAmount { get; init; }
+    public decimal FinalTuitionAmount { get; init; }
     public DateTime CreatedAt { get; init; }
 }

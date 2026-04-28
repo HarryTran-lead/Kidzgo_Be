@@ -50,6 +50,7 @@ public sealed class EnrollmentConfirmationPdfPreviewDto
     public decimal TuitionAmount { get; init; }
     public decimal UnitPriceSession { get; init; }
     public decimal DiscountAmount { get; init; }
+    public decimal CarryOverCreditAmount { get; init; }
     public decimal MaterialFee { get; init; }
     public decimal TotalPayment { get; init; }
     public string Currency { get; init; } = null!;

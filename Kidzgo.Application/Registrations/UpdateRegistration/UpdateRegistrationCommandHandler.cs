@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
@@ -160,6 +161,27 @@ public sealed class UpdateRegistrationCommandHandler(
             registration.TuitionPlan = tuitionPlan;
             registration.TotalSessions = tuitionPlan.TotalSessions;
             registration.RemainingSessions = tuitionPlan.TotalSessions - registration.UsedSessions;
+
+            var operationType = registration.OperationType is OperationType.Initial or OperationType.Renewal
+                ? registration.OperationType.Value
+                : await RegistrationDiscountPricingHelper.ResolveInitialOrRenewalOperationTypeAsync(
+                    context,
+                    registration.StudentProfileId,
+                    registration.Id,
+                    cancellationToken);
+
+            var pricing = await RegistrationDiscountPricingHelper.ResolveAsync(
+                context,
+                registration.BranchId,
+                registration.ProgramId,
+                tuitionPlan.Id,
+                operationType,
+                registration.RegistrationDate,
+                tuitionPlan.TuitionAmount,
+                carryOverCreditAmount: 0m,
+                cancellationToken);
+
+            RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
         }
 
         registration.UpdatedAt = now;
@@ -177,6 +199,15 @@ public sealed class UpdateRegistrationCommandHandler(
             SecondaryProgramId = registration.SecondaryProgramId,
             SecondaryProgramName = registration.SecondaryProgram?.Name,
             SecondaryProgramSkillFocus = registration.SecondaryProgramSkillFocus,
+            OperationType = registration.OperationType?.ToString(),
+            DiscountCampaignId = registration.DiscountCampaignId,
+            DiscountCampaignName = registration.DiscountCampaignName,
+            DiscountType = registration.DiscountType?.ToString(),
+            DiscountValue = registration.DiscountValue,
+            OriginalTuitionAmount = registration.OriginalTuitionAmount ?? registration.TuitionPlan?.TuitionAmount,
+            DiscountAmount = registration.DiscountAmount ?? 0m,
+            CarryOverCreditAmount = registration.CarryOverCreditAmount ?? 0m,
+            FinalTuitionAmount = registration.FinalTuitionAmount ?? registration.TuitionPlan?.TuitionAmount,
             UpdatedAt = now
         };
     }

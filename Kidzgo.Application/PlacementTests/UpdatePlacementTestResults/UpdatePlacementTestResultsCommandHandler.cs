@@ -276,6 +276,11 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             TotalSessions = remainingSessions,
             UsedSessions = 0,
             RemainingSessions = remainingSessions,
+            OriginalTuitionAmount = 0m,
+            DiscountAmount = 0m,
+            CarryOverCreditAmount = 0m,
+            FinalTuitionAmount = 0m,
+            PricingAppliedAt = now,
             CreatedAt = now,
             UpdatedAt = now
         };

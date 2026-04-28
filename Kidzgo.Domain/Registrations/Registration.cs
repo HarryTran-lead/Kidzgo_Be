@@ -42,6 +42,17 @@ public class Registration : Entity
     // Nghiem vu phat sinh - lien ket voi registration goc
     public Guid? OriginalRegistrationId { get; set; }
     public OperationType? OperationType { get; set; }
+
+    // Pricing snapshot
+    public Guid? DiscountCampaignId { get; set; }
+    public string? DiscountCampaignName { get; set; }
+    public RegistrationDiscountType? DiscountType { get; set; }
+    public decimal? DiscountValue { get; set; }
+    public decimal? OriginalTuitionAmount { get; set; }
+    public decimal? DiscountAmount { get; set; }
+    public decimal? CarryOverCreditAmount { get; set; }
+    public decimal? FinalTuitionAmount { get; set; }
+    public DateTime? PricingAppliedAt { get; set; }
     
     // Thong tin hoc vu
     public int TotalSessions { get; set; }
@@ -62,4 +73,5 @@ public class Registration : Entity
     public Program? SecondaryProgram { get; set; }
     public Classes.Class? SecondaryClass { get; set; }
     public Registration? OriginalRegistration { get; set; }
+    public RegistrationDiscountCampaign? DiscountCampaign { get; set; }
 }

@@ -33,6 +33,14 @@ public sealed class GetRegistrationByIdResponse
     public int RemainingSessions { get; init; }
     public Guid? OriginalRegistrationId { get; init; }
     public string? OperationType { get; init; }
+    public Guid? DiscountCampaignId { get; init; }
+    public string? DiscountCampaignName { get; init; }
+    public string? DiscountType { get; init; }
+    public decimal? DiscountValue { get; init; }
+    public decimal OriginalTuitionAmount { get; init; }
+    public decimal DiscountAmount { get; init; }
+    public decimal CarryOverCreditAmount { get; init; }
+    public decimal FinalTuitionAmount { get; init; }
     public RegistrationFirstStudySessionDto? FirstStudySession { get; init; }
     public List<RegistrationActualStudyScheduleDto> ActualStudySchedules { get; init; } = new();
     public DateTime CreatedAt { get; init; }

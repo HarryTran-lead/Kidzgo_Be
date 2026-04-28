@@ -82,6 +82,7 @@ internal static class RegistrationReadModelQueryHelper
             PreferredSchedule = r.PreferredSchedule,
             Note = r.Note,
             Status = r.Status.ToString(),
+            OperationType = r.OperationType != null ? r.OperationType.ToString() : null,
             ClassId = r.ClassId,
             ClassName = r.Class != null ? r.Class.Title : null,
             SecondaryClassId = r.SecondaryClassId,
@@ -89,6 +90,14 @@ internal static class RegistrationReadModelQueryHelper
             TotalSessions = r.TotalSessions,
             UsedSessions = r.UsedSessions,
             RemainingSessions = r.RemainingSessions,
+            DiscountCampaignId = r.DiscountCampaignId,
+            DiscountCampaignName = r.DiscountCampaignName,
+            DiscountType = r.DiscountType != null ? r.DiscountType.ToString() : null,
+            DiscountValue = r.DiscountValue,
+            OriginalTuitionAmount = r.OriginalTuitionAmount ?? r.TuitionPlan.TuitionAmount,
+            DiscountAmount = r.DiscountAmount ?? 0m,
+            CarryOverCreditAmount = r.CarryOverCreditAmount ?? 0m,
+            FinalTuitionAmount = r.FinalTuitionAmount ?? ((r.OriginalTuitionAmount ?? r.TuitionPlan.TuitionAmount) - (r.DiscountAmount ?? 0m) - (r.CarryOverCreditAmount ?? 0m)),
             CreatedAt = r.CreatedAt
         });
     }

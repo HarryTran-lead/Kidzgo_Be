@@ -18,5 +18,8 @@ public sealed class GenerateEnrollmentConfirmationPdfResponse
     public string ProgramName { get; init; } = null!;
     public string TuitionPlanName { get; init; } = null!;
     public decimal TuitionAmount { get; init; }
+    public decimal DiscountAmount { get; init; }
+    public decimal CarryOverCreditAmount { get; init; }
+    public decimal FinalTuitionAmount { get; init; }
     public string Currency { get; init; } = null!;
 }

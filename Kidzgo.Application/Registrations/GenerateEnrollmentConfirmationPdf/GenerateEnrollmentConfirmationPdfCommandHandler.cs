@@ -177,6 +177,9 @@ public sealed class GenerateEnrollmentConfirmationPdfCommandHandler(
             ProgramName = enrollment.Class.Program.Name,
             TuitionPlanName = tuitionPlan.Name,
             TuitionAmount = tuitionPlan.TuitionAmount,
+            DiscountAmount = registration.DiscountAmount ?? 0m,
+            CarryOverCreditAmount = registration.CarryOverCreditAmount ?? 0m,
+            FinalTuitionAmount = registration.FinalTuitionAmount ?? ((registration.OriginalTuitionAmount ?? tuitionPlan.TuitionAmount) - (registration.DiscountAmount ?? 0m) - (registration.CarryOverCreditAmount ?? 0m)),
             Currency = tuitionPlan.Currency
         };
     }

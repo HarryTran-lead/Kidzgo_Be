@@ -41,6 +41,7 @@ public interface IDbContext
     // Schools
     DbSet<Branch> Branches { get; }
     DbSet<Classroom> Classrooms { get; }
+    DbSet<Holiday> Holidays { get; }
 
     // Classes
     DbSet<Class> Classes { get; }
@@ -145,6 +146,7 @@ public interface IDbContext
     DbSet<LeaveRequest> LeaveRequests { get; }
     DbSet<MakeupAllocation> MakeupAllocations { get; }
     DbSet<MakeupCredit> MakeupCredits { get; }
+    DbSet<MakeupSettings> MakeupSettings { get; }
     DbSet<Session> Sessions { get; }
     DbSet<StudentSessionAssignment> StudentSessionAssignments { get; }
 

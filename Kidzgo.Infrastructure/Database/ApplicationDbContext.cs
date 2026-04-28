@@ -46,6 +46,7 @@ public sealed class ApplicationDbContext(
     // Schools
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Classroom> Classrooms => Set<Classroom>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
 
     // Classes
     public DbSet<Class> Classes => Set<Class>();
@@ -149,6 +150,7 @@ public sealed class ApplicationDbContext(
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<MakeupAllocation> MakeupAllocations => Set<MakeupAllocation>();
     public DbSet<MakeupCredit> MakeupCredits => Set<MakeupCredit>();
+    public DbSet<MakeupSettings> MakeupSettings => Set<MakeupSettings>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<StudentSessionAssignment> StudentSessionAssignments => Set<StudentSessionAssignment>();
 

@@ -12,6 +12,9 @@ namespace Kidzgo.Application.Services;
 
 public sealed class SessionGenerationService
 {
+    private const int RollingWindowWeeks = 8;
+    private const int MaxHolidayCompensationDays = 366;
+
     private readonly IDbContext _context;
     private readonly ISchedulePatternParser _patternParser;
     private readonly StudentSessionAssignmentService _studentSessionAssignmentService;
@@ -41,14 +44,19 @@ public sealed class SessionGenerationService
             return Result.Failure<int>(SessionErrors.InvalidClassStatus);
         }
 
-        if (!classEntity.EndDate.HasValue)
-        {
-            return Result.Failure<int>(SessionErrors.MissingClassEndDate(classEntity.Id));
-        }
+        var today = VietnamTime.TodayDateOnly();
+        var generationStart = onlyFutureSessions && today > classEntity.StartDate
+            ? today
+            : classEntity.StartDate;
+        var rollingWindowEnd = generationStart.AddDays((RollingWindowWeeks * 7) - 1);
+        var generationEnd = classEntity.EndDate.HasValue && classEntity.EndDate.Value < rollingWindowEnd
+            ? classEntity.EndDate.Value
+            : rollingWindowEnd;
 
         var scheduleWindowsResult = await GetScheduleGenerationWindowsAsync(
             classEntity,
-            classEntity.EndDate.Value,
+            generationStart,
+            generationEnd,
             cancellationToken);
         if (scheduleWindowsResult.IsFailure)
         {
@@ -60,7 +68,17 @@ public sealed class SessionGenerationService
             return Result.Success(0);
         }
 
+        var holidays = await _context.Holidays
+            .AsNoTracking()
+            .Where(h =>
+                h.IsActive &&
+                h.StartDate <= generationEnd &&
+                h.EndDate >= generationStart)
+            .Select(h => new HolidayWindow(h.StartDate, h.EndDate))
+            .ToListAsync(cancellationToken);
+
         var occurrenceCandidates = new List<ScheduleOccurrenceCandidate>();
+        var skippedHolidayOccurrenceCount = 0;
         foreach (var window in scheduleWindowsResult.Value)
         {
             var parseResult = _patternParser.ParseAndGenerateOccurrenceDetails(
@@ -79,8 +97,34 @@ public sealed class SessionGenerationService
                 return Result.Failure<int>(SessionErrors.InvalidDuration(invalidDuration));
             }
 
-            occurrenceCandidates.AddRange(parseResult.Value.Select(occurrence =>
-                new ScheduleOccurrenceCandidate(occurrence.PlannedDatetime, occurrence.DurationMinutes)));
+            foreach (var occurrence in parseResult.Value)
+            {
+                if (IsHoliday(occurrence.PlannedDatetime, holidays))
+                {
+                    skippedHolidayOccurrenceCount++;
+                    continue;
+                }
+
+                occurrenceCandidates.Add(
+                    new ScheduleOccurrenceCandidate(occurrence.PlannedDatetime, occurrence.DurationMinutes));
+            }
+        }
+
+        if (skippedHolidayOccurrenceCount > 0 && !classEntity.EndDate.HasValue)
+        {
+            var compensationCandidatesResult = await GenerateHolidayCompensationCandidatesAsync(
+                classEntity,
+                generationEnd.AddDays(1),
+                skippedHolidayOccurrenceCount,
+                holidays,
+                cancellationToken);
+
+            if (compensationCandidatesResult.IsFailure)
+            {
+                return Result.Failure<int>(compensationCandidatesResult.Error);
+            }
+
+            occurrenceCandidates.AddRange(compensationCandidatesResult.Value);
         }
 
         if (occurrenceCandidates.Count == 0)
@@ -317,7 +361,8 @@ public sealed class SessionGenerationService
 
     private async Task<Result<List<ScheduleGenerationWindow>>> GetScheduleGenerationWindowsAsync(
         Class classEntity,
-        DateOnly classEndDate,
+        DateOnly generationStart,
+        DateOnly generationEnd,
         CancellationToken cancellationToken)
     {
         var scheduleSegments = await _context.ClassScheduleSegments
@@ -336,36 +381,36 @@ public sealed class SessionGenerationService
 
             return Result.Success(new List<ScheduleGenerationWindow>
             {
-                new(classEntity.StartDate, classEndDate, classEntity.WeeklyScheduleJson)
+                new(generationStart, generationEnd, classEntity.WeeklyScheduleJson)
             });
         }
 
         var windows = new List<ScheduleGenerationWindow>();
         var firstSegment = scheduleSegments[0];
 
-        if (firstSegment.EffectiveFrom > classEntity.StartDate && 
+        if (firstSegment.EffectiveFrom > generationStart &&
             !string.IsNullOrWhiteSpace(classEntity.WeeklyScheduleJson))
         {
             windows.Add(new ScheduleGenerationWindow(
-                classEntity.StartDate,
+                generationStart,
                 firstSegment.EffectiveFrom.AddDays(-1),
                 classEntity.WeeklyScheduleJson));
         }
 
         foreach (var segment in scheduleSegments)
         {
-            if (segment.EffectiveFrom > classEndDate ||
-                (segment.EffectiveTo.HasValue && segment.EffectiveTo.Value < classEntity.StartDate))
+            if (segment.EffectiveFrom > generationEnd ||
+                (segment.EffectiveTo.HasValue && segment.EffectiveTo.Value < generationStart))
             {
                 continue;
             }
 
-            var effectiveFrom = segment.EffectiveFrom > classEntity.StartDate
+            var effectiveFrom = segment.EffectiveFrom > generationStart
                 ? segment.EffectiveFrom
-                : classEntity.StartDate;
-            var effectiveTo = segment.EffectiveTo.HasValue && segment.EffectiveTo.Value < classEndDate
+                : generationStart;
+            var effectiveTo = segment.EffectiveTo.HasValue && segment.EffectiveTo.Value < generationEnd
                 ? segment.EffectiveTo.Value
-                : classEndDate;
+                : generationEnd;
 
             if (effectiveTo < effectiveFrom)
             {
@@ -381,6 +426,106 @@ public sealed class SessionGenerationService
         return Result.Success(windows);
     }
 
+    private async Task<Result<List<ScheduleOccurrenceCandidate>>> GenerateHolidayCompensationCandidatesAsync(
+        Class classEntity,
+        DateOnly compensationStart,
+        int targetCount,
+        IReadOnlyCollection<HolidayWindow> initialHolidays,
+        CancellationToken cancellationToken)
+    {
+        var candidates = new List<ScheduleOccurrenceCandidate>();
+        var searchStart = compensationStart;
+        var searchEnd = compensationStart.AddDays(MaxHolidayCompensationDays - 1);
+        var holidays = initialHolidays.ToList();
+
+        while (candidates.Count < targetCount && searchStart <= searchEnd)
+        {
+            var batchEnd = searchStart.AddDays((RollingWindowWeeks * 7) - 1);
+            if (batchEnd > searchEnd)
+            {
+                batchEnd = searchEnd;
+            }
+
+            var extraHolidays = await _context.Holidays
+                .AsNoTracking()
+                .Where(h =>
+                    h.IsActive &&
+                    h.StartDate <= batchEnd &&
+                    h.EndDate >= searchStart)
+                .Select(h => new HolidayWindow(h.StartDate, h.EndDate))
+                .ToListAsync(cancellationToken);
+
+            holidays.AddRange(extraHolidays);
+
+            var windowsResult = await GetScheduleGenerationWindowsAsync(
+                classEntity,
+                searchStart,
+                batchEnd,
+                cancellationToken);
+
+            if (windowsResult.IsFailure)
+            {
+                return Result.Failure<List<ScheduleOccurrenceCandidate>>(windowsResult.Error);
+            }
+
+            foreach (var window in windowsResult.Value)
+            {
+                var parseResult = _patternParser.ParseAndGenerateOccurrenceDetails(
+                    window.WeeklyScheduleJson,
+                    window.EffectiveFrom,
+                    window.EffectiveTo);
+
+                if (parseResult.IsFailure)
+                {
+                    return Result.Failure<List<ScheduleOccurrenceCandidate>>(parseResult.Error);
+                }
+
+                foreach (var occurrence in parseResult.Value.OrderBy(x => x.PlannedDatetime))
+                {
+                    if (occurrence.DurationMinutes <= 0)
+                    {
+                        return Result.Failure<List<ScheduleOccurrenceCandidate>>(
+                            SessionErrors.InvalidDuration(occurrence.DurationMinutes));
+                    }
+
+                    if (IsHoliday(occurrence.PlannedDatetime, holidays))
+                    {
+                        continue;
+                    }
+
+                    candidates.Add(new ScheduleOccurrenceCandidate(
+                        occurrence.PlannedDatetime,
+                        occurrence.DurationMinutes));
+
+                    if (candidates.Count == targetCount)
+                    {
+                        break;
+                    }
+                }
+
+                if (candidates.Count == targetCount)
+                {
+                    break;
+                }
+            }
+
+            searchStart = batchEnd.AddDays(1);
+        }
+
+        return Result.Success(candidates);
+    }
+
+    private static bool IsHoliday(DateTime plannedDatetime, IReadOnlyCollection<HolidayWindow> holidays)
+    {
+        if (holidays.Count == 0)
+        {
+            return false;
+        }
+
+        var plannedDate = VietnamTime.ToVietnamDateOnly(plannedDatetime);
+        return holidays.Any(h => h.StartDate <= plannedDate && h.EndDate >= plannedDate);
+    }
+
     private sealed record ScheduleGenerationWindow(
         DateOnly EffectiveFrom,
         DateOnly EffectiveTo,
@@ -389,4 +534,6 @@ public sealed class SessionGenerationService
     private sealed record ScheduleOccurrenceCandidate(
         DateTime PlannedDatetime,
         int DurationMinutes);
+
+    private sealed record HolidayWindow(DateOnly StartDate, DateOnly EndDate);
 }

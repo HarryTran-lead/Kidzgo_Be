@@ -66,6 +66,28 @@ public static class DependencyInjection
                 }
             });
 
+            var maintainRollingSessionWindowJobKey = new JobKey(nameof(MaintainRollingSessionWindowJob));
+            var maintainRollingSessionWindowCron = configuration["Quartz:Schedules:MaintainRollingSessionWindowJob"];
+
+            q.AddJob<MaintainRollingSessionWindowJob>(opts => opts.WithIdentity(maintainRollingSessionWindowJobKey));
+
+            q.AddTrigger(opts =>
+            {
+                opts.ForJob(maintainRollingSessionWindowJobKey)
+                    .WithIdentity($"{nameof(MaintainRollingSessionWindowJob)}.trigger");
+
+                if (!string.IsNullOrWhiteSpace(maintainRollingSessionWindowCron))
+                {
+                    opts.WithCronSchedule(
+                        maintainRollingSessionWindowCron,
+                        x => x.WithMisfireHandlingInstructionDoNothing());
+                }
+                else
+                {
+                    opts.WithCronSchedule("0 0 18 * * ?", x => x.WithMisfireHandlingInstructionDoNothing());
+                }
+            });
+
             // Register AutoConfirmRewardRedemptionJob
             var autoConfirmJobKey = new JobKey(nameof(AutoConfirmRewardRedemptionJob));
             var autoConfirmCron = configuration["Quartz:Schedules:AutoConfirmRewardRedemptionJob"];

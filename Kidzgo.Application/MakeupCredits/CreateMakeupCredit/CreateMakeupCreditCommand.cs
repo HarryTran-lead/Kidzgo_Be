@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.MakeupCredits.Settings;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Sessions.Errors;
@@ -31,14 +32,19 @@ public sealed class CreateMakeupCreditCommandHandler(IDbContext context)
             return Result.Failure<MakeupCreditResponse>(MakeupCreditErrors.NotFound(command.StudentProfileId));
         }
 
-        // Ensure session exists
-        bool sessionExists = await context.Sessions
-            .AnyAsync(s => s.Id == command.SourceSessionId, cancellationToken);
+        var sourceSession = await context.Sessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == command.SourceSessionId, cancellationToken);
 
-        if (!sessionExists)
+        if (sourceSession is null)
         {
             return Result.Failure<MakeupCreditResponse>(MakeupCreditErrors.NotFound(command.SourceSessionId));
         }
+
+        var settings = await MakeupSettingsHelper.GetOrCreateAsync(context, cancellationToken);
+        var expiresAt = command.ExpiresAt ?? MakeupSettingsHelper.CalculateExpiresAt(
+            sourceSession.PlannedDatetime,
+            settings);
 
         var credit = new MakeupCredit
         {
@@ -47,7 +53,7 @@ public sealed class CreateMakeupCreditCommandHandler(IDbContext context)
             SourceSessionId = command.SourceSessionId,
             Status = MakeupCreditStatus.Available,
             CreatedReason = command.CreatedReason,
-            ExpiresAt = command.ExpiresAt,
+            ExpiresAt = expiresAt,
             CreatedAt = VietnamTime.UtcNow()
         };
 

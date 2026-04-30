@@ -153,7 +153,7 @@ public class UserController : ControllerBase
 
     /// Get Staff Overview - Dashboard data for Staff role (Legacy - use management-staff or accountant-staff instead)
     [HttpGet("staff/overview")]
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Admin,ManagementStaff,AccountantStaff")]
     public async Task<IResult> GetStaffOverview(
         [FromQuery] Guid? classId,
         [FromQuery] Guid? studentProfileId,
@@ -179,7 +179,7 @@ public class UserController : ControllerBase
 
     /// Get Management Staff Overview - Dashboard data for Management Staff (Operations)
     [HttpGet("management-staff/overview")]
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> GetManagementStaffOverview(
         [FromQuery] Guid? classId,
         [FromQuery] Guid? studentProfileId,
@@ -205,7 +205,7 @@ public class UserController : ControllerBase
 
     /// Get Accountant Staff Overview - Dashboard data for Accountant Staff (Finance)
     [HttpGet("accountant-staff/overview")]
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Admin,ManagementStaff,AccountantStaff")]
     public async Task<IResult> GetAccountantStaffOverview(
         [FromQuery] Guid? studentProfileId,
         [FromQuery] Guid? invoiceId,
@@ -251,4 +251,3 @@ public class UserController : ControllerBase
         return result.MatchOk();
     }
 }
-

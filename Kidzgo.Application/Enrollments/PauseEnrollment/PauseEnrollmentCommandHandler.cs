@@ -10,6 +10,7 @@ namespace Kidzgo.Application.Enrollments.PauseEnrollment;
 
 public sealed class PauseEnrollmentCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService
 ) : ICommandHandler<PauseEnrollmentCommand, PauseEnrollmentResponse>
 {
@@ -40,6 +41,8 @@ public sealed class PauseEnrollmentCommandHandler(
             enrollment.Id,
             now,
             cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        await classLifecycleService.RecalculateClassLifecycleAsync(enrollment.ClassId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return new PauseEnrollmentResponse

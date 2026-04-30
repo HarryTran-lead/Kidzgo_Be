@@ -13,6 +13,7 @@ using Kidzgo.Application.Homework.GetStudentHomeworks;
 using Kidzgo.Application.Homework.GetStudentHomeworkSubmission;
 using Kidzgo.Application.Homework.SubmitHomework;
 using Kidzgo.Application.Homework.SubmitMultipleChoiceHomework;
+using Kidzgo.Application.LearningHistory.GetLearningHistory;
 using Kidzgo.Application.Sessions.GetStudentTimetable;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
@@ -69,6 +70,30 @@ public class StudentController : ControllerBase
         {
             From = from,
             To = to
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("learning-history")]
+    public async Task<IResult> GetLearningHistory(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int sessionPageNumber = 1,
+        [FromQuery] int sessionPageSize = 20,
+        [FromQuery] int missionPageNumber = 1,
+        [FromQuery] int missionPageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetLearningHistoryQuery
+        {
+            From = from,
+            To = to,
+            SessionPageNumber = sessionPageNumber,
+            SessionPageSize = sessionPageSize,
+            MissionPageNumber = missionPageNumber,
+            MissionPageSize = missionPageSize
         };
 
         var result = await _mediator.Send(query, cancellationToken);

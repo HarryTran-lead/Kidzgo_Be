@@ -214,7 +214,7 @@ public sealed class AssignClassCommandHandler(
                 .AnyAsync(
                     ce => ce.ClassId == classEntity.Id &&
                           ce.StudentProfileId == registration.StudentProfileId &&
-                          ce.Status != EnrollmentStatus.Dropped,
+                          (ce.Status == EnrollmentStatus.Active || ce.Status == EnrollmentStatus.Paused),
                     cancellationToken);
 
             if (alreadyEnrolled)

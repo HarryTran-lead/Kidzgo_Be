@@ -18,6 +18,7 @@ public sealed class MarkAttendanceCommandHandler(
     IUserContext userContext,
     IGamificationService gamificationService,
     SessionParticipantService sessionParticipantService,
+    ClassLifecycleService classLifecycleService,
     RegistrationSessionConsumptionService registrationSessionConsumptionService,
     ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<MarkAttendanceCommand, MarkAttendanceResponse>
@@ -40,6 +41,7 @@ public sealed class MarkAttendanceCommandHandler(
 
         var results = new List<AttendanceResultItem>();
         var studentsWithClassAttendanceMissionChanges = new HashSet<Guid>();
+        var impactedClassIds = new HashSet<Guid>();
         var participants = await sessionParticipantService.GetParticipantsAsync(command.SessionId, cancellationToken);
         var participantsByStudent = participants.ToDictionary(p => p.StudentProfileId);
         var requestedStudentIds = command.Attendances
@@ -141,13 +143,15 @@ public sealed class MarkAttendanceCommandHandler(
 
             if (!participant.IsMakeup)
             {
-                await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+                var transitionClassIds = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
                     participant.RegistrationId,
                     previousStatus,
                     previousAbsenceType,
                     attendance.AttendanceStatus,
                     attendance.AbsenceType,
+                    session.ActualDatetime ?? session.PlannedDatetime,
                     cancellationToken);
+                impactedClassIds.UnionWith(transitionClassIds);
             }
 
             attendance.MarkedBy = userContext.UserId;
@@ -171,6 +175,16 @@ public sealed class MarkAttendanceCommandHandler(
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var classId in impactedClassIds)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+        }
+
+        if (impactedClassIds.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         foreach (var studentProfileId in studentsWithClassAttendanceMissionChanges)
         {

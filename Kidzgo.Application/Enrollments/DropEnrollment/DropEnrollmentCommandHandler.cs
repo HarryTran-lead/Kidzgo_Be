@@ -11,6 +11,7 @@ namespace Kidzgo.Application.Enrollments.DropEnrollment;
 
 public sealed class DropEnrollmentCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService
 ) : ICommandHandler<DropEnrollmentCommand, DropEnrollmentResponse>
 {
@@ -41,7 +42,8 @@ public sealed class DropEnrollmentCommandHandler(
             enrollment.Id,
             now,
             cancellationToken);
-        await ClassCapacityStatusHelper.SyncAvailabilityStatusAsync(context, enrollment.ClassId, now, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+        await classLifecycleService.RecalculateClassLifecycleAsync(enrollment.ClassId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return new DropEnrollmentResponse

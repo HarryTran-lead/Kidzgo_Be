@@ -13,6 +13,7 @@ namespace Kidzgo.Application.LeaveRequests.ApproveLeaveRequest;
 public sealed class ApproveLeaveRequestCommandHandler(
     IDbContext context,
     IUserContext userContext,
+    ClassLifecycleService classLifecycleService,
     ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<ApproveLeaveRequestCommand>
 {
@@ -54,6 +55,8 @@ public sealed class ApproveLeaveRequestCommandHandler(
             return Result.Failure(LeaveRequestErrors.SessionNotFound(leave.ClassId, leave.SessionDate));
         }
 
+        var impactedClassIds = new HashSet<Guid>();
+
         foreach (var session in sessionsInRange)
         {
             var creditExists = await context.MakeupCredits
@@ -85,13 +88,25 @@ public sealed class ApproveLeaveRequestCommandHandler(
                     cancellationToken);
             }
 
-            await approvedLeaveAttendanceService.ApplyApprovedLeaveActivationAsync(
+            var transitionClassIds = await approvedLeaveAttendanceService.ApplyApprovedLeaveActivationAsync(
                 leave.StudentProfileId,
                 session,
                 cancellationToken);
+            impactedClassIds.UnionWith(transitionClassIds);
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var classId in impactedClassIds)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+        }
+
+        if (impactedClassIds.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
         return Result.Success();
     }
 

@@ -38,7 +38,9 @@ public class PauseEnrollmentRequestController : ControllerBase
             StudentProfileId = request.StudentProfileId,
             PauseFrom = request.PauseFrom,
             PauseTo = request.PauseTo,
-            Reason = request.Reason
+            Reason = request.Reason,
+            Scope = request.Scope,
+            ClassId = request.ClassId
         };
 
         var result = await _mediator.Send(command, cancellationToken);

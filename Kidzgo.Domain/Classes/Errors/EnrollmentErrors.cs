@@ -60,6 +60,10 @@ public static class EnrollmentErrors
         "Enrollment.CannotReactivateDropped",
         "Cannot reactivate a dropped enrollment");
 
+    public static readonly Error CannotReactivateCompleted = Error.Conflict(
+        "Enrollment.CannotReactivateCompleted",
+        "Cannot reactivate a completed enrollment manually");
+
     public static readonly Error InvalidStatus = Error.Conflict(
         "Enrollment.InvalidStatus",
         "Only active enrollments can be paused");

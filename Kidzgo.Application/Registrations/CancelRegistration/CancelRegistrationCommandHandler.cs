@@ -11,6 +11,7 @@ namespace Kidzgo.Application.Registrations.CancelRegistration.Handler;
 
 public sealed class CancelRegistrationCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService
 ) : ICommandHandler<CancelRegistrationCommand, CancelRegistrationResponse>
 {
@@ -65,12 +66,17 @@ public sealed class CancelRegistrationCommandHandler(
             : $"{registration.Note} | Cancel reason: {command.Reason}";
         registration.UpdatedAt = now;
 
+        await context.SaveChangesAsync(cancellationToken);
+
         foreach (var classId in impactedClassIds)
         {
-            await ClassCapacityStatusHelper.SyncAvailabilityStatusAsync(context, classId, now, cancellationToken);
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
         }
 
-        await context.SaveChangesAsync(cancellationToken);
+        if (impactedClassIds.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         return new CancelRegistrationResponse
         {

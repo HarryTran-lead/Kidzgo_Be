@@ -6,6 +6,18 @@ namespace Kidzgo.Application.Classes;
 
 internal static class ClassCapacityStatusHelper
 {
+    internal static ClassStatus ResolveAvailableStatus(Domain.Classes.Class classEntity, int activeEnrollmentCount, DateTime now)
+    {
+        if (activeEnrollmentCount >= classEntity.Capacity)
+        {
+            return ClassStatus.Full;
+        }
+
+        return classEntity.StartDate <= VietnamTime.ToVietnamDateOnly(now)
+            ? ClassStatus.Active
+            : ClassStatus.Recruiting;
+    }
+
     internal static void SyncAvailabilityStatus(Domain.Classes.Class classEntity, int activeEnrollmentCount, DateTime now)
     {
         if (classEntity.Status is ClassStatus.Completed or ClassStatus.Closed or ClassStatus.Cancelled or ClassStatus.Suspended)
@@ -26,9 +38,7 @@ internal static class ClassCapacityStatusHelper
 
         if (classEntity.Status == ClassStatus.Full)
         {
-            classEntity.Status = classEntity.StartDate <= VietnamTime.ToVietnamDateOnly(now)
-                ? ClassStatus.Active
-                : ClassStatus.Recruiting;
+            classEntity.Status = ResolveAvailableStatus(classEntity, activeEnrollmentCount, now);
             classEntity.UpdatedAt = now;
         }
     }

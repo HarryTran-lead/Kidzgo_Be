@@ -132,7 +132,7 @@ public sealed class ApprovedLeaveAttendanceService(
         return result;
     }
 
-    public async Task ApplyApprovedLeaveActivationAsync(
+    public async Task<IReadOnlyCollection<Guid>> ApplyApprovedLeaveActivationAsync(
         Guid studentProfileId,
         Session session,
         CancellationToken cancellationToken)
@@ -144,25 +144,26 @@ public sealed class ApprovedLeaveAttendanceService(
 
         if (attendance is null)
         {
-            return;
+            return [];
         }
 
         var participant = await GetRegularParticipantAsync(session.Id, studentProfileId, cancellationToken);
         if (participant is null)
         {
-            return;
+            return [];
         }
 
-        await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+        return await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
             participant.Value.RegistrationId,
             attendance.AttendanceStatus,
             attendance.AbsenceType,
             AttendanceStatus.Makeup,
             null,
+            session.ActualDatetime ?? session.PlannedDatetime,
             cancellationToken);
     }
 
-    public async Task ApplyApprovedLeaveDeactivationAsync(
+    public async Task<IReadOnlyCollection<Guid>> ApplyApprovedLeaveDeactivationAsync(
         Guid studentProfileId,
         Session session,
         CancellationToken cancellationToken)
@@ -174,21 +175,22 @@ public sealed class ApprovedLeaveAttendanceService(
 
         if (attendance is null)
         {
-            return;
+            return [];
         }
 
         var participant = await GetRegularParticipantAsync(session.Id, studentProfileId, cancellationToken);
         if (participant is null)
         {
-            return;
+            return [];
         }
 
-        await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+        return await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
             participant.Value.RegistrationId,
             AttendanceStatus.Makeup,
             null,
             attendance.AttendanceStatus,
             attendance.AbsenceType,
+            session.ActualDatetime ?? session.PlannedDatetime,
             cancellationToken);
     }
 

@@ -8,4 +8,6 @@ public sealed class CreatePauseEnrollmentRequestCommand : ICommand<CreatePauseEn
     public DateOnly PauseFrom { get; init; }
     public DateOnly PauseTo { get; init; }
     public string? Reason { get; init; }
+    public string? Scope { get; init; }
+    public Guid? ClassId { get; init; }
 }

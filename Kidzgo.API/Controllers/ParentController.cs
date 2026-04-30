@@ -10,6 +10,7 @@ using Kidzgo.Application.Invoices.GetParentInvoices;
 using Kidzgo.Application.MakeupCredits.GetParentStudentsWithMakeupOrLeave;
 using Kidzgo.Application.Media.GetMedia;
 using Kidzgo.Application.Media.Shared;
+using Kidzgo.Application.LearningHistory.GetLearningHistory;
 using Kidzgo.Application.Notifications.GetParentNotifications;
 using Kidzgo.Application.Payments.GetParentPayments;
 using Kidzgo.Application.Registrations.GetParentEnrollmentConfirmationPdfHistory;
@@ -177,6 +178,32 @@ public class ParentController : ControllerBase
         {
             From = from,
             To = to
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("learning-history")]
+    public async Task<IResult> GetLearningHistory(
+        [FromQuery] Guid? studentProfileId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int sessionPageNumber = 1,
+        [FromQuery] int sessionPageSize = 20,
+        [FromQuery] int missionPageNumber = 1,
+        [FromQuery] int missionPageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetLearningHistoryQuery
+        {
+            StudentProfileId = studentProfileId,
+            From = from,
+            To = to,
+            SessionPageNumber = sessionPageNumber,
+            SessionPageSize = sessionPageSize,
+            MissionPageNumber = missionPageNumber,
+            MissionPageSize = missionPageSize
         };
 
         var result = await _mediator.Send(query, cancellationToken);

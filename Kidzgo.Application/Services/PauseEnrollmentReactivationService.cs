@@ -9,6 +9,7 @@ namespace Kidzgo.Application.Services;
 
 public sealed class PauseEnrollmentReactivationService(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService)
 {
@@ -189,6 +190,16 @@ public sealed class PauseEnrollmentReactivationService(
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var classId in reactivationCountsByClass.Keys)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+        }
+
+        if (reactivationCountsByClass.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         return Result.Success(pausedEnrollments.Count);
     }

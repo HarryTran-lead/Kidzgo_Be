@@ -10,6 +10,7 @@ namespace Kidzgo.Application.LeaveRequests.CancelLeaveRequest;
 
 public sealed class CancelLeaveRequestCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<CancelLeaveRequestCommand>
 {
@@ -46,6 +47,7 @@ public sealed class CancelLeaveRequestCommandHandler(
         // If was approved, also delete the makeup credits and allocations
         if (wasApproved)
         {
+            var impactedClassIds = new HashSet<Guid>();
             var sessionDayStartUtc = VietnamTime.TreatAsVietnamLocal(leaveRequest.SessionDate.ToDateTime(TimeOnly.MinValue));
             var sessionDayEndUtc = VietnamTime.EndOfVietnamDayUtc(sessionDayStartUtc);
             var sourceSession = leaveRequest.SessionId.HasValue
@@ -73,11 +75,26 @@ public sealed class CancelLeaveRequestCommandHandler(
                     context.MakeupCredits.Remove(credit);
                 }
 
-                await approvedLeaveAttendanceService.ApplyApprovedLeaveDeactivationAsync(
+                var transitionClassIds = await approvedLeaveAttendanceService.ApplyApprovedLeaveDeactivationAsync(
                     leaveRequest.StudentProfileId,
                     sourceSession,
                     cancellationToken);
+                impactedClassIds.UnionWith(transitionClassIds);
             }
+
+            await context.SaveChangesAsync(cancellationToken);
+
+            foreach (var classId in impactedClassIds)
+            {
+                await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+            }
+
+            if (impactedClassIds.Count > 0)
+            {
+                await context.SaveChangesAsync(cancellationToken);
+            }
+
+            return Result.Success();
         }
 
         await context.SaveChangesAsync(cancellationToken);

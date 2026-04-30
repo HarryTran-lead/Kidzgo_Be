@@ -18,6 +18,7 @@ public sealed class UpdateAttendanceCommandHandler(
     IUserContext userContext,
     IGamificationService gamificationService,
     SessionParticipantService sessionParticipantService,
+    ClassLifecycleService classLifecycleService,
     RegistrationSessionConsumptionService registrationSessionConsumptionService,
     ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<UpdateAttendanceCommand, UpdateAttendanceResponse>
@@ -85,6 +86,7 @@ public sealed class UpdateAttendanceCommandHandler(
         var registrationId = participant.StudentProfileId != Guid.Empty
             ? participant.RegistrationId
             : null;
+        var impactedClassIds = new HashSet<Guid>();
 
         var newAbsenceType = request.AttendanceStatus == AttendanceStatus.Absent
             ? await ResolveAbsenceType(request.StudentProfileId, attendance.Session, cancellationToken)
@@ -101,13 +103,15 @@ public sealed class UpdateAttendanceCommandHandler(
 
         if (!isMakeupParticipant)
         {
-            await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+            var transitionClassIds = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
                 registrationId,
                 oldStatus,
                 oldAbsenceType,
                 attendance.AttendanceStatus,
                 attendance.AbsenceType,
+                attendance.Session.ActualDatetime ?? attendance.Session.PlannedDatetime,
                 cancellationToken);
+            impactedClassIds.UnionWith(transitionClassIds);
         }
 
         // Create audit log
@@ -126,6 +130,16 @@ public sealed class UpdateAttendanceCommandHandler(
         context.AuditLogs.Add(auditLog);
 
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var classId in impactedClassIds)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+        }
+
+        if (impactedClassIds.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         if (shouldTrackClassAttendanceMission)
         {

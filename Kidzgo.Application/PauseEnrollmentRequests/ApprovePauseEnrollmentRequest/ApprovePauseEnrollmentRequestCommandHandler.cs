@@ -15,6 +15,7 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
     IDbContext context,
     IUserContext userContext,
     ITemplateRenderer templateRenderer,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     PauseEnrollmentEligibleClassResolver eligibleClassResolver)
     : ICommandHandler<ApprovePauseEnrollmentRequestCommand>
@@ -55,6 +56,15 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
             return Result.Failure(PauseEnrollmentRequestErrors.NoEnrollmentsInRange);
         }
 
+        pauseRequest.Status = PauseEnrollmentRequestStatus.Approved;
+        pauseRequest.ApprovedAt = now;
+        pauseRequest.ApprovedBy = userContext.UserId;
+
+        var pauseFromUtc = VietnamTime.TreatAsVietnamLocal(pauseRequest.PauseFrom.ToDateTime(TimeOnly.MinValue));
+        var pauseToUtc = VietnamTime.EndOfVietnamDayUtc(
+            VietnamTime.TreatAsVietnamLocal(pauseRequest.PauseTo.ToDateTime(TimeOnly.MinValue)));
+
+        List<ClassEnrollment> affectedEnrollments;
         if (pauseRequest.ClassId.HasValue)
         {
             var requestEnrollment = activeEnrollments
@@ -66,35 +76,27 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
                     pauseRequest.ClassId.Value,
                     pauseRequest.StudentProfileId));
             }
+
+            affectedEnrollments = [requestEnrollment];
         }
-
-        pauseRequest.Status = PauseEnrollmentRequestStatus.Approved;
-        pauseRequest.ApprovedAt = now;
-        pauseRequest.ApprovedBy = userContext.UserId;
-
-        var pauseFromUtc = VietnamTime.TreatAsVietnamLocal(pauseRequest.PauseFrom.ToDateTime(TimeOnly.MinValue));
-        var pauseToUtc = VietnamTime.EndOfVietnamDayUtc(
-            VietnamTime.TreatAsVietnamLocal(pauseRequest.PauseTo.ToDateTime(TimeOnly.MinValue)));
-
-        var classIdsInRange = await eligibleClassResolver.GetEligibleClassIdsAsync(
-            pauseRequest.StudentProfileId,
-            pauseRequest.PauseFrom,
-            pauseRequest.PauseTo,
-            cancellationToken);
-
-        if (pauseRequest.ClassId.HasValue && !classIdsInRange.Contains(pauseRequest.ClassId.Value))
+        else
         {
-            classIdsInRange.Add(pauseRequest.ClassId.Value);
+            var classIdsInRange = await eligibleClassResolver.GetEligibleClassIdsAsync(
+                pauseRequest.StudentProfileId,
+                pauseRequest.PauseFrom,
+                pauseRequest.PauseTo,
+                cancellationToken);
+
+            if (classIdsInRange.Count == 0)
+            {
+                return Result.Failure(PauseEnrollmentRequestErrors.NoEnrollmentsInRange);
+            }
+
+            affectedEnrollments = activeEnrollments
+                .Where(e => classIdsInRange.Contains(e.ClassId))
+                .ToList();
         }
 
-        if (classIdsInRange.Count == 0)
-        {
-            return Result.Failure(PauseEnrollmentRequestErrors.NoEnrollmentsInRange);
-        }
-
-        var affectedEnrollments = activeEnrollments
-            .Where(e => classIdsInRange.Contains(e.ClassId))
-            .ToList();
         var affectedClassIds = affectedEnrollments
             .Select(e => e.ClassId)
             .Distinct()
@@ -147,6 +149,16 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
         pauseRequest.ReservationSnapshotAt = now;
 
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var classId in affectedClassIds)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+        }
+
+        if (affectedClassIds.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         await PauseEnrollmentRequestNotificationHelper.NotifyAsync(
             context,

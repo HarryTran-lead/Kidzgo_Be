@@ -35,14 +35,13 @@ internal static class RegistrationDetailReadModelBuilder
             .Include(e => e.Class)
                 .ThenInclude(c => c.Program)
             .Include(e => e.ScheduleSegments)
-            .Where(e => e.RegistrationId == registration.Id && e.Status == EnrollmentStatus.Active)
+            .Where(e => e.RegistrationId == registration.Id)
             .ToListAsync(cancellationToken);
 
         var firstStudySessionRow = await context.StudentSessionAssignments
             .AsNoTracking()
             .Where(a => a.RegistrationId == registration.Id &&
-                        a.Status == StudentSessionAssignmentStatus.Assigned &&
-                        a.ClassEnrollment.Status == EnrollmentStatus.Active)
+                        a.Status == StudentSessionAssignmentStatus.Assigned)
             .OrderBy(a => a.Session.PlannedDatetime)
             .Select(a => new
             {

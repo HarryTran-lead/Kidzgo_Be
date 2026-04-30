@@ -11,6 +11,7 @@ namespace Kidzgo.Application.Enrollments.ReactivateEnrollment;
 
 public sealed class ReactivateEnrollmentCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService
 ) : ICommandHandler<ReactivateEnrollmentCommand, ReactivateEnrollmentResponse>
@@ -39,6 +40,12 @@ public sealed class ReactivateEnrollmentCommandHandler(
         {
             return Result.Failure<ReactivateEnrollmentResponse>(
                 EnrollmentErrors.CannotReactivateDropped);
+        }
+
+        if (enrollment.Status == EnrollmentStatus.Completed)
+        {
+            return Result.Failure<ReactivateEnrollmentResponse>(
+                EnrollmentErrors.CannotReactivateCompleted);
         }
         
         var now = VietnamTime.UtcNow();
@@ -80,6 +87,8 @@ public sealed class ReactivateEnrollmentCommandHandler(
         enrollment.UpdatedAt = now;
         await studentSessionAssignmentService.SyncAssignmentsForEnrollmentAsync(enrollment, cancellationToken);
         ClassCapacityStatusHelper.SyncAvailabilityStatus(enrollment.Class, currentEnrollmentCount + 1, now);
+        await context.SaveChangesAsync(cancellationToken);
+        await classLifecycleService.RecalculateClassLifecycleAsync(enrollment.ClassId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return new ReactivateEnrollmentResponse

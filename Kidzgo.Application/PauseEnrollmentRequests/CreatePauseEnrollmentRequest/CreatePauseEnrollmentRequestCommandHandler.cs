@@ -18,6 +18,24 @@ public sealed class CreatePauseEnrollmentRequestCommandHandler(
         CreatePauseEnrollmentRequestCommand command,
         CancellationToken cancellationToken)
     {
+        if (!PauseEnrollmentRequestScopeHelper.TryNormalize(command.Scope, command.ClassId, out var scope))
+        {
+            return Result.Failure<CreatePauseEnrollmentRequestResponse>(
+                PauseEnrollmentRequestErrors.InvalidScope(command.Scope));
+        }
+
+        if (scope == PauseEnrollmentRequestScopeHelper.SingleClass && !command.ClassId.HasValue)
+        {
+            return Result.Failure<CreatePauseEnrollmentRequestResponse>(
+                PauseEnrollmentRequestErrors.ClassIdRequiredForSingleClass);
+        }
+
+        if (scope == PauseEnrollmentRequestScopeHelper.AllEligible && command.ClassId.HasValue)
+        {
+            return Result.Failure<CreatePauseEnrollmentRequestResponse>(
+                PauseEnrollmentRequestErrors.ClassIdNotAllowedForAllEligible);
+        }
+
         var profileExists = await context.Profiles
             .AnyAsync(p => p.Id == command.StudentProfileId && !p.IsDeleted && p.IsActive, cancellationToken);
 
@@ -44,18 +62,55 @@ public sealed class CreatePauseEnrollmentRequestCommandHandler(
             command.PauseTo,
             cancellationToken);
 
-        if (classIdsInRange.Count == 0)
+        if (classIdsInRange.Count == 0 && scope == PauseEnrollmentRequestScopeHelper.AllEligible)
         {
             return Result.Failure<CreatePauseEnrollmentRequestResponse>(
                 PauseEnrollmentRequestErrors.NoEnrollmentsInRange);
         }
 
-        bool hasActiveRequest = await context.PauseEnrollmentRequests
-            .AnyAsync(r => r.StudentProfileId == command.StudentProfileId
-                           && (r.Status == PauseEnrollmentRequestStatus.Pending ||
-                               r.Status == PauseEnrollmentRequestStatus.Approved)
-                           && r.PauseFrom <= command.PauseTo
-                           && r.PauseTo >= command.PauseFrom, cancellationToken);
+        Guid? targetClassId = null;
+        List<Guid> targetClassIds;
+        if (scope == PauseEnrollmentRequestScopeHelper.SingleClass)
+        {
+            var selectedClassId = command.ClassId.GetValueOrDefault();
+            targetClassId = selectedClassId;
+            var targetEnrollment = activeEnrollments
+                .FirstOrDefault(e => e.ClassId == selectedClassId);
+
+            if (targetEnrollment is null)
+            {
+                return Result.Failure<CreatePauseEnrollmentRequestResponse>(
+                    PauseEnrollmentRequestErrors.NotEnrolled(selectedClassId, command.StudentProfileId));
+            }
+
+            if (!classIdsInRange.Contains(selectedClassId))
+            {
+                return Result.Failure<CreatePauseEnrollmentRequestResponse>(
+                    PauseEnrollmentRequestErrors.ClassNotInPauseRange(
+                        selectedClassId,
+                        command.PauseFrom,
+                        command.PauseTo));
+            }
+
+            targetClassIds = [selectedClassId];
+        }
+        else
+        {
+            targetClassIds = classIdsInRange;
+        }
+
+        var overlappingRequests = context.PauseEnrollmentRequests
+            .Where(r => r.StudentProfileId == command.StudentProfileId
+                        && (r.Status == PauseEnrollmentRequestStatus.Pending ||
+                            r.Status == PauseEnrollmentRequestStatus.Approved)
+                        && r.PauseFrom <= command.PauseTo
+                        && r.PauseTo >= command.PauseFrom);
+
+        bool hasActiveRequest = scope == PauseEnrollmentRequestScopeHelper.SingleClass
+            ? await overlappingRequests.AnyAsync(
+                r => !r.ClassId.HasValue || r.ClassId == targetClassId,
+                cancellationToken)
+            : await overlappingRequests.AnyAsync(cancellationToken);
 
         if (hasActiveRequest)
         {
@@ -64,7 +119,7 @@ public sealed class CreatePauseEnrollmentRequestCommandHandler(
         }
 
         var classesInRange = await context.Classes
-            .Where(c => classIdsInRange.Contains(c.Id))
+            .Where(c => targetClassIds.Contains(c.Id))
             .Select(c => new PauseEnrollmentClassDto
             {
                 Id = c.Id,
@@ -84,7 +139,7 @@ public sealed class CreatePauseEnrollmentRequestCommandHandler(
         {
             Id = Guid.NewGuid(),
             StudentProfileId = command.StudentProfileId,
-            ClassId = null,
+            ClassId = targetClassId,
             PauseFrom = command.PauseFrom,
             PauseTo = command.PauseTo,
             Reason = command.Reason,
@@ -99,9 +154,11 @@ public sealed class CreatePauseEnrollmentRequestCommandHandler(
         {
             Id = request.Id,
             StudentProfileId = request.StudentProfileId,
+            ClassId = request.ClassId,
             PauseFrom = request.PauseFrom,
             PauseTo = request.PauseTo,
             Reason = request.Reason,
+            Scope = PauseEnrollmentRequestScopeHelper.ResolveFromClassId(request.ClassId),
             Status = request.Status.ToString(),
             RequestedAt = request.RequestedAt,
             Classes = classesInRange

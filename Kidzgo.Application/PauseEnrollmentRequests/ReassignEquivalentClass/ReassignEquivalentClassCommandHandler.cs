@@ -16,6 +16,7 @@ namespace Kidzgo.Application.PauseEnrollmentRequests.ReassignEquivalentClass;
 public sealed class ReassignEquivalentClassCommandHandler(
     IDbContext context,
     IUserContext userContext,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService)
     : ICommandHandler<ReassignEquivalentClassCommand, ReassignEquivalentClassResponse>
@@ -175,7 +176,7 @@ public sealed class ReassignEquivalentClassCommandHandler(
                 e.Id != oldEnrollment.Id &&
                 e.ClassId == newClass.Id &&
                 e.StudentProfileId == registration.StudentProfileId &&
-                e.Status != EnrollmentStatus.Dropped,
+                (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Paused),
                 cancellationToken);
 
         if (alreadyEnrolledInNewClass)
@@ -295,6 +296,9 @@ public sealed class ReassignEquivalentClassCommandHandler(
             cancellationToken);
         ClassCapacityStatusHelper.SyncAvailabilityStatus(newClass, newClassActiveEnrollmentCount + 1, now);
 
+        await context.SaveChangesAsync(cancellationToken);
+        await classLifecycleService.RecalculateClassLifecycleAsync(oldEnrollment.ClassId, cancellationToken);
+        await classLifecycleService.RecalculateClassLifecycleAsync(newClass.Id, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return new ReassignEquivalentClassResponse

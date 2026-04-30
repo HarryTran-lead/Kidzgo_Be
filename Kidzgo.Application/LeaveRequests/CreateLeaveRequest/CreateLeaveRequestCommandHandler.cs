@@ -15,6 +15,7 @@ namespace Kidzgo.Application.LeaveRequests.CreateLeaveRequest;
 
 public sealed class CreateLeaveRequestCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     SessionParticipantService sessionParticipantService,
     ApprovedLeaveAttendanceService approvedLeaveAttendanceService)
     : ICommandHandler<CreateLeaveRequestCommand, CreateLeaveRequestResponse>
@@ -135,6 +136,7 @@ public sealed class CreateLeaveRequestCommandHandler(
         }
 
         var createdLeaves = new List<LeaveRequest>();
+        var impactedClassIds = new HashSet<Guid>();
         var now = VietnamTime.UtcNow();
         var makeupSettings = await MakeupSettingsHelper.GetOrCreateAsync(context, cancellationToken);
 
@@ -193,14 +195,25 @@ public sealed class CreateLeaveRequestCommandHandler(
 
                 leave.ApprovedAt = now;
 
-                await approvedLeaveAttendanceService.ApplyApprovedLeaveActivationAsync(
+                var transitionClassIds = await approvedLeaveAttendanceService.ApplyApprovedLeaveActivationAsync(
                     command.StudentProfileId,
                     session,
                     cancellationToken);
+                impactedClassIds.UnionWith(transitionClassIds);
             }
         }
 
         await context.SaveChangesAsync(cancellationToken);
+
+        foreach (var classId in impactedClassIds)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(classId, cancellationToken);
+        }
+
+        if (impactedClassIds.Count > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         return new CreateLeaveRequestResponse
         {

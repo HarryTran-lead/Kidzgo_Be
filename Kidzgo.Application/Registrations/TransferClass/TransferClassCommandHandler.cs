@@ -13,6 +13,7 @@ namespace Kidzgo.Application.Registrations.TransferClass.Handler;
 
 public sealed class TransferClassCommandHandler(
     IDbContext context,
+    ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService
 ) : ICommandHandler<TransferClassCommand, TransferClassResponse>
@@ -212,6 +213,13 @@ public sealed class TransferClassCommandHandler(
         registration.Status = RegistrationTrackHelper.ResolveStatus(registration);
         registration.UpdatedAt = now;
 
+        await context.SaveChangesAsync(cancellationToken);
+        if (oldClass != null)
+        {
+            await classLifecycleService.RecalculateClassLifecycleAsync(oldClass.Id, cancellationToken);
+        }
+
+        await classLifecycleService.RecalculateClassLifecycleAsync(newClass.Id, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return new TransferClassResponse

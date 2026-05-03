@@ -4,6 +4,9 @@ Tai lieu nay mo ta day du cac API trong `PauseEnrollmentRequestController.cs`, b
 
 - pause tat ca enrollment hop le cua hoc sinh trong khoang ngay (`AllEligible`)
 - pause rieng 1 chuong trinh / 1 track thong qua `classId` (`SingleClass`)
+- `POST /api/pause-enrollment-requests` khong can gui `scope`; backend tu suy ra:
+  - khong co `classId` -> `AllEligible`
+  - co `classId` -> `SingleClass`
 
 Ghi chu ky thuat:
 
@@ -84,9 +87,9 @@ Validation error co the co them `errors` trong `extensions`.
 Mo ta:
 
 - Tao request bao luu.
-- Ho tro 2 mode:
-  - `AllEligible`: pause tat ca enrollment active hop le trong khoang bao luu
-  - `SingleClass`: pause duy nhat enrollment active cua `classId`
+- Backend tu suy ra mode tao request:
+  - khong gui `classId`: `AllEligible`, pause tat ca enrollment active hop le trong khoang bao luu
+  - gui `classId`: `SingleClass`, pause duy nhat enrollment active cua `classId`
 
 Body:
 
@@ -96,8 +99,7 @@ Body:
 | `pauseFrom` | `DateOnly` | Yes | Ngay bat dau bao luu |
 | `pauseTo` | `DateOnly` | Yes | Ngay ket thuc bao luu |
 | `reason` | `string?` | No | Ly do bao luu |
-| `scope` | `string?` | No | `AllEligible` hoac `SingleClass`. Neu bo trong, backend tu suy ra tu `classId` |
-| `classId` | `Guid?` | Co dieu kien | Bat buoc khi `scope = SingleClass`, phai bo trong khi `scope = AllEligible` |
+| `classId` | `Guid?` | No | Neu co gia tri thi request la `SingleClass`; neu bo trong thi request la `AllEligible` |
 
 Success `201`:
 
@@ -135,9 +137,6 @@ Response error:
 
 | HTTP | Code | Message/meaning |
 | --- | --- | --- |
-| `400` | `PauseEnrollmentRequest.InvalidScope` | `scope` khong hop le |
-| `400` | `PauseEnrollmentRequest.ClassIdRequiredForSingleClass` | `SingleClass` nhung thieu `classId` |
-| `400` | `PauseEnrollmentRequest.ClassIdNotAllowedForAllEligible` | `AllEligible` nhung van gui `classId` |
 | `400` | `PauseEnrollmentRequest.ClassNotInPauseRange` | Lop duoc chon khong co assigned study session trong khoang bao luu |
 | `404` | `PauseEnrollmentRequest.StudentNotFound` | Hoc sinh khong ton tai / khong active |
 | `409` | `PauseEnrollmentRequest.NotEnrolled` | Hoc sinh khong active trong lop duoc chon |
@@ -207,6 +206,12 @@ Ghi chu:
 
 - Voi request `SingleClass`, `classes` se chi gom lop muc tieu.
 - Voi request `AllEligible`, `classes` la danh sach lop hop le trong khoang ngay.
+- Neu filter theo `classId`, backend se tra ca:
+  - request `SingleClass` co `classId` trung khop
+  - request `AllEligible` neu trong `classes` co chua lop do
+- Neu filter theo `branchId`, backend se tra ca:
+  - request `SingleClass` neu lop muc tieu thuoc branch do
+  - request `AllEligible` neu trong `classes` co it nhat 1 lop thuoc branch do
 
 ### 5.3 GET `/api/pause-enrollment-requests/{id}`
 
@@ -535,9 +540,8 @@ Create request:
 
 - Hoc sinh phai ton tai, active, khong bi delete.
 - Hoc sinh phai co it nhat 1 enrollment `Active`.
-- `scope` chi cho phep `AllEligible` hoac `SingleClass`.
-- `SingleClass` bat buoc co `classId`.
-- `AllEligible` khong duoc gui `classId`.
+- Neu co `classId`, request duoc hieu la `SingleClass`.
+- Neu khong co `classId`, request duoc hieu la `AllEligible`.
 - `SingleClass` yeu cau hoc sinh dang active trong lop do.
 - `SingleClass` yeu cau lop do co assigned study sessions nam trong khoang bao luu.
 - Khong duoc co request `Pending`/`Approved` bi overlap:

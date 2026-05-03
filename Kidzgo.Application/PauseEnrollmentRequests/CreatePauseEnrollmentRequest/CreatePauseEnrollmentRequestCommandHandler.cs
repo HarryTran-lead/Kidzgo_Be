@@ -18,23 +18,7 @@ public sealed class CreatePauseEnrollmentRequestCommandHandler(
         CreatePauseEnrollmentRequestCommand command,
         CancellationToken cancellationToken)
     {
-        if (!PauseEnrollmentRequestScopeHelper.TryNormalize(command.Scope, command.ClassId, out var scope))
-        {
-            return Result.Failure<CreatePauseEnrollmentRequestResponse>(
-                PauseEnrollmentRequestErrors.InvalidScope(command.Scope));
-        }
-
-        if (scope == PauseEnrollmentRequestScopeHelper.SingleClass && !command.ClassId.HasValue)
-        {
-            return Result.Failure<CreatePauseEnrollmentRequestResponse>(
-                PauseEnrollmentRequestErrors.ClassIdRequiredForSingleClass);
-        }
-
-        if (scope == PauseEnrollmentRequestScopeHelper.AllEligible && command.ClassId.HasValue)
-        {
-            return Result.Failure<CreatePauseEnrollmentRequestResponse>(
-                PauseEnrollmentRequestErrors.ClassIdNotAllowedForAllEligible);
-        }
+        var scope = PauseEnrollmentRequestScopeHelper.ResolveFromClassId(command.ClassId);
 
         var profileExists = await context.Profiles
             .AnyAsync(p => p.Id == command.StudentProfileId && !p.IsDeleted && p.IsActive, cancellationToken);

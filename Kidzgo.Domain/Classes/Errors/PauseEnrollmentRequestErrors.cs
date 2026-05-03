@@ -32,18 +32,6 @@ public static class PauseEnrollmentRequestErrors
         "PauseEnrollmentRequest.NoEnrollmentsInRange",
         "Student has no active enrollments with sessions in the pause range");
 
-    public static Error InvalidScope(string? scope) => Error.Validation(
-        "PauseEnrollmentRequest.InvalidScope",
-        $"Pause enrollment scope '{scope}' is not supported");
-
-    public static readonly Error ClassIdRequiredForSingleClass = Error.Validation(
-        "PauseEnrollmentRequest.ClassIdRequiredForSingleClass",
-        "ClassId is required when pause scope is SingleClass");
-
-    public static readonly Error ClassIdNotAllowedForAllEligible = Error.Validation(
-        "PauseEnrollmentRequest.ClassIdNotAllowedForAllEligible",
-        "ClassId must be omitted when pause scope is AllEligible");
-
     public static Error ClassNotInPauseRange(Guid classId, DateOnly pauseFrom, DateOnly pauseTo) => Error.Validation(
         "PauseEnrollmentRequest.ClassNotInPauseRange",
         $"Class '{classId}' does not have assigned study sessions in the pause range '{pauseFrom}' - '{pauseTo}'");

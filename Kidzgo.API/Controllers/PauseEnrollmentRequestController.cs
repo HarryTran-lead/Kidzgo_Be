@@ -39,7 +39,6 @@ public class PauseEnrollmentRequestController : ControllerBase
             PauseFrom = request.PauseFrom,
             PauseTo = request.PauseTo,
             Reason = request.Reason,
-            Scope = request.Scope,
             ClassId = request.ClassId
         };
 

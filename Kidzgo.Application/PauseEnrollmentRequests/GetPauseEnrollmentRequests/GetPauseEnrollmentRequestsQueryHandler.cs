@@ -50,26 +50,13 @@ public sealed class GetPauseEnrollmentRequestsQueryHandler(
             query = query.Where(r => r.StudentProfileId == studentProfileId.Value);
         }
 
-        if (request.ClassId.HasValue)
-        {
-            query = query.Where(r => r.ClassId == request.ClassId.Value);
-        }
-
         if (request.Status.HasValue)
         {
             query = query.Where(r => r.Status == request.Status.Value);
         }
 
-        if (request.BranchId.HasValue)
-        {
-            query = query.Where(r => r.Class.BranchId == request.BranchId.Value);
-        }
-
-        var total = await query.CountAsync(cancellationToken);
-
         var items = await query
             .OrderByDescending(r => r.RequestedAt)
-            .ApplyPagination(request.PageNumber, request.PageSize)
             .Select(r => new
             {
                 r.Id,
@@ -102,7 +89,7 @@ public sealed class GetPauseEnrollmentRequestsQueryHandler(
         {
             return new Page<PauseEnrollmentRequestResponse>(
                 new List<PauseEnrollmentRequestResponse>(),
-                total,
+                0,
                 request.PageNumber,
                 request.PageSize);
         }
@@ -194,28 +181,63 @@ public sealed class GetPauseEnrollmentRequestsQueryHandler(
             .ToListAsync(cancellationToken);
 
         var classDetailLookup = classDetails.ToDictionary(c => c.Id);
-        var classLookup = matchingClassIdsByRequest.ToDictionary(
-            kvp => kvp.Key,
-            kvp => kvp.Value
-                .Where(classDetailLookup.ContainsKey)
-                .Select(classId =>
-                {
-                    var c = classDetailLookup[classId];
-                    return new PauseEnrollmentClassDto
+        if (request.ClassId.HasValue)
+        {
+            items = items
+                .Where(item => matchingClassIdsByRequest.TryGetValue(item.Id, out var classIds) &&
+                    classIds.Contains(request.ClassId.Value))
+                .ToList();
+        }
+
+        if (request.BranchId.HasValue)
+        {
+            items = items
+                .Where(item => matchingClassIdsByRequest.TryGetValue(item.Id, out var classIds) &&
+                    classIds.Any(classId =>
+                        classDetailLookup.TryGetValue(classId, out var classDetail) &&
+                        classDetail.BranchId == request.BranchId.Value))
+                .ToList();
+        }
+
+        var total = items.Count;
+        if (total == 0)
+        {
+            return new Page<PauseEnrollmentRequestResponse>(
+                new List<PauseEnrollmentRequestResponse>(),
+                0,
+                request.PageNumber,
+                request.PageSize);
+        }
+
+        items = items
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToList();
+
+        var classLookup = items.ToDictionary(
+            item => item.Id,
+            item => matchingClassIdsByRequest.TryGetValue(item.Id, out var classIds)
+                ? classIds
+                    .Where(classDetailLookup.ContainsKey)
+                    .Select(classId =>
                     {
-                        Id = c.Id,
-                        Code = c.Code,
-                        Title = c.Title,
-                        ProgramId = c.ProgramId,
-                        ProgramName = c.ProgramName,
-                        BranchId = c.BranchId,
-                        BranchName = c.BranchName,
-                        StartDate = c.StartDate,
-                        EndDate = c.EndDate,
-                        Status = c.Status
-                    };
-                })
-                .ToList());
+                        var c = classDetailLookup[classId];
+                        return new PauseEnrollmentClassDto
+                        {
+                            Id = c.Id,
+                            Code = c.Code,
+                            Title = c.Title,
+                            ProgramId = c.ProgramId,
+                            ProgramName = c.ProgramName,
+                            BranchId = c.BranchId,
+                            BranchName = c.BranchName,
+                            StartDate = c.StartDate,
+                            EndDate = c.EndDate,
+                            Status = c.Status
+                        };
+                    })
+                    .ToList()
+                : new List<PauseEnrollmentClassDto>());
 
         var responses = items
             .Select(r => new PauseEnrollmentRequestResponse

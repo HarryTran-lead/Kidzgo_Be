@@ -2,6 +2,8 @@ using Kidzgo.API.Extensions;
 using Kidzgo.API.Infrastructure;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.Sessions.CancelSession;
+using Kidzgo.Application.Sessions.ChangeSessionRoom;
+using Kidzgo.Application.Sessions.ChangeSessionTeacher;
 using Kidzgo.Application.Sessions.CheckSessionConflicts;
 using Kidzgo.Application.Sessions.CompleteSession;
 using Kidzgo.Application.Sessions.CreateSession;
@@ -15,6 +17,8 @@ using Kidzgo.Application.Sessions.UpdateSession;
 using Kidzgo.Application.Sessions.UpdateSessionColor;
 using Kidzgo.Application.Sessions.UpdateSessionRole;
 using Kidzgo.Application.Sessions.UpdateSessionsByClass;
+using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Sessions.Errors;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -142,6 +146,46 @@ public class SessionController : ControllerBase
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
             ParticipationType = participationType
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Change classroom for one or many ongoing/future sessions; time and other fields are preserved.
+    [HttpPatch("change-room")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> ChangeSessionRoom(
+        [FromBody] ChangeSessionRoomRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new ChangeSessionRoomCommand
+        {
+            SessionIds = BuildSessionIds(request.SessionId, request.SessionIds),
+            RoomId = request.RoomId
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Change main teacher or assistant teacher for one or many ongoing/future sessions; other fields are preserved.
+    [HttpPatch("change-teacher")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> ChangeSessionTeacher(
+        [FromBody] ChangeSessionTeacherRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseSessionTeacherRole(request.Role, out var role))
+        {
+            return CustomResults.Problem(Result.Failure(SessionErrors.InvalidTeacherRole(request.Role)));
+        }
+
+        var command = new ChangeSessionTeacherCommand
+        {
+            SessionIds = BuildSessionIds(request.SessionId, request.SessionIds),
+            TeacherId = request.TeacherId,
+            Role = role
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -345,5 +389,39 @@ public class SessionController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchOk();
     }
-}
 
+    private static List<Guid> BuildSessionIds(Guid? sessionId, List<Guid>? sessionIds)
+    {
+        var ids = sessionIds?.Where(id => id != Guid.Empty).ToList() ?? new List<Guid>();
+
+        if (sessionId.HasValue && sessionId.Value != Guid.Empty)
+        {
+            ids.Add(sessionId.Value);
+        }
+
+        return ids.Distinct().ToList();
+    }
+
+    private static bool TryParseSessionTeacherRole(string? role, out SessionTeacherRole parsedRole)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            parsedRole = default;
+            return false;
+        }
+
+        parsedRole = role.Trim().ToLowerInvariant() switch
+        {
+            "mainteacher" or "main" or "teacher" => SessionTeacherRole.MainTeacher,
+            "assistant" or "assistantteacher" => SessionTeacherRole.Assistant,
+            _ => default
+        };
+
+        return role.Trim().ToLowerInvariant() is
+            "mainteacher" or
+            "main" or
+            "teacher" or
+            "assistant" or
+            "assistantteacher";
+    }
+}

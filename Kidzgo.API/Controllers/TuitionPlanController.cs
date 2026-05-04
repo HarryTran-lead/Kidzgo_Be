@@ -32,7 +32,6 @@ public class TuitionPlanController : ControllerBase
     {
         var command = new CreateTuitionPlanCommand
         {
-            BranchId = request.BranchId,
             ProgramId = request.ProgramId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,
@@ -118,7 +117,6 @@ public class TuitionPlanController : ControllerBase
         var command = new UpdateTuitionPlanCommand
         {
             Id = id,
-            BranchId = request.BranchId,
             ProgramId = request.ProgramId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,

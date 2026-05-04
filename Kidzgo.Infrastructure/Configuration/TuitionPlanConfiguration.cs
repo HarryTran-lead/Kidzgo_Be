@@ -13,8 +13,6 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
         builder.Property(x => x.Id)
             .IsRequired();
 
-        builder.Property(x => x.BranchId);
-
         builder.Property(x => x.ProgramId)
             .IsRequired();
 
@@ -50,11 +48,6 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
             .IsRequired();
 
         // Relationships
-        builder.HasOne(x => x.Branch)
-            .WithMany(x => x.TuitionPlans)
-            .HasForeignKey(x => x.BranchId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.Program)
             .WithMany(x => x.TuitionPlans)
             .HasForeignKey(x => x.ProgramId)

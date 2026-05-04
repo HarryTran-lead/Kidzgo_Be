@@ -39,12 +39,6 @@ public sealed class AssignTuitionPlanCommandHandler(
                 EnrollmentErrors.TuitionPlanNotAvailable);
         }
 
-        if (tuitionPlan.BranchId.HasValue && tuitionPlan.BranchId != enrollment.Class.BranchId)
-        {
-            return Result.Failure<AssignTuitionPlanResponse>(
-                EnrollmentErrors.TuitionPlanBranchMismatch);
-        }
-
         // Check if tuition plan belongs to the same program as the class
         if (tuitionPlan.ProgramId != enrollment.Class.ProgramId)
         {

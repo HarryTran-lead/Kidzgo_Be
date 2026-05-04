@@ -1,6 +1,5 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
-using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -30,35 +29,11 @@ public sealed class UpdateTuitionPlanCommandHandler(
             return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotFound);
         }
 
-        // Check if branch exists (if provided)
-        if (command.BranchId.HasValue)
-        {
-            bool branchExists = await context.Branches
-                .AnyAsync(b => b.Id == command.BranchId.Value && b.IsActive, cancellationToken);
-
-            if (!branchExists)
-            {
-                return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.BranchNotFound);
-            }
-
-            var programAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
-                context,
-                command.BranchId.Value,
-                command.ProgramId,
-                cancellationToken);
-
-            if (!programAssignedToBranch)
-            {
-                return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotAvailableInBranch);
-            }
-        }
-
         // Calculate UnitPriceSession automatically from TuitionAmount / TotalSessions
         decimal unitPriceSession = command.TotalSessions > 0
             ? Math.Round(command.TuitionAmount / command.TotalSessions, 2)
             : 0;
 
-        tuitionPlan.BranchId = command.BranchId;
         tuitionPlan.ProgramId = command.ProgramId;
         tuitionPlan.Name = command.Name;
         tuitionPlan.TotalSessions = command.TotalSessions;
@@ -71,15 +46,12 @@ public sealed class UpdateTuitionPlanCommandHandler(
 
         // Query again with includes to get related data for response
         var updatedTuitionPlan = await context.TuitionPlans
-            .Include(t => t.Branch)
             .Include(t => t.Program)
             .FirstOrDefaultAsync(t => t.Id == command.Id, cancellationToken);
 
         return new UpdateTuitionPlanResponse
         {
             Id = updatedTuitionPlan!.Id,
-            BranchId = updatedTuitionPlan.BranchId,
-            BranchName = updatedTuitionPlan.Branch?.Name,
             ProgramId = updatedTuitionPlan.ProgramId,
             ProgramName = updatedTuitionPlan.Program.Name,
             Name = updatedTuitionPlan.Name,

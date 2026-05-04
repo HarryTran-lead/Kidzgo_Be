@@ -7,7 +7,6 @@ namespace Kidzgo.Domain.Programs;
 public class TuitionPlan : Entity
 {
     public Guid Id { get; set; }
-    public Guid? BranchId { get; set; }
     public Guid ProgramId { get; set; }
     public string Name { get; set; } = null!;
     public int TotalSessions { get; set; }
@@ -20,7 +19,6 @@ public class TuitionPlan : Entity
     public DateTime UpdatedAt { get; set; }
 
     // Navigation properties
-    public Branch? Branch { get; set; }
     public Program Program { get; set; } = null!;
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
 }

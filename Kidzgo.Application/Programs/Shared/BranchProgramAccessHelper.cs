@@ -43,10 +43,4 @@ internal static class BranchProgramAccessHelper
             p => p.BranchPrograms.Any(bp => bp.BranchId == branchId && bp.IsActive));
     }
 
-    public static IQueryable<TuitionPlan> FilterTuitionPlansForBranch(
-        IQueryable<TuitionPlan> tuitionPlansQuery,
-        Guid branchId)
-    {
-        return tuitionPlansQuery.Where(tp => !tp.BranchId.HasValue || tp.BranchId == branchId);
-    }
 }

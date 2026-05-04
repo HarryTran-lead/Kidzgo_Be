@@ -66,8 +66,7 @@ public sealed class ImportActiveRegistrationCommandHandler(
                 tp => tp.Id == command.TuitionPlanId &&
                       tp.ProgramId == command.ProgramId &&
                       tp.IsActive &&
-                      !tp.IsDeleted &&
-                      (!tp.BranchId.HasValue || tp.BranchId == command.BranchId),
+                      !tp.IsDeleted,
                 cancellationToken);
 
         if (tuitionPlan == null)

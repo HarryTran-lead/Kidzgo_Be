@@ -10,8 +10,6 @@ public sealed class GetTuitionPlansResponse
 public sealed class TuitionPlanDto
 {
     public Guid Id { get; init; }
-    public Guid? BranchId { get; init; }
-    public string? BranchName { get; init; }
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
     public string Name { get; init; } = null!;

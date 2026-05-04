@@ -65,13 +65,6 @@ internal static class RegistrationDiscountCampaignValidationHelper
                     RegistrationDiscountCampaignErrors.TuitionPlanProgramMismatch);
             }
 
-            if (branchId.HasValue &&
-                tuitionPlan.BranchId.HasValue &&
-                tuitionPlan.BranchId.Value != branchId.Value)
-            {
-                return Result.Failure<RegistrationDiscountCampaignScopeValidationResult>(
-                    RegistrationDiscountCampaignErrors.TuitionPlanBranchMismatch);
-            }
         }
 
         return Result.Success(new RegistrationDiscountCampaignScopeValidationResult(branch, program, tuitionPlan));

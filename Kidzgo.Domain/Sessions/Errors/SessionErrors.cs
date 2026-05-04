@@ -12,6 +12,14 @@ public static class SessionErrors
         "Session.InvalidStatus",
         "Only sessions with Scheduled status can be updated");
 
+    public static Error CannotChangeCancelledOrCompleted(Guid sessionId) => Error.Validation(
+        "Session.CannotChangeCancelledOrCompleted",
+        $"Session with Id = '{sessionId}' cannot be changed because it is cancelled or completed");
+
+    public static Error CannotChangePastSession(Guid sessionId) => Error.Validation(
+        "Session.CannotChangePastSession",
+        $"Session with Id = '{sessionId}' cannot be changed because it has already ended");
+
     public static Error InvalidClassStatus => Error.Validation(
         "Session.InvalidClassStatus",
         "Sessions can only be created for Planned, Recruiting, or Active classes");
@@ -67,6 +75,10 @@ public static class SessionErrors
     public static Error TeacherAndAssistantMustDiffer => Error.Validation(
         "Session.TeacherAndAssistantMustDiffer",
         "Main teacher and assistant teacher must be different users");
+
+    public static Error InvalidTeacherRole(string? role) => Error.Validation(
+        "Session.InvalidTeacherRole",
+        $"Invalid teacher role: '{role}'. Valid values: MainTeacher, Assistant");
 
     public static Error RoomOccupied(string classCode, string className, DateTime plannedDatetime) => Error.Conflict(
         "Session.RoomOccupied",

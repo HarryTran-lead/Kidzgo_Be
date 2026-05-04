@@ -55,18 +55,12 @@ public sealed class GetProgramsQueryHandler(
                 IsSupplementary = p.IsSupplementary,
                 BaseFee = p.TuitionPlans
                     .Where(tp => tp.IsActive &&
-                                 !tp.IsDeleted &&
-                                 (!branchId.HasValue ||
-                                  tp.BranchId == null ||
-                                  tp.BranchId == branchId))
+                                 !tp.IsDeleted)
                     .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
                 Fee = p.TuitionPlans
                     .Where(tp => tp.IsActive &&
-                                 !tp.IsDeleted &&
-                                 (!branchId.HasValue ||
-                                  tp.BranchId == null ||
-                                  tp.BranchId == branchId))
+                                 !tp.IsDeleted)
                     .Select(tp => (decimal?)tp.TuitionAmount)
                     .Min() ?? 0,
                 Description = p.Description,

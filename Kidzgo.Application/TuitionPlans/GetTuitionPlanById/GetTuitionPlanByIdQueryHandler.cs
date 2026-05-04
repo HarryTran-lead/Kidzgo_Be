@@ -13,14 +13,11 @@ public sealed class GetTuitionPlanByIdQueryHandler(
     public async Task<Result<GetTuitionPlanByIdResponse>> Handle(GetTuitionPlanByIdQuery query, CancellationToken cancellationToken)
     {
         var tuitionPlan = await context.TuitionPlans
-            .Include(t => t.Branch)
             .Include(t => t.Program)
             .Where(t => t.Id == query.Id && !t.IsDeleted)
             .Select(t => new GetTuitionPlanByIdResponse
             {
                 Id = t.Id,
-                BranchId = t.BranchId,
-                BranchName = t.Branch != null ? t.Branch.Name : null,
                 ProgramId = t.ProgramId,
                 ProgramName = t.Program.Name,
                 Name = t.Name,

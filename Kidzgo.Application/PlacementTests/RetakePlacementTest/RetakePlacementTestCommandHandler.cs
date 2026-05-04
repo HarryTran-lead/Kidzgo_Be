@@ -184,8 +184,7 @@ public sealed class RetakePlacementTestCommandHandler(
                 tp.Id == command.NewTuitionPlanId &&
                 tp.ProgramId == command.NewProgramId &&
                 tp.IsActive &&
-                !tp.IsDeleted &&
-                (!tp.BranchId.HasValue || tp.BranchId == command.BranchId), cancellationToken);
+                !tp.IsDeleted, cancellationToken);
 
         if (newTuitionPlan is null)
         {

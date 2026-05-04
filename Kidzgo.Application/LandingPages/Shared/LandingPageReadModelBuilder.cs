@@ -146,8 +146,6 @@ internal static class LandingPageReadModelBuilder
                 Dto = new LandingPageTuitionPlanDto
                 {
                     Id = tp.Id,
-                    BranchId = tp.BranchId,
-                    BranchName = tp.Branch != null ? tp.Branch.Name : null,
                     Name = tp.Name,
                     TotalSessions = tp.TotalSessions,
                     TuitionAmount = tp.TuitionAmount,

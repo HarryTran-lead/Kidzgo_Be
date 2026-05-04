@@ -241,8 +241,7 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
         var targetTuitionPlan = await context.TuitionPlans
             .Where(tp => tp.ProgramId == targetProgram.Id &&
                          tp.IsActive &&
-                         !tp.IsDeleted &&
-                         (!tp.BranchId.HasValue || tp.BranchId == activeReg.BranchId))
+                         !tp.IsDeleted)
             .OrderBy(tp => tp.TuitionAmount)
             .FirstOrDefaultAsync(cancellationToken);
 

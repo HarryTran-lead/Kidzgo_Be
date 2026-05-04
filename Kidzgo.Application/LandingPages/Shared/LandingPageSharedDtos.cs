@@ -34,8 +34,6 @@ public sealed class LandingPageFeaturedItemConfigDto
 public sealed class LandingPageTuitionPlanDto
 {
     public Guid Id { get; init; }
-    public Guid? BranchId { get; init; }
-    public string? BranchName { get; init; }
     public string Name { get; init; } = null!;
     public int TotalSessions { get; init; }
     public decimal TuitionAmount { get; init; }

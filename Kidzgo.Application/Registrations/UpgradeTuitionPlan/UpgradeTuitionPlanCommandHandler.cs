@@ -49,12 +49,6 @@ public sealed class UpgradeTuitionPlanCommandHandler(
                 RegistrationErrors.TuitionPlanNotFound(command.NewTuitionPlanId));
         }
 
-        if (newTuitionPlan.BranchId.HasValue && newTuitionPlan.BranchId != registration.BranchId)
-        {
-            return Result.Failure<UpgradeTuitionPlanResponse>(
-                RegistrationErrors.TuitionPlanNotFound(command.NewTuitionPlanId));
-        }
-
         // 4. Validate new tuition plan belongs to same program
         if (newTuitionPlan.ProgramId != registration.ProgramId)
         {

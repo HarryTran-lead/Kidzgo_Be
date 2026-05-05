@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Homework.Shared;
 using Kidzgo.Application.Shared;
 using Kidzgo.Application.Time;
 using Kidzgo.Domain.Common;
@@ -213,6 +215,71 @@ public sealed class UpdateHomeworkAssignmentCommandHandler(
         if (command.AttachmentUrl != null)
         {
             homework.AttachmentUrl = command.AttachmentUrl;
+        }
+
+        // Update questions if provided
+        if (command.Questions != null)
+        {
+            var existingQuestions = await context.HomeworkQuestions
+                .Where(q => q.HomeworkAssignmentId == homework.Id)
+                .ToListAsync(cancellationToken);
+
+            var incomingIds = command.Questions
+                .Where(q => q.Id.HasValue)
+                .Select(q => q.Id!.Value)
+                .ToHashSet();
+
+            // Remove questions not in the new list
+            var toRemove = existingQuestions.Where(q => !incomingIds.Contains(q.Id)).ToList();
+            context.HomeworkQuestions.RemoveRange(toRemove);
+
+            var existingById = existingQuestions.ToDictionary(q => q.Id);
+
+            for (var i = 0; i < command.Questions.Count; i++)
+            {
+                var dto = command.Questions[i];
+
+                string? serializedOptions = dto.Options != null
+                    ? JsonSerializer.Serialize(dto.Options)
+                    : null;
+
+                string? normalizedCorrectAnswer = null;
+                if (dto.QuestionType == HomeworkQuestionType.MultipleChoice && dto.Options != null)
+                {
+                    normalizedCorrectAnswer = QuizOptionUtils.NormalizeCorrectAnswerForStorage(
+                        dto.Options, dto.CorrectAnswer);
+                }
+                else
+                {
+                    normalizedCorrectAnswer = dto.CorrectAnswer;
+                }
+
+                if (dto.Id.HasValue && existingById.TryGetValue(dto.Id.Value, out var existing))
+                {
+                    existing.OrderIndex = i;
+                    existing.QuestionText = dto.QuestionText;
+                    existing.QuestionType = dto.QuestionType;
+                    existing.Options = serializedOptions;
+                    existing.CorrectAnswer = normalizedCorrectAnswer;
+                    existing.Points = dto.Points;
+                    existing.Explanation = dto.Explanation;
+                }
+                else
+                {
+                    context.HomeworkQuestions.Add(new HomeworkQuestion
+                    {
+                        Id = Guid.NewGuid(),
+                        HomeworkAssignmentId = homework.Id,
+                        OrderIndex = i,
+                        QuestionText = dto.QuestionText,
+                        QuestionType = dto.QuestionType,
+                        Options = serializedOptions,
+                        CorrectAnswer = normalizedCorrectAnswer,
+                        Points = dto.Points,
+                        Explanation = dto.Explanation
+                    });
+                }
+            }
         }
 
         // Update LATE status for submissions if due date changed

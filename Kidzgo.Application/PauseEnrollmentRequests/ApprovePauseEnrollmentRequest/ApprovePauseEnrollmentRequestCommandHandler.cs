@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.PauseEnrollmentRequests.Notifications;
+using Kidzgo.Application.PauseEnrollmentRequests.Settings;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
@@ -145,7 +146,8 @@ public sealed class ApprovePauseEnrollmentRequestCommandHandler(
         }
 
         pauseRequest.ReservedSessionCount = reservedSessionCount;
-        pauseRequest.ReservationExpiresOn = pauseRequest.PauseFrom.AddMonths(3);
+        var settings = await PauseEnrollmentSettingsHelper.GetOrCreateAsync(context, cancellationToken);
+        pauseRequest.ReservationExpiresOn = pauseRequest.PauseFrom.AddMonths(settings.ReservationLimitMonths);
         pauseRequest.ReservationSnapshotAt = now;
 
         await context.SaveChangesAsync(cancellationToken);

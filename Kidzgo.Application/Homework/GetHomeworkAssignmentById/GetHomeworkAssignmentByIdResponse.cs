@@ -12,6 +12,7 @@ public sealed class GetHomeworkAssignmentByIdResponse
     public string? SessionTitle { get; init; }
     public string Title { get; init; } = null!;
     public string? Description { get; init; }
+    public DateTime? StartDate { get; init; }
     public DateTime? DueAt { get; init; }
     public string? Book { get; init; }
     public string? Pages { get; init; }
@@ -36,6 +37,9 @@ public sealed class GetHomeworkAssignmentByIdResponse
     public string? AttachmentUrl { get; init; }
     public DateTime CreatedAt { get; init; }
     public List<HomeworkStudentDto> Students { get; init; } = new();
+    
+    public List<HomeworkQuestionDetailDto> Questions { get; init; } = new();
+    
     public bool IsListeningQuiz => HomeworkDeliveryMetadata.IsListeningQuiz(Skills, AttachmentUrl);
 }
 
@@ -52,3 +56,17 @@ public sealed class HomeworkStudentDto
     public int AttemptCount { get; init; }
 }
 
+/// <summary>
+/// DTO chi tiết câu hỏi cho homework (bao gồm đáp án đúng - dành cho Teacher/Staff)
+/// </summary>
+public sealed class HomeworkQuestionDetailDto
+{
+    public Guid Id { get; init; }
+    public int OrderIndex { get; init; }
+    public string QuestionText { get; init; } = null!;
+    public string QuestionType { get; init; } = null!;
+    public List<string> Options { get; init; } = new();
+    public string? CorrectAnswer { get; init; }
+    public int Points { get; init; }
+    public string? Explanation { get; init; }
+}

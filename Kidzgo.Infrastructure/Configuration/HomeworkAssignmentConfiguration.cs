@@ -25,6 +25,8 @@ public class HomeworkAssignmentConfiguration : IEntityTypeConfiguration<Homework
 
         builder.Property(x => x.Description);
 
+        builder.Property(x => x.StartDate);
+
         builder.Property(x => x.DueAt);
 
         builder.Property(x => x.Book)

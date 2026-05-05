@@ -33,6 +33,28 @@ public sealed class GetHomeworkAssignmentByIdQueryHandler(
                 HomeworkErrors.NotFound(query.Id));
         }
 
+        // Load questions nếu là Quiz/MultipleChoice
+        var questions = new List<HomeworkQuestionDetailDto>();
+        if (homework.SubmissionType == SubmissionType.Quiz)
+        {
+            var homeworkQuestions = await context.HomeworkQuestions
+                .Where(q => q.HomeworkAssignmentId == homework.Id)
+                .OrderBy(q => q.OrderIndex)
+                .ToListAsync(cancellationToken);
+
+            questions = homeworkQuestions.Select(q => new HomeworkQuestionDetailDto
+            {
+                Id = q.Id,
+                OrderIndex = q.OrderIndex,
+                QuestionText = q.QuestionText,
+                QuestionType = q.QuestionType.ToString(),
+                Options = StringListJson.Deserialize(q.Options),
+                CorrectAnswer = q.CorrectAnswer,
+                Points = q.Points,
+                Explanation = q.Explanation
+            }).ToList();
+        }
+
         var response = new GetHomeworkAssignmentByIdResponse
         {
             Id = homework.Id,
@@ -45,6 +67,7 @@ public sealed class GetHomeworkAssignmentByIdQueryHandler(
                 : null,
             Title = homework.Title,
             Description = homework.Description,
+            StartDate = homework.StartDate,
             DueAt = homework.DueAt,
             Book = homework.Book,
             Pages = homework.Pages,
@@ -79,10 +102,10 @@ public sealed class GetHomeworkAssignmentByIdQueryHandler(
                 Score = hs.Score,
                 TeacherFeedback = hs.TeacherFeedback,
                 AttemptCount = hs.SubmissionAttempts.Count
-            }).ToList()
+            }).ToList(),
+            Questions = questions
         };
 
         return response;
     }
 }
-

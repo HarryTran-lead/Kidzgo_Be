@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Reports;
+using Kidzgo.Application.PauseEnrollmentRequests.Settings;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs;
@@ -449,13 +450,16 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
         var reservedSessionCount = latestRequest.ReservedSessionCount > 0
             ? latestRequest.ReservedSessionCount
             : latestRequest.RequestReservedSessionCount;
+        var reservationLimitMonths = await PauseEnrollmentSettingsHelper.GetReservationLimitMonthsAsync(
+            context,
+            cancellationToken);
 
         return new EnrollmentReservationPdfSection
         {
             ReservedSessionCount = reservedSessionCount,
             PauseFrom = latestRequest.PauseFrom,
             PauseTo = latestRequest.PauseTo,
-            ReservationExpiresOn = latestRequest.ReservationExpiresOn ?? latestRequest.PauseFrom.AddMonths(3)
+            ReservationExpiresOn = latestRequest.ReservationExpiresOn ?? latestRequest.PauseFrom.AddMonths(reservationLimitMonths)
         };
     }
 

@@ -18,6 +18,7 @@ public sealed class StudentHomeworkDto
     public Guid ClassId { get; init; }
     public string ClassCode { get; init; } = null!;
     public string ClassTitle { get; init; } = null!;
+    public DateTime? StartDate { get; init; }
     public DateTime? DueAt { get; init; }
     public string? Book { get; init; }
     public string? Pages { get; init; }

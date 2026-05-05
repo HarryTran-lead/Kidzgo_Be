@@ -81,6 +81,7 @@ public sealed class GetHomeworkAssignmentsQueryHandler(
                 SessionId = h.SessionId,
                 Title = h.Title,
                 Description = h.Description,
+                StartDate = h.StartDate,
                 DueAt = h.DueAt,
                 Book = h.Book,
                 Pages = h.Pages,

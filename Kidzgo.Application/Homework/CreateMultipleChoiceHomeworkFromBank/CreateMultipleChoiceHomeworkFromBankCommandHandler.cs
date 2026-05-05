@@ -80,6 +80,8 @@ public sealed class CreateMultipleChoiceHomeworkFromBankCommandHandler(
             }
         }
 
+        var startDateUtc = VietnamTime.NormalizeToUtc(command.StartDate);
+
         if (command.DueAt.HasValue && VietnamTime.NormalizeToUtc(command.DueAt.Value) <= VietnamTime.UtcNow())
         {
             return Result.Failure<CreateMultipleChoiceHomeworkResponse>(
@@ -133,6 +135,12 @@ public sealed class CreateMultipleChoiceHomeworkFromBankCommandHandler(
         var selected = selection.SelectedItems;
 
         var dueAtUtc = VietnamTime.NormalizeToUtc(command.DueAt);
+        if (startDateUtc.HasValue && dueAtUtc.HasValue && startDateUtc.Value > dueAtUtc.Value)
+        {
+            return Result.Failure<CreateMultipleChoiceHomeworkResponse>(Error.Validation(
+                "Homework.InvalidStartDate",
+                "Start date must be before or equal to due date"));
+        }
 
         var now = VietnamTime.UtcNow();
         var normalizedSkills = HomeworkDeliveryMetadata.NormalizeSkills(command.Skills, command.AttachmentUrl);
@@ -146,6 +154,7 @@ public sealed class CreateMultipleChoiceHomeworkFromBankCommandHandler(
             SessionId = command.SessionId,
             Title = command.Title,
             Description = command.Description,
+            StartDate = startDateUtc,
             DueAt = dueAtUtc,
             Skills = normalizedSkills,
             Topic = command.Topic,
@@ -233,6 +242,7 @@ public sealed class CreateMultipleChoiceHomeworkFromBankCommandHandler(
             SessionId = homework.SessionId,
             Title = homework.Title,
             Description = homework.Description,
+            StartDate = homework.StartDate,
             DueAt = homework.DueAt,
             Skills = homework.Skills,
             Topic = homework.Topic,

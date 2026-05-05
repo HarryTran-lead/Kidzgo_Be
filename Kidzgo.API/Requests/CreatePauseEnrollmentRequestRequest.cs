@@ -8,3 +8,8 @@ public sealed class CreatePauseEnrollmentRequestRequest
     public string? Reason { get; set; }
     public Guid? ClassId { get; set; }
 }
+
+public sealed class UpdatePauseEnrollmentSettingsRequest
+{
+    public int ReservationLimitMonths { get; init; }
+}

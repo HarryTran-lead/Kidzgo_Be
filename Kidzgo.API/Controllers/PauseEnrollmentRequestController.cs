@@ -8,6 +8,7 @@ using Kidzgo.Application.PauseEnrollmentRequests.GetPauseEnrollmentRequestById;
 using Kidzgo.Application.PauseEnrollmentRequests.GetPauseEnrollmentRequests;
 using Kidzgo.Application.PauseEnrollmentRequests.ReassignEquivalentClass;
 using Kidzgo.Application.PauseEnrollmentRequests.RejectPauseEnrollmentRequest;
+using Kidzgo.Application.PauseEnrollmentRequests.Settings;
 using Kidzgo.Application.PauseEnrollmentRequests.UpdatePauseEnrollmentOutcome;
 using Kidzgo.Domain.Classes;
 using MediatR;
@@ -26,6 +27,29 @@ public class PauseEnrollmentRequestController : ControllerBase
     public PauseEnrollmentRequestController(ISender mediator)
     {
         _mediator = mediator;
+    }
+
+    [HttpGet("settings")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetSettings(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetPauseEnrollmentSettingsQuery(), cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpPut("settings")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UpdateSettings(
+        [FromBody] UpdatePauseEnrollmentSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdatePauseEnrollmentSettingsCommand
+        {
+            ReservationLimitMonths = request.ReservationLimitMonths
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
     }
 
     [HttpPost]

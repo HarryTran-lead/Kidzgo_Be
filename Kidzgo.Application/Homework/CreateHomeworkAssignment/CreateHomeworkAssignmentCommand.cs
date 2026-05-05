@@ -10,6 +10,7 @@ public sealed class CreateHomeworkAssignmentCommand : ICommand<CreateHomeworkAss
     public Guid? SessionId { get; init; }
     public string Title { get; init; } = null!;
     public string? Description { get; init; }
+    public DateTime? StartDate { get; init; }
     public DateTime? DueAt { get; init; }
     public string? Book { get; init; }
     public string? Pages { get; init; }

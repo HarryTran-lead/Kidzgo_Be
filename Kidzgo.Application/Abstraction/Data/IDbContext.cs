@@ -50,6 +50,7 @@ public interface IDbContext
     DbSet<ClassEnrollmentScheduleSegment> ClassEnrollmentScheduleSegments { get; }
     DbSet<PauseEnrollmentRequest> PauseEnrollmentRequests { get; }
     DbSet<PauseEnrollmentRequestHistory> PauseEnrollmentRequestHistories { get; }
+    DbSet<PauseEnrollmentSettings> PauseEnrollmentSettings { get; }
 
     // CRM
     DbSet<Lead> Leads { get; }

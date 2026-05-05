@@ -119,6 +119,8 @@ public sealed class CreateMultipleChoiceHomeworkCommandHandler(
             }
         }
 
+        var startDateUtc = VietnamTime.NormalizeToUtc(command.StartDate);
+
         // Validate due date
         if (command.DueAt.HasValue && VietnamTime.NormalizeToUtc(command.DueAt.Value) <= VietnamTime.UtcNow())
         {
@@ -139,6 +141,12 @@ public sealed class CreateMultipleChoiceHomeworkCommandHandler(
         }
 
         var dueAtUtc = VietnamTime.NormalizeToUtc(command.DueAt);
+        if (startDateUtc.HasValue && dueAtUtc.HasValue && startDateUtc.Value > dueAtUtc.Value)
+        {
+            return Result.Failure<CreateMultipleChoiceHomeworkResponse>(Error.Validation(
+                "Homework.InvalidStartDate",
+                "Start date must be before or equal to due date"));
+        }
 
         // Get current user ID from context
         var currentUserId = userContext.UserId;
@@ -156,6 +164,7 @@ public sealed class CreateMultipleChoiceHomeworkCommandHandler(
             SessionId = command.SessionId,
             Title = command.Title,
             Description = command.Description,
+            StartDate = startDateUtc,
             DueAt = dueAtUtc,
             Skills = normalizedSkills,
             Topic = command.Topic,
@@ -239,6 +248,7 @@ public sealed class CreateMultipleChoiceHomeworkCommandHandler(
             SessionId = homework.SessionId,
             Title = homework.Title,
             Description = homework.Description,
+            StartDate = homework.StartDate,
             DueAt = homework.DueAt,
             Skills = homework.Skills,
             Topic = homework.Topic,

@@ -55,6 +55,7 @@ public sealed class ApplicationDbContext(
     public DbSet<ClassEnrollmentScheduleSegment> ClassEnrollmentScheduleSegments => Set<ClassEnrollmentScheduleSegment>();
     public DbSet<PauseEnrollmentRequest> PauseEnrollmentRequests => Set<PauseEnrollmentRequest>();
     public DbSet<PauseEnrollmentRequestHistory> PauseEnrollmentRequestHistories => Set<PauseEnrollmentRequestHistory>();
+    public DbSet<PauseEnrollmentSettings> PauseEnrollmentSettings => Set<PauseEnrollmentSettings>();
 
     // CRM
     public DbSet<Lead> Leads => Set<Lead>();

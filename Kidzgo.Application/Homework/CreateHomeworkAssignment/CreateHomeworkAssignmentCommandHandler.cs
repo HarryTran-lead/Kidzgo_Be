@@ -100,6 +100,8 @@ public sealed class CreateHomeworkAssignmentCommandHandler(
             }
         }
 
+        var startDateUtc = VietnamTime.NormalizeToUtc(command.StartDate);
+
         // Validate due date
         if (command.DueAt.HasValue && VietnamTime.NormalizeToUtc(command.DueAt.Value) <= VietnamTime.UtcNow())
         {
@@ -108,6 +110,12 @@ public sealed class CreateHomeworkAssignmentCommandHandler(
         }
 
         var dueAtUtc = VietnamTime.NormalizeToUtc(command.DueAt);
+        if (startDateUtc.HasValue && dueAtUtc.HasValue && startDateUtc.Value > dueAtUtc.Value)
+        {
+            return Result.Failure<CreateHomeworkAssignmentResponse>(Error.Validation(
+                "Homework.InvalidStartDate",
+                "Start date must be before or equal to due date"));
+        }
 
         // Get current user ID from context
         var currentUserId = userContext.UserId;
@@ -120,6 +128,7 @@ public sealed class CreateHomeworkAssignmentCommandHandler(
             SessionId = command.SessionId,
             Title = command.Title,
             Description = command.Description,
+            StartDate = startDateUtc,
             DueAt = dueAtUtc,
             Book = command.Book,
             Pages = command.Pages,
@@ -183,6 +192,7 @@ public sealed class CreateHomeworkAssignmentCommandHandler(
             SessionId = homework.SessionId,
             Title = homework.Title,
             Description = homework.Description,
+            StartDate = homework.StartDate,
             DueAt = homework.DueAt,
             Book = homework.Book,
             Pages = homework.Pages,

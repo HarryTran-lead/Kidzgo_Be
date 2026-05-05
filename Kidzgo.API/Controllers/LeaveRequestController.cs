@@ -114,5 +114,14 @@ public class LeaveRequestController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchOk();
     }
+
+    /// UC-097: Hủy Leave Request (Parent/Teacher/Admin)
+    [HttpPut("{id:guid}/cancel")]
+    public async Task<IResult> Cancel(Guid id, CancellationToken cancellationToken)
+    {
+        var command = new CancelLeaveRequestCommand { Id = id };
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
 }
 

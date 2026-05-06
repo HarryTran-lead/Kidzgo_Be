@@ -13,6 +13,7 @@ using Kidzgo.Application.Media.Shared;
 using Kidzgo.Application.LearningHistory.GetLearningHistory;
 using Kidzgo.Application.Notifications.GetParentNotifications;
 using Kidzgo.Application.Payments.GetParentPayments;
+using Kidzgo.Application.ProgramProgressions.GetParentProgressionAssessments;
 using Kidzgo.Application.Registrations.GetParentEnrollmentConfirmationPdfHistory;
 using Kidzgo.Application.Registrations.GetParentEnrollmentConfirmationPdfPreview;
 using Kidzgo.Application.Registrations.GetParentRegistrationById;
@@ -736,6 +737,33 @@ public class ParentController : ControllerBase
             NewPassword = request.NewPassword
         }, cancellationToken);
 
+        return result.MatchOk();
+    }
+
+    [HttpGet("progression-assessments")]
+    public async Task<IResult> GetProgressionAssessments(
+        [FromQuery] Guid? studentProfileId,
+        [FromQuery] string? status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus? parsedStatus = null;
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus>(status, true, out var tmpStatus))
+        {
+            parsedStatus = tmpStatus;
+        }
+
+        var query = new GetParentProgressionAssessmentsQuery
+        {
+            StudentProfileId = studentProfileId,
+            Status = parsedStatus,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
         return result.MatchOk();
     }
 

@@ -1,0 +1,13 @@
+using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.ProgramProgressions.Shared;
+using Kidzgo.Domain.Common;
+using Kidzgo.Domain.ProgramProgressions;
+
+namespace Kidzgo.Application.ProgramProgressions.GetStudentProgressionAssessments;
+
+public sealed record GetStudentProgressionAssessmentsQuery : IQuery<Page<ProgramProgressionAssessmentDto>>
+{
+    public ProgramProgressionAssessmentStatus? Status { get; init; }
+    public int PageNumber { get; init; } = 1;
+    public int PageSize { get; init; } = 10;
+}

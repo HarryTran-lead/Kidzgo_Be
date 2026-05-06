@@ -14,6 +14,7 @@ using Kidzgo.Application.Homework.GetStudentHomeworkSubmission;
 using Kidzgo.Application.Homework.SubmitHomework;
 using Kidzgo.Application.Homework.SubmitMultipleChoiceHomework;
 using Kidzgo.Application.LearningHistory.GetLearningHistory;
+using Kidzgo.Application.ProgramProgressions.GetStudentProgressionAssessments;
 using Kidzgo.Application.Sessions.GetStudentTimetable;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
@@ -636,6 +637,31 @@ public class StudentController : ControllerBase
             answerSheet = Array.Empty<object>(),
             improvement = (string?)null
         });
+    }
+
+    [HttpGet("/api/student/progression-assessments")]
+    public async Task<IResult> GetProgressionAssessments(
+        [FromQuery] string? status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus? parsedStatus = null;
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus>(status, true, out var tmpStatus))
+        {
+            parsedStatus = tmpStatus;
+        }
+
+        var query = new GetStudentProgressionAssessmentsQuery
+        {
+            Status = parsedStatus,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
     }
 
     [HttpGet("/api/student/reports")]

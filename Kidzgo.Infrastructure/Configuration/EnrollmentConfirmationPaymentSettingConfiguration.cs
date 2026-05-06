@@ -42,7 +42,7 @@ public sealed class EnrollmentConfirmationPaymentSettingConfiguration
             .IsRequired();
 
         builder.Property(x => x.LogoUrl)
-            .HasMaxLength(1000);
+            .HasColumnType("text");
 
         builder.Property(x => x.NewStudentPolicyText)
             .HasColumnType("text");

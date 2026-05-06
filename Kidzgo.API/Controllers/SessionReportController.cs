@@ -10,6 +10,7 @@ using Kidzgo.Application.SessionReports.SubmitSessionReport;
 using Kidzgo.Application.SessionReports.ApproveSessionReport;
 using Kidzgo.Application.SessionReports.RejectSessionReport;
 using Kidzgo.Application.SessionReports.PublishSessionReport;
+using Kidzgo.Application.SessionReports.UnpublishSessionReport;
 using Kidzgo.Application.SessionReports.AddSessionReportComment;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -211,6 +212,18 @@ public class SessionReportController : ControllerBase
         CancellationToken cancellationToken)
     {
         var command = new PublishSessionReportCommand(id);
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/unpublish")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UnpublishSessionReport(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var command = new UnpublishSessionReportCommand(id);
 
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchOk();

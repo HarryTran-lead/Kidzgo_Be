@@ -46,6 +46,17 @@ public sealed class UpdatePlacementTestCommandHandler(
                     PlacementTestErrors.StudentProfileNotFound(command.StudentProfileId));
             }
 
+            var duplicateCheck = await PlacementTestDuplicateGuard.EnsureStudentProfileCanBeAssignedAsync(
+                context,
+                command.StudentProfileId.Value,
+                command.PlacementTestId,
+                cancellationToken);
+
+            if (duplicateCheck.IsFailure)
+            {
+                return Result.Failure<UpdatePlacementTestResponse>(duplicateCheck.Error);
+            }
+
             placementTest.StudentProfileId = command.StudentProfileId.Value;
         }
 

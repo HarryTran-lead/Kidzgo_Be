@@ -651,8 +651,8 @@ public class StudentController : ControllerBase
 
         var lessonReports = await _context.SessionReports
             .AsNoTracking()
-            .Where(r => r.StudentProfileId == student.Id)
-            .OrderByDescending(r => r.CreatedAt)
+            .Where(r => r.StudentProfileId == student.Id && r.Status == ReportStatus.Published)
+            .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
             .Take(20)
             .Select(r => new
             {
@@ -667,7 +667,7 @@ public class StudentController : ControllerBase
 
         var monthlySummaries = await _context.StudentMonthlyReports
             .AsNoTracking()
-            .Where(r => r.StudentProfileId == student.Id)
+            .Where(r => r.StudentProfileId == student.Id && r.Status == ReportStatus.Published)
             .OrderByDescending(r => r.Year)
             .ThenByDescending(r => r.Month)
             .Take(12)

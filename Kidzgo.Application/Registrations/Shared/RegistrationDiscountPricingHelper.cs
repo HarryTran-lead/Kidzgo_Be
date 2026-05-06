@@ -50,7 +50,7 @@ internal static class RegistrationDiscountPricingHelper
             .Where(c =>
                 operationType == OperationType.Initial && c.ApplyForInitialRegistration ||
                 operationType == OperationType.Renewal && c.ApplyForRenewal ||
-                operationType == OperationType.Upgrade && c.ApplyForUpgrade)
+                (operationType == OperationType.Upgrade || operationType == OperationType.Promotion) && c.ApplyForUpgrade)
             .OrderByDescending(c => c.Priority)
             .ThenByDescending(c => c.StartDate)
             .ThenByDescending(c => c.CreatedAt)

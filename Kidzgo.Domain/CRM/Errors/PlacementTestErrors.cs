@@ -77,6 +77,14 @@ public static class PlacementTestErrors
         "PlacementTest.LeadAlreadyEnrolled",
         "The lead has already been converted to enrollment");
 
+    public static Error ActivePlacementTestAlreadyExistsForChild(Guid leadChildId) => Error.Conflict(
+        "PlacementTest.ActivePlacementTestAlreadyExistsForChild",
+        $"The child with LeadChildId = '{leadChildId}' already has a scheduled placement test.");
+
+    public static Error ActivePlacementTestAlreadyExistsForStudent(Guid studentProfileId) => Error.Conflict(
+        "PlacementTest.ActivePlacementTestAlreadyExistsForStudent",
+        $"The student profile with Id = '{studentProfileId}' already has a scheduled placement test.");
+
     public static Error StudentProfileAlreadyAssigned(Guid? profileId, Guid leadChildId) => Error.Conflict(
         "PlacementTest.StudentProfileAlreadyAssigned",
         $"The student profile with Id = '{profileId}' is already assigned to another child (LeadChildId = '{leadChildId}'). One profile can only be assigned to one child.");

@@ -305,6 +305,32 @@ public class HomeworkController : ControllerBase
             parsedSubmissionType = tmpType;
         }
 
+        List<UpdateHomeworkQuestionDto>? questions = null;
+        if (request.Questions != null)
+        {
+            questions = new List<UpdateHomeworkQuestionDto>();
+            for (int i = 0; i < request.Questions.Count; i++)
+            {
+                var q = request.Questions[i];
+                if (!Enum.TryParse<HomeworkQuestionType>(q.QuestionType, ignoreCase: true, out var questionType))
+                {
+                    return Results.BadRequest($"Invalid question type: {q.QuestionType}");
+                }
+
+                questions.Add(new UpdateHomeworkQuestionDto
+                {
+                    Id = q.Id,
+                    OrderIndex = i,
+                    QuestionText = q.QuestionText,
+                    QuestionType = questionType,
+                    Options = q.Options,
+                    CorrectAnswer = q.CorrectAnswer,
+                    Points = q.Points,
+                    Explanation = q.Explanation
+                });
+            }
+        }
+
         var command = new UpdateHomeworkAssignmentCommand
         {
             Id = id,
@@ -330,7 +356,8 @@ public class HomeworkController : ControllerBase
             SpeakingMode = request.SpeakingMode,
             TargetWords = request.TargetWords,
             SpeakingExpectedText = request.SpeakingExpectedText,
-            AttachmentUrl = request.Attachment
+            AttachmentUrl = request.Attachment,
+            Questions = questions
         };
 
         var result = await _mediator.Send(command, cancellationToken);

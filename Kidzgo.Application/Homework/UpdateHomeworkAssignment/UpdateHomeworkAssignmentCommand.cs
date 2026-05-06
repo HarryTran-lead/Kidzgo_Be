@@ -4,6 +4,18 @@ using Kidzgo.Domain.LessonPlans;
 
 namespace Kidzgo.Application.Homework.UpdateHomeworkAssignment;
 
+public sealed class UpdateHomeworkQuestionDto
+{
+    public Guid? Id { get; init; }
+    public int OrderIndex { get; init; }
+    public string QuestionText { get; init; } = null!;
+    public HomeworkQuestionType QuestionType { get; init; }
+    public List<string>? Options { get; init; }
+    public string? CorrectAnswer { get; init; }
+    public int Points { get; init; }
+    public string? Explanation { get; init; }
+}
+
 public sealed class UpdateHomeworkAssignmentCommand : ICommand<UpdateHomeworkAssignmentResponse>
 {
     public Guid Id { get; init; }
@@ -31,5 +43,6 @@ public sealed class UpdateHomeworkAssignmentCommand : ICommand<UpdateHomeworkAss
     public List<string>? TargetWords { get; init; }
     public string? SpeakingExpectedText { get; init; }
     public string? AttachmentUrl { get; init; }
+    public List<UpdateHomeworkQuestionDto>? Questions { get; init; }
 }
 

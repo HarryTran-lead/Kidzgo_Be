@@ -91,6 +91,7 @@ public class NotificationController : ControllerBase
 
     /// View broadcast notification history (grouped)
     [HttpGet("broadcast-history")]
+    [HttpGet("broadcast/history")]
     [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> GetBroadcastNotificationHistory(
         [FromQuery] NotificationChannel? channel,

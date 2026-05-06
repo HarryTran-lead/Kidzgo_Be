@@ -1,5 +1,17 @@
 namespace Kidzgo.API.Requests;
 
+public sealed class UpdateHomeworkQuestionRequest
+{
+    public Guid? Id { get; init; }
+    public int OrderIndex { get; init; }
+    public string QuestionText { get; init; } = null!;
+    public string QuestionType { get; init; } = null!;
+    public List<string>? Options { get; init; }
+    public string? CorrectAnswer { get; init; }
+    public int Points { get; init; }
+    public string? Explanation { get; init; }
+}
+
 public sealed class UpdateHomeworkAssignmentRequest
 {
     public string? Title { get; init; }
@@ -26,5 +38,6 @@ public sealed class UpdateHomeworkAssignmentRequest
     public List<string>? TargetWords { get; init; }
     public string? SpeakingExpectedText { get; init; }
     public string? Attachment { get; init; }
+    public List<UpdateHomeworkQuestionRequest>? Questions { get; init; }
 }
 

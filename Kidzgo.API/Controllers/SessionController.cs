@@ -16,6 +16,7 @@ using Kidzgo.Application.Sessions.GenerateSessionsFromPattern;
 using Kidzgo.Application.Sessions.UpdateSession;
 using Kidzgo.Application.Sessions.UpdateSessionColor;
 using Kidzgo.Application.Sessions.UpdateSessionRole;
+using Kidzgo.Application.Sessions.GetSessionAvailability;
 using Kidzgo.Application.Sessions.UpdateSessionsByClass;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions.Errors;
@@ -286,6 +287,30 @@ public class SessionController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Trả về rooms + teachers kèm isAvailable dựa trên class session conflicts
+    [HttpGet("availability")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetSessionAvailability(
+        [FromQuery] DateTime scheduledAt,
+        [FromQuery] int? durationMinutes,
+        [FromQuery] Guid? branchId,
+        [FromQuery] Guid? excludeSessionId,
+        [FromQuery] bool includeUnavailable = false,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetSessionAvailabilityQuery
+        {
+            ScheduledAt = scheduledAt,
+            DurationMinutes = durationMinutes,
+            BranchId = branchId,
+            ExcludeSessionId = excludeSessionId,
+            IncludeUnavailable = includeUnavailable
+        };
+
+        var result = await _mediator.Send(query, cancellationToken);
         return result.MatchOk();
     }
 

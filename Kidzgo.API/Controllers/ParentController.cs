@@ -493,7 +493,7 @@ public class ParentController : ControllerBase
 
         var monthlySummaries = await _context.StudentMonthlyReports
             .AsNoTracking()
-            .Where(r => r.StudentProfileId == student.Id)
+            .Where(r => r.StudentProfileId == student.Id && r.Status == ReportStatus.Published)
             .OrderByDescending(r => r.Year)
             .ThenByDescending(r => r.Month)
             .Take(12)
@@ -509,7 +509,10 @@ public class ParentController : ControllerBase
 
         var teacherComments = await _context.ReportComments
             .AsNoTracking()
-            .Where(rc => rc.Report != null && rc.Report.StudentProfileId == student.Id)
+            .Where(rc =>
+                rc.Report != null &&
+                rc.Report.StudentProfileId == student.Id &&
+                rc.Report.Status == ReportStatus.Published)
             .OrderByDescending(rc => rc.CreatedAt)
             .Take(10)
             .Select(rc => new

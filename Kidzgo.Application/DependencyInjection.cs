@@ -1,6 +1,7 @@
 using FluentValidation;
 using Kidzgo.Application.Abstraction.Behaviors;
 using Kidzgo.Application.Abstraction.Services;
+using Kidzgo.Application.ProgramProgressions.Shared;
 using Kidzgo.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +29,9 @@ public static class DependencyInjection
         services.AddScoped<ClassLifecycleService>();
         services.AddScoped<ApprovedLeaveAttendanceService>();
         services.AddScoped<PauseEnrollmentReactivationService>();
+        services.AddScoped<ProgramProgressionEvaluationService>();
+        services.AddScoped<ProgramProgressionApprovalService>();
+        services.AddScoped<ProgramProgressionScheduleNotificationService>();
         services.AddScoped<ILevelCalculationService, LevelCalculationService>();
         services.AddScoped<IGamificationService, GamificationService>();
         return services;

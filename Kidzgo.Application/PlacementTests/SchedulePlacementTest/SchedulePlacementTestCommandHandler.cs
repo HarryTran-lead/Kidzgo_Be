@@ -81,6 +81,18 @@ public sealed class SchedulePlacementTestCommandHandler(
                 Domain.Common.Error.Validation("LeadId", "Either LeadId or LeadChildId must be provided"));
         }
 
+        var duplicateCheck = await PlacementTestDuplicateGuard.EnsureLeadChildCanCreateInitialPlacementTestAsync(
+            context,
+            lead.Id,
+            leadChild.Id,
+            includeLegacyLeadFallback: !command.LeadChildId.HasValue,
+            cancellationToken);
+
+        if (duplicateCheck.IsFailure)
+        {
+            return Result.Failure<SchedulePlacementTestResponse>(duplicateCheck.Error);
+        }
+
         var duration = PlacementTestScheduleAvailability.NormalizeDuration(command.DurationMinutes);
         if (duration <= 0)
         {

@@ -14,6 +14,7 @@ using Kidzgo.Application.MonthlyReports.GetMonthlyReports;
 using Kidzgo.Application.MonthlyReports.PublishMonthlyReport;
 using Kidzgo.Application.MonthlyReports.RejectMonthlyReport;
 using Kidzgo.Application.MonthlyReports.SubmitMonthlyReport;
+using Kidzgo.Application.MonthlyReports.UnpublishMonthlyReport;
 using Kidzgo.Application.MonthlyReports.UpdateMonthlyReportDraft;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -283,6 +284,21 @@ public class MonthlyReportController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var command = new PublishMonthlyReportCommand
+        {
+            ReportId = reportId
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpPost("{reportId:guid}/unpublish")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UnpublishMonthlyReport(
+        [FromRoute] Guid reportId,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new UnpublishMonthlyReportCommand
         {
             ReportId = reportId
         };

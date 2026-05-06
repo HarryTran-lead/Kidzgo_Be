@@ -22,6 +22,7 @@ using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.TeachingMaterials;
 using Kidzgo.Domain.Website;
+using Kidzgo.Domain.ProgramProgressions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -62,6 +63,10 @@ public sealed class ApplicationDbContext(
     public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
     public DbSet<LeadChild> LeadChildren => Set<LeadChild>();
     public DbSet<PlacementTest> PlacementTests => Set<PlacementTest>();
+    public DbSet<ProgramProgressionRule> ProgramProgressionRules => Set<ProgramProgressionRule>();
+    public DbSet<ProgramProgressionAssessment> ProgramProgressionAssessments => Set<ProgramProgressionAssessment>();
+    public DbSet<ProgramProgressionSchedule> ProgramProgressionSchedules => Set<ProgramProgressionSchedule>();
+    public DbSet<ProgramProgressionScheduleParticipant> ProgramProgressionScheduleParticipants => Set<ProgramProgressionScheduleParticipant>();
 
     // Exams
     public DbSet<Exam> Exams => Set<Exam>();

@@ -21,6 +21,7 @@ using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.TeachingMaterials;
 using Kidzgo.Domain.Website;
+using Kidzgo.Domain.ProgramProgressions;
 
 namespace Kidzgo.Application.Abstraction.Data;
 
@@ -57,6 +58,10 @@ public interface IDbContext
     DbSet<LeadActivity> LeadActivities { get; }
     DbSet<LeadChild> LeadChildren { get; }
     DbSet<PlacementTest> PlacementTests { get; }
+    DbSet<ProgramProgressionRule> ProgramProgressionRules { get; }
+    DbSet<ProgramProgressionAssessment> ProgramProgressionAssessments { get; }
+    DbSet<ProgramProgressionSchedule> ProgramProgressionSchedules { get; }
+    DbSet<ProgramProgressionScheduleParticipant> ProgramProgressionScheduleParticipants { get; }
 
     // Exams
     DbSet<Exam> Exams { get; }

@@ -3,7 +3,6 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Notifications;
-using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Notifications.GetBroadcastNotificationHistory;
@@ -16,25 +15,19 @@ public sealed class GetBroadcastNotificationHistoryQueryHandler(
         GetBroadcastNotificationHistoryQuery query,
         CancellationToken cancellationToken)
     {
-        var staffRoles = new[]
-        {
-            UserRole.Admin.ToString(),
-            UserRole.ManagementStaff.ToString()
-        };
-
         var notificationsQuery = context.Notifications
             .AsNoTracking()
-            .Where(n => n.SenderRole != null && staffRoles.Contains(n.SenderRole))
+            .Where(n => n.SenderRole != null)
             .AsQueryable();
-
-        if (query.Channel.HasValue)
-        {
-            notificationsQuery = notificationsQuery.Where(n => n.Channel == query.Channel.Value);
-        }
 
         if (!string.IsNullOrWhiteSpace(query.SenderRole))
         {
             notificationsQuery = notificationsQuery.Where(n => n.SenderRole == query.SenderRole);
+        }
+
+        if (query.Channel.HasValue)
+        {
+            notificationsQuery = notificationsQuery.Where(n => n.Channel == query.Channel.Value);
         }
 
         if (query.BranchId.HasValue)

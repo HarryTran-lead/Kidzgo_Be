@@ -19,6 +19,7 @@ using Kidzgo.Application.Sessions.GetStudentTimetable;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Media;
+using Kidzgo.Domain.ProgramProgressions;
 using Kidzgo.Domain.Reports;
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Users;
@@ -646,9 +647,9 @@ public class StudentController : ControllerBase
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus? parsedStatus = null;
+        ProgramProgressionAssessmentStatus? parsedStatus = null;
         if (!string.IsNullOrWhiteSpace(status) &&
-            Enum.TryParse<Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus>(status, true, out var tmpStatus))
+            Enum.TryParse<ProgramProgressionAssessmentStatus>(status, true, out var tmpStatus))
         {
             parsedStatus = tmpStatus;
         }

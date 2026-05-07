@@ -23,9 +23,11 @@ using Kidzgo.Application.Users.GetCurrentUser;
 using Kidzgo.Application.Users.GetParentOverview;
 using Kidzgo.Application.Users.UpdateCurrentUser;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Exams;
 using Kidzgo.Domain.Finance;
 using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Media;
+using Kidzgo.Domain.ProgramProgressions;
 using Kidzgo.Domain.Reports;
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Users;
@@ -234,9 +236,9 @@ public class ParentController : ControllerBase
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        Kidzgo.Domain.Exams.ExamType? parsedExamType = null;
+        ExamType? parsedExamType = null;
         if (!string.IsNullOrWhiteSpace(examType) &&
-            Enum.TryParse<Kidzgo.Domain.Exams.ExamType>(examType, true, out var parsed))
+            Enum.TryParse<ExamType>(examType, true, out var parsed))
         {
             parsedExamType = parsed;
         }
@@ -748,9 +750,9 @@ public class ParentController : ControllerBase
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus? parsedStatus = null;
+        ProgramProgressionAssessmentStatus? parsedStatus = null;
         if (!string.IsNullOrWhiteSpace(status) &&
-            Enum.TryParse<Kidzgo.Domain.ProgramProgressions.ProgramProgressionAssessmentStatus>(status, true, out var tmpStatus))
+            Enum.TryParse<ProgramProgressionAssessmentStatus>(status, true, out var tmpStatus))
         {
             parsedStatus = tmpStatus;
         }

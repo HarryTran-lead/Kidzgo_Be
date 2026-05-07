@@ -556,8 +556,8 @@ public class GamificationController : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        Kidzgo.Domain.Gamification.RedemptionStatus? redemptionStatus = null;
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<Kidzgo.Domain.Gamification.RedemptionStatus>(status, true, out var parsedStatus))
+        RedemptionStatus? redemptionStatus = null;
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<RedemptionStatus>(status, true, out var parsedStatus))
         {
             redemptionStatus = parsedStatus;
         }

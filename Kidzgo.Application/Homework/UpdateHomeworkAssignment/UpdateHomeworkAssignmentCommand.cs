@@ -21,6 +21,7 @@ public sealed class UpdateHomeworkAssignmentCommand : ICommand<UpdateHomeworkAss
     public Guid Id { get; init; }
     public string? Title { get; init; }
     public string? Description { get; init; }
+    public DateTime? StartDate { get; init; }
     public DateTime? DueAt { get; init; }
     public string? Book { get; init; }
     public string? Pages { get; init; }

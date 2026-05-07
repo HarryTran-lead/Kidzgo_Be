@@ -141,12 +141,12 @@ public sealed class GetSessionReportsQueryHandler(
 
         if (query.FromDate.HasValue)
         {
-            reportsQuery = reportsQuery.Where(sr => sr.ReportDate >= query.FromDate.Value);
+            reportsQuery = reportsQuery.Where(sr => sr.Session.PlannedDatetime >= query.FromDate.Value);
         }
 
         if (query.ToDate.HasValue)
         {
-            reportsQuery = reportsQuery.Where(sr => sr.ReportDate <= query.ToDate.Value);
+            reportsQuery = reportsQuery.Where(sr => sr.Session.PlannedDatetime <= query.ToDate.Value);
         }
 
         if (query.Status.HasValue)

@@ -85,8 +85,8 @@ public class SessionReportController : ControllerBase
         [FromQuery] Guid? studentProfileId,
         [FromQuery] Guid? teacherUserId,
         [FromQuery] Guid? classId,
-        [FromQuery] DateOnly? fromDate,
-        [FromQuery] DateOnly? toDate,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)

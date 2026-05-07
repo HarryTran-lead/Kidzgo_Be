@@ -19,4 +19,5 @@ public sealed class UpdateProgramProgressionRuleCommand : ICommand<ProgramProgre
     public string? Notes { get; init; }
     public IReadOnlyCollection<ProgramProgressionShieldRange> ShieldMappings { get; init; } = Array.Empty<ProgramProgressionShieldRange>();
     public IReadOnlyCollection<ProgramProgressionClassificationBand> ClassificationBands { get; init; } = Array.Empty<ProgramProgressionClassificationBand>();
+    public IReadOnlyCollection<PracticeTestScoreMapping> PracticeTestScoreMappings { get; init; } = Array.Empty<PracticeTestScoreMapping>();
 }

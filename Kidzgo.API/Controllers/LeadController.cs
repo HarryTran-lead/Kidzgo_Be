@@ -14,6 +14,7 @@ using Kidzgo.Application.Leads.GetLeads;
 using Kidzgo.Application.Leads.UpdateLead;
 using Kidzgo.Application.Leads.UpdateLeadChild;
 using Kidzgo.Application.Leads.UpdateLeadStatus;
+using Kidzgo.Domain.CRM;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,7 +47,7 @@ public class LeadController : ControllerBase
     {
         var command = new CreateLeadCommand
         {
-            Source = Kidzgo.Domain.CRM.LeadSource.Landing, // Tự động set source = Landing cho form web
+            Source = LeadSource.Landing, // Tự động set source = Landing cho form web
             ContactName = request.ContactName,
             Phone = request.Phone,
             ZaloId = request.ZaloId,
@@ -114,10 +115,10 @@ public class LeadController : ControllerBase
     {
         var query = new GetLeadsQuery
         {
-            Status = !string.IsNullOrWhiteSpace(status) && Enum.TryParse<Kidzgo.Domain.CRM.LeadStatus>(status, true, out var statusEnum)
+            Status = !string.IsNullOrWhiteSpace(status) && Enum.TryParse<LeadStatus>(status, true, out var statusEnum)
                 ? statusEnum
                 : null,
-            Source = !string.IsNullOrWhiteSpace(source) && Enum.TryParse<Kidzgo.Domain.CRM.LeadSource>(source, true, out var sourceEnum)
+            Source = !string.IsNullOrWhiteSpace(source) && Enum.TryParse<LeadSource>(source, true, out var sourceEnum)
                 ? sourceEnum
                 : null,
             OwnerStaffId = ownerStaffId,
@@ -300,8 +301,8 @@ public class LeadController : ControllerBase
     [Authorize(Roles = "Admin,ManagementStaff,AccountantStaff")]
     public IResult GetLeadStatuses()
     {
-        var statuses = Enum.GetValues(typeof(Kidzgo.Domain.CRM.LeadStatus))
-            .Cast<Kidzgo.Domain.CRM.LeadStatus>()
+        var statuses = Enum.GetValues(typeof(LeadStatus))
+            .Cast<LeadStatus>()
             .Select(s => s.ToString())
             .ToList();
 

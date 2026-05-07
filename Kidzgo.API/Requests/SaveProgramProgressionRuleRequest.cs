@@ -17,4 +17,5 @@ public sealed class SaveProgramProgressionRuleRequest
     public string? Notes { get; set; }
     public List<ProgramProgressionShieldRange> ShieldMappings { get; set; } = new();
     public List<ProgramProgressionClassificationBand> ClassificationBands { get; set; } = new();
+    public List<PracticeTestScoreMapping> PracticeTestScoreMappings { get; set; } = new();
 }

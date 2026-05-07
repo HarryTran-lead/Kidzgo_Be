@@ -17,6 +17,7 @@ public class ProgramProgressionRule : Entity
     public bool IsActive { get; set; } = true;
     public string? ShieldMappingJson { get; set; }
     public string? ClassificationBandsJson { get; set; }
+    public string? PracticeTestScoreMappingsJson { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

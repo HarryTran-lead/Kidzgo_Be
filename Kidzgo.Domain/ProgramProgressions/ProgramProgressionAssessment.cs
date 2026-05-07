@@ -21,6 +21,10 @@ public class ProgramProgressionAssessment : Entity
     public ProgramProgressionMethod Method { get; set; }
     public ProgramProgressionAssessmentStatus Status { get; set; }
     public bool? PassedInClass { get; set; }
+    public int? ListeningPracticeScore { get; set; }
+    public int? SpeakingPracticeScore { get; set; }
+    public int? ReadingPracticeScore { get; set; }
+    public int? WritingPracticeScore { get; set; }
     public decimal? ListeningScore { get; set; }
     public decimal? SpeakingScore { get; set; }
     public decimal? ReadingWritingScore { get; set; }

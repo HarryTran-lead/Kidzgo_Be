@@ -85,6 +85,7 @@ public sealed class CreateProgramProgressionRuleCommandHandler(
             Notes = string.IsNullOrWhiteSpace(command.Notes) ? null : command.Notes.Trim(),
             ShieldMappingJson = ProgramProgressionRuleDefinition.SerializeShieldMappings(command.ShieldMappings),
             ClassificationBandsJson = ProgramProgressionRuleDefinition.SerializeClassificationBands(command.ClassificationBands),
+            PracticeTestScoreMappingsJson = ProgramProgressionRuleDefinition.SerializePracticeTestScoreMappings(command.PracticeTestScoreMappings),
             CreatedAt = now,
             UpdatedAt = now,
             SourceProgram = sourceProgram,

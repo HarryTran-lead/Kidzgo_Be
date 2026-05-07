@@ -8,6 +8,10 @@ public sealed class UpdateProgramProgressionAssessmentCommand : ICommand<Program
     public Guid Id { get; init; }
     public DateTime? AssessmentDate { get; init; }
     public bool? PassedInClass { get; init; }
+    public int? ListeningPracticeScore { get; init; }
+    public int? SpeakingPracticeScore { get; init; }
+    public int? ReadingPracticeScore { get; init; }
+    public int? WritingPracticeScore { get; init; }
     public decimal? ListeningScore { get; init; }
     public decimal? SpeakingScore { get; init; }
     public decimal? ReadingWritingScore { get; init; }

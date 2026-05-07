@@ -19,6 +19,7 @@ public sealed class ProgramProgressionRuleDto
     public string? Notes { get; init; }
     public IReadOnlyList<ProgramProgressionShieldRange> ShieldMappings { get; init; } = Array.Empty<ProgramProgressionShieldRange>();
     public IReadOnlyList<ProgramProgressionClassificationBand> ClassificationBands { get; init; } = Array.Empty<ProgramProgressionClassificationBand>();
+    public IReadOnlyList<PracticeTestScoreMapping> PracticeTestScoreMappings { get; init; } = Array.Empty<PracticeTestScoreMapping>();
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
 }
@@ -43,6 +44,10 @@ public sealed class ProgramProgressionAssessmentDto
     public ProgramProgressionMethod Method { get; init; }
     public ProgramProgressionAssessmentStatus Status { get; init; }
     public bool? PassedInClass { get; init; }
+    public int? ListeningPracticeScore { get; init; }
+    public int? SpeakingPracticeScore { get; init; }
+    public int? ReadingPracticeScore { get; init; }
+    public int? WritingPracticeScore { get; init; }
     public decimal? ListeningScore { get; init; }
     public decimal? SpeakingScore { get; init; }
     public decimal? ReadingWritingScore { get; init; }
@@ -139,6 +144,7 @@ internal static class ProgramProgressionDtoMapper
             Notes = rule.Notes,
             ShieldMappings = ProgramProgressionRuleDefinition.DeserializeShieldMappings(rule.ShieldMappingJson),
             ClassificationBands = ProgramProgressionRuleDefinition.DeserializeClassificationBands(rule.ClassificationBandsJson),
+            PracticeTestScoreMappings = ProgramProgressionRuleDefinition.DeserializePracticeTestScoreMappings(rule.PracticeTestScoreMappingsJson),
             CreatedAt = rule.CreatedAt,
             UpdatedAt = rule.UpdatedAt
         };
@@ -169,6 +175,10 @@ internal static class ProgramProgressionDtoMapper
             Method = assessment.Method,
             Status = assessment.Status,
             PassedInClass = assessment.PassedInClass,
+            ListeningPracticeScore = assessment.ListeningPracticeScore,
+            SpeakingPracticeScore = assessment.SpeakingPracticeScore,
+            ReadingPracticeScore = assessment.ReadingPracticeScore,
+            WritingPracticeScore = assessment.WritingPracticeScore,
             ListeningScore = assessment.ListeningScore,
             SpeakingScore = assessment.SpeakingScore,
             ReadingWritingScore = assessment.ReadingWritingScore,

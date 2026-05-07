@@ -336,6 +336,7 @@ public class HomeworkController : ControllerBase
             Id = id,
             Title = request.Title,
             Description = request.Description,
+            StartDate = request.StartDate,
             DueAt = request.DueAt,
             Book = request.Book,
             Pages = request.Pages,

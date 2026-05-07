@@ -112,6 +112,11 @@ public sealed class UpdateHomeworkAssignmentCommandHandler(
             homework.DueAt = dueAtUtc;
         }
 
+        if (command.StartDate.HasValue)
+        {
+            homework.StartDate = VietnamTime.NormalizeToUtc(command.StartDate);
+        }
+
         if (command.Book != null)
         {
             homework.Book = command.Book;
@@ -304,6 +309,7 @@ public sealed class UpdateHomeworkAssignmentCommandHandler(
         {
             Id = homework.Id,
             Title = homework.Title,
+            StartDate = homework.StartDate,
             DueAt = homework.DueAt
         };
     }

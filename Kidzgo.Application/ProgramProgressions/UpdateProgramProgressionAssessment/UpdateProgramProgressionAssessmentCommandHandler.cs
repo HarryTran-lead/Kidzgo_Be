@@ -74,15 +74,58 @@ public sealed class UpdateProgramProgressionAssessmentCommandHandler(
             }
         }
 
+        // Convert Practice Scores to Cambridge Scale if provided
+        decimal? listeningScore = command.ListeningScore;
+        decimal? speakingScore = command.SpeakingScore;
+        decimal? readingScore = command.ReadingScore;
+        decimal? writingScore = command.WritingScore;
+
+        if (assessment.Rule.Method == ProgramProgressionMethod.CambridgeScale)
+        {
+            var practiceTestMappings = ProgramProgressionRuleDefinition.DeserializePracticeTestScoreMappings(assessment.Rule.PracticeTestScoreMappingsJson);
+
+            if (command.ListeningPracticeScore.HasValue)
+            {
+                listeningScore = ProgramProgressionRuleDefinition.ConvertPracticeScoreToCambridgeScale(
+                    command.ListeningPracticeScore.Value,
+                    ProgramProgressionSkillType.Listening,
+                    practiceTestMappings);
+            }
+
+            if (command.SpeakingPracticeScore.HasValue)
+            {
+                speakingScore = ProgramProgressionRuleDefinition.ConvertPracticeScoreToCambridgeScale(
+                    command.SpeakingPracticeScore.Value,
+                    ProgramProgressionSkillType.Speaking,
+                    practiceTestMappings);
+            }
+
+            if (command.ReadingPracticeScore.HasValue)
+            {
+                readingScore = ProgramProgressionRuleDefinition.ConvertPracticeScoreToCambridgeScale(
+                    command.ReadingPracticeScore.Value,
+                    ProgramProgressionSkillType.Reading,
+                    practiceTestMappings);
+            }
+
+            if (command.WritingPracticeScore.HasValue)
+            {
+                writingScore = ProgramProgressionRuleDefinition.ConvertPracticeScoreToCambridgeScale(
+                    command.WritingPracticeScore.Value,
+                    ProgramProgressionSkillType.Writing,
+                    practiceTestMappings);
+            }
+        }
+
         var evaluationResult = evaluationService.Evaluate(
             assessment.Rule,
             new ProgramProgressionAssessmentInput(
                 command.PassedInClass,
-                command.ListeningScore,
-                command.SpeakingScore,
+                listeningScore,
+                speakingScore,
                 command.ReadingWritingScore,
-                command.ReadingScore,
-                command.WritingScore));
+                readingScore,
+                writingScore));
         if (evaluationResult.IsFailure)
         {
             return Result.Failure<ProgramProgressionAssessmentDto>(evaluationResult.Error);
@@ -91,11 +134,15 @@ public sealed class UpdateProgramProgressionAssessmentCommandHandler(
         var computed = evaluationResult.Value;
         assessment.AssessmentDate = command.AssessmentDate ?? assessment.AssessmentDate;
         assessment.PassedInClass = command.PassedInClass;
-        assessment.ListeningScore = command.ListeningScore;
-        assessment.SpeakingScore = command.SpeakingScore;
+        assessment.ListeningPracticeScore = command.ListeningPracticeScore;
+        assessment.SpeakingPracticeScore = command.SpeakingPracticeScore;
+        assessment.ReadingPracticeScore = command.ReadingPracticeScore;
+        assessment.WritingPracticeScore = command.WritingPracticeScore;
+        assessment.ListeningScore = listeningScore;
+        assessment.SpeakingScore = speakingScore;
         assessment.ReadingWritingScore = command.ReadingWritingScore;
-        assessment.ReadingScore = command.ReadingScore;
-        assessment.WritingScore = command.WritingScore;
+        assessment.ReadingScore = readingScore;
+        assessment.WritingScore = writingScore;
         assessment.OverallScore = computed.OverallScore;
         assessment.ListeningShieldCount = computed.ListeningShieldCount;
         assessment.SpeakingShieldCount = computed.SpeakingShieldCount;

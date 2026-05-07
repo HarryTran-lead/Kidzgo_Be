@@ -83,7 +83,8 @@ public class ProgramProgressionController : ControllerBase
             IsActive = request.IsActive,
             Notes = request.Notes,
             ShieldMappings = request.ShieldMappings,
-            ClassificationBands = request.ClassificationBands
+            ClassificationBands = request.ClassificationBands,
+            PracticeTestScoreMappings = request.PracticeTestScoreMappings
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -111,7 +112,8 @@ public class ProgramProgressionController : ControllerBase
             IsActive = request.IsActive,
             Notes = request.Notes,
             ShieldMappings = request.ShieldMappings,
-            ClassificationBands = request.ClassificationBands
+            ClassificationBands = request.ClassificationBands,
+            PracticeTestScoreMappings = request.PracticeTestScoreMappings
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -330,6 +332,10 @@ public class ProgramProgressionController : ControllerBase
             ScheduleParticipantId = request.ScheduleParticipantId,
             AssessmentDate = request.AssessmentDate,
             PassedInClass = request.PassedInClass,
+            ListeningPracticeScore = request.ListeningPracticeScore,
+            SpeakingPracticeScore = request.SpeakingPracticeScore,
+            ReadingPracticeScore = request.ReadingPracticeScore,
+            WritingPracticeScore = request.WritingPracticeScore,
             ListeningScore = request.ListeningScore,
             SpeakingScore = request.SpeakingScore,
             ReadingWritingScore = request.ReadingWritingScore,
@@ -355,6 +361,10 @@ public class ProgramProgressionController : ControllerBase
             Id = id,
             AssessmentDate = request.AssessmentDate,
             PassedInClass = request.PassedInClass,
+            ListeningPracticeScore = request.ListeningPracticeScore,
+            SpeakingPracticeScore = request.SpeakingPracticeScore,
+            ReadingPracticeScore = request.ReadingPracticeScore,
+            WritingPracticeScore = request.WritingPracticeScore,
             ListeningScore = request.ListeningScore,
             SpeakingScore = request.SpeakingScore,
             ReadingWritingScore = request.ReadingWritingScore,

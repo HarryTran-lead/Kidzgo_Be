@@ -38,6 +38,11 @@ internal static class ProgramProgressionRuleDefinition
             ? null
             : JsonSerializer.Serialize(bands, JsonOptions);
 
+    public static string? SerializePracticeTestScoreMappings(IReadOnlyCollection<PracticeTestScoreMapping>? mappings)
+        => mappings is null || mappings.Count == 0
+            ? null
+            : JsonSerializer.Serialize(mappings, JsonOptions);
+
     public static IReadOnlyList<ProgramProgressionShieldRange> DeserializeShieldMappings(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -60,6 +65,18 @@ internal static class ProgramProgressionRuleDefinition
         return JsonSerializer.Deserialize<List<ProgramProgressionClassificationBand>>(json, JsonOptions) is { } bands
             ? bands
             : Array.Empty<ProgramProgressionClassificationBand>();
+    }
+
+    public static IReadOnlyList<PracticeTestScoreMapping> DeserializePracticeTestScoreMappings(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Array.Empty<PracticeTestScoreMapping>();
+        }
+
+        return JsonSerializer.Deserialize<List<PracticeTestScoreMapping>>(json, JsonOptions) is { } mappings
+            ? mappings
+            : Array.Empty<PracticeTestScoreMapping>();
     }
 
     public static Result Validate(
@@ -143,6 +160,21 @@ internal static class ProgramProgressionRuleDefinition
             .FirstOrDefault(band =>
                 score >= band.MinScore &&
                 (!band.MaxScore.HasValue || score <= band.MaxScore.Value));
+    }
+
+    public static decimal? ConvertPracticeScoreToCambridgeScale(
+        int practiceScore,
+        ProgramProgressionSkillType skillType,
+        IReadOnlyCollection<PracticeTestScoreMapping> mappings)
+    {
+        var mapping = mappings
+            .Where(m => m.SkillType == skillType)
+            .OrderBy(m => m.MinPracticeScore)
+            .FirstOrDefault(m =>
+                practiceScore >= m.MinPracticeScore &&
+                practiceScore <= m.MaxPracticeScore);
+
+        return mapping?.CambridgeScaleScore;
     }
 
     private static Result ValidateShieldRule(

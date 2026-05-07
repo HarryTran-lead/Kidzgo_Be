@@ -95,6 +95,7 @@ public sealed class UpdateProgramProgressionRuleCommandHandler(
         rule.Notes = string.IsNullOrWhiteSpace(command.Notes) ? null : command.Notes.Trim();
         rule.ShieldMappingJson = ProgramProgressionRuleDefinition.SerializeShieldMappings(command.ShieldMappings);
         rule.ClassificationBandsJson = ProgramProgressionRuleDefinition.SerializeClassificationBands(command.ClassificationBands);
+        rule.PracticeTestScoreMappingsJson = ProgramProgressionRuleDefinition.SerializePracticeTestScoreMappings(command.PracticeTestScoreMappings);
         rule.SourceProgram = sourceProgram;
         rule.TargetProgram = targetProgram;
         rule.UpdatedAt = VietnamTime.UtcNow();

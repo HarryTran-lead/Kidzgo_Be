@@ -9,6 +9,10 @@ public sealed class SaveProgramProgressionAssessmentRequest
     public Guid? ScheduleParticipantId { get; set; }
     public DateTime? AssessmentDate { get; set; }
     public bool? PassedInClass { get; set; }
+    public int? ListeningPracticeScore { get; set; }
+    public int? SpeakingPracticeScore { get; set; }
+    public int? ReadingPracticeScore { get; set; }
+    public int? WritingPracticeScore { get; set; }
     public decimal? ListeningScore { get; set; }
     public decimal? SpeakingScore { get; set; }
     public decimal? ReadingWritingScore { get; set; }

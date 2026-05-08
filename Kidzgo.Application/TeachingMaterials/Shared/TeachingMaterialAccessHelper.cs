@@ -27,7 +27,7 @@ internal static class TeachingMaterialAccessHelper
         var studentProfileId = await ResolveStudentProfileIdAsync(context, userContext, user.Role, cancellationToken);
         if (!studentProfileId.HasValue)
         {
-            return user.Role == UserRole.Student ? query.Where(_ => false) : query;
+            return user.Role == UserRole.Parent ? query.Where(_ => false) : query;
         }
 
         var enrolledProgramIds = context.ClassEnrollments
@@ -57,7 +57,7 @@ internal static class TeachingMaterialAccessHelper
         var studentProfileId = await ResolveStudentProfileIdAsync(context, userContext, user.Role, cancellationToken);
         if (!studentProfileId.HasValue)
         {
-            return user.Role != UserRole.Student;
+            return user.Role != UserRole.Parent;
         }
 
         return await context.ClassEnrollments
@@ -91,7 +91,7 @@ internal static class TeachingMaterialAccessHelper
             return userContext.StudentId.Value;
         }
 
-        if (role != UserRole.Student)
+        if (role != UserRole.Parent)
         {
             return null;
         }

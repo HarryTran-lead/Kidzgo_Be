@@ -78,14 +78,26 @@ public static class CustomResults
 
         static Dictionary<string, object?>? GetErrors(Result result)
         {
-            if (result.Error is not ValidationError validationError)
+            if (result.Error is ValidationError validationError)
             {
-                return null;
+                return new Dictionary<string, object?>
+                {
+                    { "errors", validationError.Errors }
+                };
             }
 
+            // For non-validation errors (Conflict, NotFound, etc.), return a single error with the description
             return new Dictionary<string, object?>
             {
-                { "errors", validationError.Errors }
+                { "errors", new[]
+                    {
+                        new
+                        {
+                            code = result.Error.Code,
+                            description = result.Error.Description
+                        }
+                    }
+                }
             };
         }
     }

@@ -79,7 +79,7 @@ public static class PlacementTestErrors
 
     public static Error ActivePlacementTestAlreadyExistsForChild(Guid leadChildId) => Error.Conflict(
         "PlacementTest.ActivePlacementTestAlreadyExistsForChild",
-        $"The child with LeadChildId = '{leadChildId}' already has a scheduled placement test.");
+        $"This child already has a scheduled placement test. It's not possible to schedule another placement test while one is still on hold. LeadChildId = '{leadChildId}'");
 
     public static Error ActivePlacementTestAlreadyExistsForStudent(Guid studentProfileId) => Error.Conflict(
         "PlacementTest.ActivePlacementTestAlreadyExistsForStudent",

@@ -73,7 +73,6 @@ public sealed class MonthlyReportPublishedEventHandler(
         }).ToList();
 
         context.Notifications.AddRange(notifications);
-        await context.SaveChangesAsync(cancellationToken);
 
         // Raise domain events for each notification (will be handled by infrastructure)
         foreach (var notificationRecord in notifications)

@@ -51,7 +51,7 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .IsRequired();
 
         builder.Property(x => x.WeeklyScheduleJson)
-            .HasColumnName("SchedulePattern");
+            .IsRequired();
 
         builder.Property(x => x.Description);
 

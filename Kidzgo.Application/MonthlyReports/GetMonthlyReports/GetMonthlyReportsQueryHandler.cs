@@ -101,7 +101,7 @@ public sealed class GetMonthlyReportsQueryHandler(
         
         // Student-only restriction should only apply to student users, not parent users
         // who may also have a student profile under the same login.
-        if (currentUser.Role == UserRole.Student)
+        if (currentUser.Role == UserRole.Parent)
         {
             var studentProfile = await context.Profiles
                 .FirstOrDefaultAsync(

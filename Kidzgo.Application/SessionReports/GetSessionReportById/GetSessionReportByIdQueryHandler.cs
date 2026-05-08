@@ -91,7 +91,7 @@ public sealed class GetSessionReportByIdQueryHandler(
                     Error.Validation("SessionReport.NotPublished", "This report is not published yet"));
             }
         }
-        else if (currentUser.Role == UserRole.Student)
+        else if (currentUser.Role == UserRole.Parent)
         {
             var studentProfile = await context.Profiles
                 .FirstOrDefaultAsync(

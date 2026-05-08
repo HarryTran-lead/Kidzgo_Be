@@ -35,7 +35,7 @@ public static class MediaReadAccessHelper
             return query.Where(_ => false);
         }
 
-        if (role is not (UserRole.Student or UserRole.Parent))
+        if (role is not (UserRole.Parent))
         {
             if (requestedStudentProfileId.HasValue)
             {
@@ -61,7 +61,7 @@ public static class MediaReadAccessHelper
             media.ApprovalStatus == ApprovalStatus.Approved &&
             media.IsPublished);
 
-        query = role == UserRole.Student
+        query = role == UserRole.Parent
             ? query.Where(media => media.Visibility != Visibility.PublicParent)
             : query;
 
@@ -105,7 +105,7 @@ public static class MediaReadAccessHelper
             return false;
         }
 
-        if (role is not (UserRole.Student or UserRole.Parent))
+        if (role is not (UserRole.Parent))
         {
             return true;
         }
@@ -169,7 +169,7 @@ public static class MediaReadAccessHelper
 
         if (media.ApprovalStatus != ApprovalStatus.Approved ||
             !media.IsPublished ||
-            !CanRoleReadVisibility(UserRole.Student, media.Visibility))
+            !CanRoleReadVisibility(UserRole.Parent, media.Visibility))
         {
             return false;
         }
@@ -210,7 +210,7 @@ public static class MediaReadAccessHelper
         Guid? requestedStudentProfileId,
         CancellationToken cancellationToken)
     {
-        if (role == UserRole.Student)
+        if (role == UserRole.Parent)
         {
             var studentProfileId = userContext.StudentId ?? await context.Profiles
                 .AsNoTracking()

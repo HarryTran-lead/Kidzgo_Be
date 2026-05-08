@@ -32,20 +32,7 @@ public sealed class GetMyProgramProgressionSchedulesQueryHandler(
             case UserRole.Teacher:
                 schedulesQuery = schedulesQuery.Where(schedule => schedule.AssignedTeacherUserId == userContext.UserId);
                 break;
-
-            case UserRole.Student:
-                if (!userContext.StudentId.HasValue)
-                {
-                    return Result.Failure<GetMyProgramProgressionSchedulesResponse>(
-                        Error.NotFound("StudentProfile", "Student profile not found in token."));
-                }
-
-                schedulesQuery = schedulesQuery.Where(schedule =>
-                    schedule.Participants.Any(participant => participant.StudentProfileId == userContext.StudentId.Value));
-                participantFilter = participant => participant.StudentProfileId == userContext.StudentId.Value;
-                visibleStudentIds = [userContext.StudentId.Value];
-                break;
-
+            
             case UserRole.Parent:
                 if (!userContext.ParentId.HasValue)
                 {

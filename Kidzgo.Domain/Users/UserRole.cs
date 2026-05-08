@@ -6,6 +6,5 @@ public enum UserRole
     ManagementStaff,
     AccountantStaff,
     Teacher,
-    Student,
     Parent
 }

@@ -25,7 +25,7 @@ public sealed class GetLeaveRequestsQueryHandler(
                 .Select(u => u.Role)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (currentUserRole is UserRole.Parent or UserRole.Student)
+            if (currentUserRole is UserRole.Parent)
             {
                 if (!userContext.StudentId.HasValue)
                 {

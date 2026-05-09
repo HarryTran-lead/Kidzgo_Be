@@ -74,42 +74,26 @@ public sealed class HttpAiReportGenerator : IAiReportGenerator
         }
         else
         {
-            if (notesElement.TryGetProperty("sessionReports", out var sessionReportsElement) ||
-                notesElement.TryGetProperty("SessionReports", out sessionReportsElement))
+            if (TryGetProperty(notesElement, "sessionReports", "SessionReports", out var sessionReportsElement) &&
+                sessionReportsElement.ValueKind == JsonValueKind.Array)
             {
                 foreach (var report in sessionReportsElement.EnumerateArray())
                 {
-                    string? feedback = null;
-                    
-                    if (report.TryGetProperty("feedback", out var feedbackElement))
-                    {
-                        feedback = feedbackElement.GetString();
-                    }
-                    else if (report.TryGetProperty("Feedback", out feedbackElement))
-                    {
-                        feedback = feedbackElement.GetString();
-                    }
+                    var feedback = TryGetProperty(report, "feedback", "Feedback", out var feedbackElement)
+                        ? ReadFlexibleString(feedbackElement)
+                        : null;
 
                     if (!string.IsNullOrWhiteSpace(feedback))
                     {
-                        string? reportDate = null;
-                        
-                        if (report.TryGetProperty("reportDate", out var dateElement))
-                        {
-                            reportDate = dateElement.GetString();
-                        }
-                        else if (report.TryGetProperty("sessionDate", out var sessionDateElement))
-                        {
-                            reportDate = sessionDateElement.GetString();
-                        }
-                        else if (report.TryGetProperty("ReportDate", out dateElement))
-                        {
-                            reportDate = dateElement.GetString();
-                        }
-                        else if (report.TryGetProperty("SessionDate", out sessionDateElement))
-                        {
-                            reportDate = sessionDateElement.GetString();
-                        }
+                        var reportDate =
+                            TryGetProperty(report, "reportDate", "ReportDate", out var dateElement)
+                                ? ReadFlexibleString(dateElement)
+                                : null;
+
+                        reportDate ??=
+                            TryGetProperty(report, "sessionDate", "SessionDate", out var sessionDateElement)
+                                ? ReadFlexibleString(sessionDateElement)
+                                : null;
 
                         sessionFeedbacks.Add(new A6SessionFeedback
                         {
@@ -172,19 +156,19 @@ public sealed class HttpAiReportGenerator : IAiReportGenerator
                 Tests = new List<A6TestResult>()
             };
 
-            if (testElement.TryGetProperty("tests", out var testsElement) ||
-                testElement.TryGetProperty("Tests", out testsElement))
+            if (TryGetProperty(testElement, "tests", "Tests", out var testsElement) &&
+                testsElement.ValueKind == JsonValueKind.Array)
             {
                 foreach (var test in testsElement.EnumerateArray())
                 {
                     testData.Tests.Add(new A6TestResult
                     {
-                        ExamId = test.TryGetProperty("examId", out var eid) ? eid.GetString() ?? "" : "",
-                        Type = test.TryGetProperty("type", out var typ) ? typ.GetString() ?? "" : "",
+                        ExamId = test.TryGetProperty("examId", out var eid) ? ReadFlexibleString(eid) ?? "" : "",
+                        Type = test.TryGetProperty("type", out var typ) ? ReadFlexibleString(typ) ?? "" : "",
                         Score = test.TryGetProperty("score", out var sc) ? sc.GetSingle() : 0,
                         MaxScore = test.TryGetProperty("maxScore", out var ms) ? ms.GetSingle() : 0,
-                        Date = test.TryGetProperty("date", out var dt) ? dt.GetString() ?? "" : "",
-                        Comment = test.TryGetProperty("comment", out var cm) ? cm.GetString() : null
+                        Date = test.TryGetProperty("date", out var dt) ? ReadFlexibleString(dt) ?? "" : "",
+                        Comment = test.TryGetProperty("comment", out var cm) ? ReadFlexibleString(cm) : null
                     });
                 }
             }
@@ -202,7 +186,7 @@ public sealed class HttpAiReportGenerator : IAiReportGenerator
                 InProgress = missionElement.TryGetProperty("inProgress", out var ip) ? ip.GetInt32() : 0,
                 Stars = missionElement.TryGetProperty("stars", out var s) ? s.GetInt32() : 0,
                 Xp = missionElement.TryGetProperty("xp", out var x) ? x.GetInt32() : 0,
-                CurrentLevel = missionElement.TryGetProperty("currentLevel", out var cl) ? cl.GetString() ?? "0" : "0",
+                CurrentLevel = missionElement.TryGetProperty("currentLevel", out var cl) ? ReadFlexibleString(cl) ?? "0" : "0",
                 CurrentXp = missionElement.TryGetProperty("currentXp", out var cxp) ? cxp.GetInt32() : 0
             };
         }
@@ -219,22 +203,14 @@ public sealed class HttpAiReportGenerator : IAiReportGenerator
                 LessonContents = new List<string>()
             };
 
-            if (topicsElement.TryGetProperty("topics", out var topicsList) ||
-                topicsElement.TryGetProperty("Topics", out topicsList))
+            if (TryGetProperty(topicsElement, "topics", "Topics", out var topicsList))
             {
-                topicsData.Topics = topicsList.EnumerateArray()
-                    .Select(t => t.GetString() ?? "")
-                    .Where(t => !string.IsNullOrEmpty(t))
-                    .ToList();
+                topicsData.Topics = ReadJsonStringList(topicsList);
             }
 
-            if (topicsElement.TryGetProperty("lessonContents", out var contentsList) ||
-                topicsElement.TryGetProperty("LessonContents", out contentsList))
+            if (TryGetProperty(topicsElement, "lessonContents", "LessonContents", out var contentsList))
             {
-                topicsData.LessonContents = contentsList.EnumerateArray()
-                    .Select(c => c.GetString() ?? "")
-                    .Where(c => !string.IsNullOrEmpty(c))
-                    .ToList();
+                topicsData.LessonContents = ReadJsonStringList(contentsList);
             }
         }
 
@@ -404,66 +380,70 @@ public sealed class HttpAiReportGenerator : IAiReportGenerator
             {
                 try
                 {
-                    using var doc = JsonDocument.Parse(report.FinalContent);
-                    var root = doc.RootElement;
-
                     var recentReport = new A6RecentMonthlyReport
                     {
                         Month = $"{targetYear}-{targetMonth:D2}"
                     };
 
-                    // Case-insensitive property access
-                    if (root.TryGetProperty("sections", out var sections) ||
-                        root.TryGetProperty("Sections", out sections))
+                    using var doc = JsonDocument.Parse(report.FinalContent);
+                    var root = doc.RootElement;
+
+                    if (root.ValueKind == JsonValueKind.String)
                     {
-                        if (sections.TryGetProperty("overview", out var overview) ||
-                            sections.TryGetProperty("Overview", out overview))
+                        recentReport.Overview = root.GetString();
+                    }
+                    else if (root.ValueKind == JsonValueKind.Object)
+                    {
+                        if (TryGetProperty(root, "draft_text", "draftText", out var draftText))
                         {
-                            recentReport.Overview = overview.GetString();
+                            recentReport.Overview = ReadFlexibleString(draftText);
                         }
 
-                        if (sections.TryGetProperty("strengths", out var strengths) ||
-                            sections.TryGetProperty("Strengths", out strengths))
+                        if (TryGetProperty(root, "sections", "Sections", out var sections) &&
+                            sections.ValueKind == JsonValueKind.Object)
                         {
-                            recentReport.Strengths = strengths.EnumerateArray()
-                                .Select(s => s.GetString() ?? string.Empty)
-                                .Where(s => !string.IsNullOrEmpty(s))
-                                .ToList();
-                        }
+                            if (TryGetProperty(sections, "overview", "Overview", out var overview) ||
+                                TryGetProperty(sections, "study_attitude", "StudyAttitude", out overview))
+                            {
+                                recentReport.Overview = ReadFlexibleString(overview) ?? recentReport.Overview;
+                            }
 
-                        if (sections.TryGetProperty("improvements", out var improvements) ||
-                            sections.TryGetProperty("Improvements", out improvements))
-                        {
-                            recentReport.Improvements = improvements.EnumerateArray()
-                                .Select(s => s.GetString() ?? string.Empty)
-                                .Where(s => !string.IsNullOrEmpty(s))
-                                .ToList();
-                        }
+                            if (TryGetProperty(sections, "strengths", "Strengths", out var strengths))
+                            {
+                                recentReport.Strengths = ReadJsonStringList(strengths);
+                            }
 
-                        if (sections.TryGetProperty("highlights", out var highlights) ||
-                            sections.TryGetProperty("Highlights", out highlights))
-                        {
-                            recentReport.Highlights = highlights.EnumerateArray()
-                                .Select(s => s.GetString() ?? string.Empty)
-                                .Where(s => !string.IsNullOrEmpty(s))
-                                .ToList();
-                        }
+                            if (TryGetProperty(sections, "improvements", "Improvements", out var improvements))
+                            {
+                                recentReport.Improvements = ReadJsonStringList(improvements);
+                            }
 
-                        if (sections.TryGetProperty("goalsNextMonth", out var goals) ||
-                            sections.TryGetProperty("GoalsNextMonth", out goals))
-                        {
-                            recentReport.GoalsNextMonth = goals.EnumerateArray()
-                                .Select(s => s.GetString() ?? string.Empty)
-                                .Where(s => !string.IsNullOrEmpty(s))
-                                .ToList();
+                            if (TryGetProperty(sections, "highlights", "Highlights", out var highlights))
+                            {
+                                recentReport.Highlights = ReadJsonStringList(highlights);
+                            }
+
+                            if (TryGetProperty(sections, "goals_next_month", "GoalsNextMonth", out var goals) ||
+                                TryGetProperty(sections, "goalsNextMonth", "GoalsNextMonth", out goals))
+                            {
+                                recentReport.GoalsNextMonth = ReadJsonStringList(goals);
+                            }
                         }
                     }
 
-                    recentReports.Add(recentReport);
+                    if (HasRecentReportContent(recentReport))
+                    {
+                        recentReports.Add(recentReport);
+                    }
                 }
                 catch (JsonException)
                 {
                     // Skip invalid JSON
+                    continue;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Skip legacy content that does not match the expected JSON shape.
                     continue;
                 }
             }
@@ -472,19 +452,70 @@ public sealed class HttpAiReportGenerator : IAiReportGenerator
         return recentReports;
     }
 
+    private static bool TryGetProperty(JsonElement element, string primaryProperty, string fallbackProperty, out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object &&
+            (element.TryGetProperty(primaryProperty, out value) ||
+             element.TryGetProperty(fallbackProperty, out value)))
+        {
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
     private static List<string> ReadStringList(JsonElement element, string primaryProperty, string fallbackProperty)
     {
-        if (element.TryGetProperty(primaryProperty, out var valuesElement) ||
-            element.TryGetProperty(fallbackProperty, out valuesElement))
+        if (TryGetProperty(element, primaryProperty, fallbackProperty, out var valuesElement))
         {
-            return valuesElement.ValueKind == JsonValueKind.Array
-                ? valuesElement.EnumerateArray()
-                    .Select(item => item.GetString() ?? string.Empty)
-                    .Where(static item => !string.IsNullOrWhiteSpace(item))
-                    .ToList()
-                : new List<string>();
+            return ReadJsonStringList(valuesElement);
         }
 
         return new List<string>();
+    }
+
+    private static List<string> ReadJsonStringList(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var singleValue = element.GetString();
+            return string.IsNullOrWhiteSpace(singleValue)
+                ? new List<string>()
+                : new List<string> { singleValue };
+        }
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            return new List<string>();
+        }
+
+        return element.EnumerateArray()
+            .Select(ReadFlexibleString)
+            .Where(static item => !string.IsNullOrWhiteSpace(item))
+            .Select(static item => item!)
+            .ToList();
+    }
+
+    private static string? ReadFlexibleString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Null => null,
+            JsonValueKind.Undefined => null,
+            JsonValueKind.Object => element.GetRawText(),
+            JsonValueKind.Array => element.GetRawText(),
+            _ => element.ToString()
+        };
+    }
+
+    private static bool HasRecentReportContent(A6RecentMonthlyReport report)
+    {
+        return !string.IsNullOrWhiteSpace(report.Overview) ||
+               report.Strengths.Count > 0 ||
+               report.Improvements.Count > 0 ||
+               report.Highlights.Count > 0 ||
+               report.GoalsNextMonth.Count > 0;
     }
 }

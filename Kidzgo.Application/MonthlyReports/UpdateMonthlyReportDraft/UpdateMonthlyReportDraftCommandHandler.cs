@@ -62,23 +62,10 @@ public sealed class UpdateMonthlyReportDraftCommandHandler(
                 Error.Validation("MonthlyReport.Unauthorized", "You can only edit reports of your classes"));
         }
 
-        // Validate and ensure DraftContent is valid JSON
-        // If it's already valid JSON, use it; otherwise, wrap it as a JSON string
         string? validJsonContent = null;
         if (!string.IsNullOrWhiteSpace(command.DraftContent))
         {
-            // Try to parse as JSON to validate
-            try
-            {
-                JsonDocument.Parse(command.DraftContent);
-                // If parsing succeeds, it's valid JSON
-                validJsonContent = command.DraftContent;
-            }
-            catch (JsonException)
-            {
-                // If parsing fails, wrap the string as a JSON string value
-                validJsonContent = JsonSerializer.Serialize(command.DraftContent);
-            }
+            validJsonContent = NormalizeDraftContent(command.DraftContent, report.DraftContent);
         }
 
         report.DraftContent = validJsonContent;
@@ -100,6 +87,107 @@ public sealed class UpdateMonthlyReportDraftCommandHandler(
             Id = report.Id,
             DraftContent = report.DraftContent,
             UpdatedAt = report.UpdatedAt
+        };
+    }
+
+    private static string NormalizeDraftContent(string draftContent, string? existingContent)
+    {
+        try
+        {
+            using var draftDoc = JsonDocument.Parse(draftContent);
+
+            if (draftDoc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                return draftContent;
+            }
+
+            var normalizedText = ReadFlexibleString(draftDoc.RootElement) ?? draftContent;
+            return BuildStructuredDraftContent(normalizedText, existingContent);
+        }
+        catch (JsonException)
+        {
+            return BuildStructuredDraftContent(draftContent, existingContent);
+        }
+    }
+
+    private static string BuildStructuredDraftContent(string draftText, string? existingContent)
+    {
+        var aiUsed = false;
+        JsonElement? sections = null;
+
+        if (!string.IsNullOrWhiteSpace(existingContent))
+        {
+            try
+            {
+                using var existingDoc = JsonDocument.Parse(existingContent);
+                var root = existingDoc.RootElement;
+
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (TryGetProperty(root, "ai_used", "aiUsed", out var aiUsedElement) &&
+                        (aiUsedElement.ValueKind == JsonValueKind.True ||
+                         aiUsedElement.ValueKind == JsonValueKind.False))
+                    {
+                        aiUsed = aiUsedElement.GetBoolean();
+                    }
+
+                    if (TryGetProperty(root, "sections", "Sections", out var sectionsElement) &&
+                        sectionsElement.ValueKind == JsonValueKind.Object)
+                    {
+                        sections = sectionsElement.Clone();
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Ignore legacy malformed content and keep the plain draft text.
+            }
+        }
+
+        if (sections.HasValue)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                ai_used = aiUsed,
+                draft_text = draftText,
+                sections = sections.Value
+            });
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            ai_used = aiUsed,
+            draft_text = draftText
+        });
+    }
+
+    private static bool TryGetProperty(
+        JsonElement element,
+        string primaryProperty,
+        string fallbackProperty,
+        out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object &&
+            (element.TryGetProperty(primaryProperty, out value) ||
+             element.TryGetProperty(fallbackProperty, out value)))
+        {
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static string? ReadFlexibleString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Null => null,
+            JsonValueKind.Undefined => null,
+            JsonValueKind.Object => element.GetRawText(),
+            JsonValueKind.Array => element.GetRawText(),
+            _ => element.ToString()
         };
     }
 }

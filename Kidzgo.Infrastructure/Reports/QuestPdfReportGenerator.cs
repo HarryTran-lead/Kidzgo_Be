@@ -73,12 +73,20 @@ public sealed class QuestPdfReportGenerator : IPdfReportGenerator
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
 
-            // If it's AI response format, convert to HTML
-            if (root.TryGetProperty("draft_text", out var draftText))
+            if (root.ValueKind == JsonValueKind.String)
             {
-                return BuildHtmlFromDraftText(draftText.GetString() ?? "", studentName, month, year);
+                return BuildHtmlFromDraftText(root.GetString() ?? "", studentName, month, year);
             }
-            else if (root.TryGetProperty("sections", out var sections))
+
+            if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("draft_text", out var draftText))
+            {
+                return BuildHtmlFromDraftText(ReadFlexibleString(draftText) ?? "", studentName, month, year);
+            }
+
+            if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("sections", out var sections) &&
+                sections.ValueKind == JsonValueKind.Object)
             {
                 return BuildHtmlFromSections(sections, studentName, month, year);
             }
@@ -86,6 +94,10 @@ public sealed class QuestPdfReportGenerator : IPdfReportGenerator
         catch (JsonException)
         {
             // Not JSON, treat as plain HTML or text
+        }
+        catch (InvalidOperationException)
+        {
+            // Legacy JSON content may be a string root or another non-object shape.
         }
 
         // If content is plain text or HTML, wrap it
@@ -136,19 +148,28 @@ public sealed class QuestPdfReportGenerator : IPdfReportGenerator
         var monthName = new DateTime(year, month, 1).ToString("MMMM yyyy",
             new System.Globalization.CultureInfo("vi-VN"));
 
-        var overview = sections.TryGetProperty("overview", out var ov) ? ov.GetString() : "";
-        var strengths = sections.TryGetProperty("strengths", out var st) 
-            ? st.EnumerateArray().Select(s => s.GetString() ?? "").ToList() 
+        var overview =
+            sections.TryGetProperty("overview", out var ov)
+                ? ReadFlexibleString(ov)
+                : sections.TryGetProperty("study_attitude", out var studyAttitude)
+                    ? ReadFlexibleString(studyAttitude)
+                    : "";
+        var strengths = sections.TryGetProperty("strengths", out var st)
+            ? ReadJsonStringList(st)
             : new List<string>();
         var improvements = sections.TryGetProperty("improvements", out var imp)
-            ? imp.EnumerateArray().Select(s => s.GetString() ?? "").ToList()
+            ? ReadJsonStringList(imp)
             : new List<string>();
         var highlights = sections.TryGetProperty("highlights", out var hl)
-            ? hl.EnumerateArray().Select(s => s.GetString() ?? "").ToList()
-            : new List<string>();
+            ? ReadJsonStringList(hl)
+            : sections.TryGetProperty("progress_topics", out var progressTopics)
+                ? ReadJsonStringList(progressTopics)
+                : new List<string>();
         var goals = sections.TryGetProperty("goals_next_month", out var gl)
-            ? gl.EnumerateArray().Select(s => s.GetString() ?? "").ToList()
-            : new List<string>();
+            ? ReadJsonStringList(gl)
+            : sections.TryGetProperty("parent_support", out var parentSupport)
+                ? ReadJsonStringList(parentSupport)
+                : new List<string>();
 
         var strengthsHtml = string.Join("", strengths.Select(s => $"<li>{System.Net.WebUtility.HtmlEncode(s)}</li>"));
         var improvementsHtml = string.Join("", improvements.Select(s => $"<li>{System.Net.WebUtility.HtmlEncode(s)}</li>"));
@@ -203,6 +224,41 @@ public sealed class QuestPdfReportGenerator : IPdfReportGenerator
     </div>
 </body>
 </html>";
+    }
+
+    private static List<string> ReadJsonStringList(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var singleValue = element.GetString();
+            return string.IsNullOrWhiteSpace(singleValue)
+                ? new List<string>()
+                : new List<string> { singleValue };
+        }
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            return new List<string>();
+        }
+
+        return element.EnumerateArray()
+            .Select(ReadFlexibleString)
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Select(static value => value!)
+            .ToList();
+    }
+
+    private static string? ReadFlexibleString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Null => null,
+            JsonValueKind.Undefined => null,
+            JsonValueKind.Object => element.GetRawText(),
+            JsonValueKind.Array => element.GetRawText(),
+            _ => element.ToString()
+        };
     }
 
     private string BuildHtmlFromPlainText(string content, string studentName, int month, int year)

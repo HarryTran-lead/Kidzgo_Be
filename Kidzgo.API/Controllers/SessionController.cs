@@ -15,6 +15,7 @@ using Kidzgo.Application.Sessions.GetSessions;
 using Kidzgo.Application.Sessions.GenerateSessionsFromPattern;
 using Kidzgo.Application.Sessions.UpdateSession;
 using Kidzgo.Application.Sessions.UpdateSessionColor;
+using Kidzgo.Application.Sessions.UpdateSessionSectionType;
 using Kidzgo.Application.Sessions.UpdateSessionRole;
 using Kidzgo.Application.Sessions.GetSessionAvailability;
 using Kidzgo.Application.Sessions.UpdateSessionsByClass;
@@ -157,6 +158,31 @@ public class SessionController : ControllerBase
             PlannedAssistantId = request.PlannedAssistantId,
             ParticipationType = participationType,
             SectionType = sectionType
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Update section type for one session only.
+    /// Teacher can update only on the same Vietnam date as the session date.
+    [HttpPatch("{sessionId:guid}/section-type")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+    public async Task<IResult> UpdateSessionSectionType(
+        Guid sessionId,
+        [FromBody] UpdateSessionSectionTypeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<Domain.Sessions.SectionType>(request.SectionType, true, out var sectionType))
+        {
+            return CustomResults.Problem(Result.Failure(SessionErrors.InvalidSectionType(request.SectionType)));
+        }
+
+        var command = new UpdateSessionSectionTypeCommand
+        {
+            SessionId = sessionId,
+            SectionType = sectionType,
+            IsPrivilegedUser = User.IsInRole("Admin") || User.IsInRole("ManagementStaff")
         };
 
         var result = await _mediator.Send(command, cancellationToken);

@@ -80,6 +80,14 @@ public static class SessionErrors
         "Session.InvalidTeacherRole",
         $"Invalid teacher role: '{role}'. Valid values: MainTeacher, Assistant");
 
+    public static Error InvalidSectionType(string? sectionType) => Error.Validation(
+        "Session.InvalidSectionType",
+        $"Invalid section type: '{sectionType}'. Valid values: {string.Join(", ", Enum.GetNames<SectionType>())}");
+
+    public static Error TeacherCanOnlyChangeSectionTypeOnSessionDate(Guid sessionId, DateOnly sessionDate, DateOnly today) => Error.Validation(
+        "Session.TeacherCanOnlyChangeSectionTypeOnSessionDate",
+        $"Teacher can only change section type on the session date. SessionId='{sessionId}', sessionDate='{sessionDate:yyyy-MM-dd}', today='{today:yyyy-MM-dd}'");
+
     public static Error RoomOccupied(string classCode, string className, DateTime plannedDatetime) => Error.Conflict(
         "Session.RoomOccupied",
         $"Room is already occupied by class '{classCode} - {className}' at {plannedDatetime:dd/MM/yyyy HH:mm}");

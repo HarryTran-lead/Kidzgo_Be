@@ -30,7 +30,7 @@ public class MediaController : ControllerBase
     /// UC-238: Teacher/Staff upload ảnh/video
     /// UC-239-242: Gắn tag (Class, Student, Month, Type, Visibility)
     [HttpPost]
-    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff")]
     public async Task<IResult> CreateMedia(
         [FromBody] CreateMediaRequest request,
         CancellationToken cancellationToken)
@@ -111,7 +111,7 @@ public class MediaController : ControllerBase
 
     /// UC-245: Cập nhật Media
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff")]
     public async Task<IResult> UpdateMedia(
         Guid id,
         [FromBody] UpdateMediaRequest request,
@@ -133,7 +133,7 @@ public class MediaController : ControllerBase
 
     /// UC-246: Xóa Media
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff")]
     public async Task<IResult> DeleteMedia(
         Guid id,
         CancellationToken cancellationToken)
@@ -145,7 +145,7 @@ public class MediaController : ControllerBase
 
     /// UC-247: Staff/Admin approve Media
     [HttpPost("{id:guid}/approve")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IResult> ApproveMedia(
         Guid id,
         CancellationToken cancellationToken)
@@ -157,7 +157,7 @@ public class MediaController : ControllerBase
 
     /// UC-247a: Staff/Admin reject Media
     [HttpPost("{id:guid}/reject")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IResult> RejectMedia(
         Guid id,
         [FromBody] RejectMediaRequest request,
@@ -169,7 +169,7 @@ public class MediaController : ControllerBase
     }
 
     [HttpPost("{id:guid}/resubmit")]
-    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff")]
     public async Task<IResult> ResubmitMedia(
         Guid id,
         CancellationToken cancellationToken)
@@ -181,7 +181,7 @@ public class MediaController : ControllerBase
 
     /// UC-248: Publish Media lên gallery
     [HttpPost("{id:guid}/publish")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IResult> PublishMedia(
         Guid id,
         CancellationToken cancellationToken)

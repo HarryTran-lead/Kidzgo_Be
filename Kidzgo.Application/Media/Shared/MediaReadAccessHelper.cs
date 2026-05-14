@@ -35,7 +35,7 @@ public static class MediaReadAccessHelper
             return query.Where(_ => false);
         }
 
-        if (role is not (UserRole.Parent))
+        if (role is not UserRole.Parent)
         {
             if (requestedStudentProfileId.HasValue)
             {
@@ -61,10 +61,6 @@ public static class MediaReadAccessHelper
             media.ApprovalStatus == ApprovalStatus.Approved &&
             media.IsPublished);
 
-        query = role == UserRole.Parent
-            ? query.Where(media => media.Visibility != Visibility.PublicParent)
-            : query;
-
         var activeClassIds = context.ClassEnrollments
             .Where(enrollment =>
                 enrollment.StudentProfileId == studentProfileId.Value &&
@@ -80,6 +76,8 @@ public static class MediaReadAccessHelper
             media.ClassId.HasValue &&
             activeClassIds.Contains(media.ClassId.Value));
 
+        var parentPublicMedia = query.Where(media => media.Visibility == Visibility.PublicParent);
+
         if (requestedClassId.HasValue)
         {
             return classMedia.Where(media => media.ClassId == requestedClassId.Value);
@@ -90,7 +88,7 @@ public static class MediaReadAccessHelper
             return personalMedia.Where(media => media.StudentProfileId == requestedStudentProfileId.Value);
         }
 
-        return personalMedia.Union(classMedia);
+        return personalMedia.Union(classMedia).Union(parentPublicMedia);
     }
 
     public static async Task<bool> CanReadAsync(
@@ -105,7 +103,7 @@ public static class MediaReadAccessHelper
             return false;
         }
 
-        if (role is not (UserRole.Parent))
+        if (role is not UserRole.Parent)
         {
             return true;
         }
@@ -123,12 +121,14 @@ public static class MediaReadAccessHelper
                 return false;
             }
 
-            if (!CanRoleReadVisibility(UserRole.Parent, media.Visibility))
+            if (media.Visibility == Visibility.PublicParent)
             {
-                return false;
+                return true;
             }
 
-            if (media.OwnershipScope == MediaOwnershipScope.Personal && media.StudentProfileId.HasValue)
+            if (media.OwnershipScope == MediaOwnershipScope.Personal &&
+                media.Visibility == Visibility.Personal &&
+                media.StudentProfileId.HasValue)
             {
                 return await context.ParentStudentLinks
                     .AsNoTracking()
@@ -138,7 +138,9 @@ public static class MediaReadAccessHelper
                         cancellationToken);
             }
 
-            if (media.ClassId.HasValue && media.OwnershipScope == MediaOwnershipScope.Class)
+            if (media.ClassId.HasValue &&
+                media.OwnershipScope == MediaOwnershipScope.Class &&
+                media.Visibility == Visibility.ClassOnly)
             {
                 var linkedStudentIds = context.ParentStudentLinks
                     .Where(link => link.ParentProfileId == parentProfileId.Value)
@@ -154,53 +156,8 @@ public static class MediaReadAccessHelper
 
             return false;
         }
-
-        var studentProfileId = await ResolveAccessibleStudentProfileIdAsync(
-            context,
-            userContext,
-            role.Value,
-            null,
-            cancellationToken);
-
-        if (!studentProfileId.HasValue)
-        {
-            return false;
-        }
-
-        if (media.ApprovalStatus != ApprovalStatus.Approved ||
-            !media.IsPublished ||
-            !CanRoleReadVisibility(UserRole.Parent, media.Visibility))
-        {
-            return false;
-        }
-
-        if (media.OwnershipScope == MediaOwnershipScope.Personal &&
-            media.StudentProfileId == studentProfileId.Value)
-        {
-            return true;
-        }
-
-        if (media.ClassId.HasValue && media.OwnershipScope == MediaOwnershipScope.Class)
-        {
-            return await context.ClassEnrollments
-                .AnyAsync(enrollment =>
-                    enrollment.StudentProfileId == studentProfileId.Value &&
-                    enrollment.Status == EnrollmentStatus.Active &&
-                    enrollment.ClassId == media.ClassId.Value,
-                    cancellationToken);
-        }
-
+        
         return false;
-    }
-
-    private static bool CanRoleReadVisibility(UserRole role, Visibility visibility)
-    {
-        if (role == UserRole.Parent)
-        {
-            return true;
-        }
-
-        return visibility is Visibility.ClassOnly or Visibility.Personal;
     }
 
     public static async Task<Guid?> ResolveAccessibleStudentProfileIdAsync(
@@ -212,7 +169,48 @@ public static class MediaReadAccessHelper
     {
         if (role == UserRole.Parent)
         {
-            var studentProfileId = userContext.StudentId ?? await context.Profiles
+            var parentProfileId = await ResolveParentProfileIdAsync(context, userContext, cancellationToken);
+            if (!parentProfileId.HasValue)
+            {
+                return null;
+            }
+
+            if (requestedStudentProfileId.HasValue)
+            {
+                return await context.ParentStudentLinks
+                    .AsNoTracking()
+                    .Where(link =>
+                        link.ParentProfileId == parentProfileId.Value &&
+                        link.StudentProfileId == requestedStudentProfileId.Value)
+                    .Select(link => (Guid?)link.StudentProfileId)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            if (userContext.StudentId.HasValue)
+            {
+                var selectedStudentId = await context.ParentStudentLinks
+                    .AsNoTracking()
+                    .Where(link =>
+                        link.ParentProfileId == parentProfileId.Value &&
+                        link.StudentProfileId == userContext.StudentId.Value)
+                    .Select(link => (Guid?)link.StudentProfileId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (selectedStudentId.HasValue)
+                {
+                    return selectedStudentId.Value;
+                }
+            }
+
+            return await context.ParentStudentLinks
+                .AsNoTracking()
+                .Where(link => link.ParentProfileId == parentProfileId.Value)
+                .OrderBy(link => link.CreatedAt)
+                .Select(link => (Guid?)link.StudentProfileId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var studentProfileId = userContext.StudentId ?? await context.Profiles
                 .AsNoTracking()
                 .Where(profile =>
                     profile.UserId == userContext.UserId &&
@@ -230,48 +228,6 @@ public static class MediaReadAccessHelper
             return requestedStudentProfileId.HasValue && requestedStudentProfileId.Value != studentProfileId.Value
                 ? null
                 : studentProfileId.Value;
-        }
-
-        var parentProfileId = await ResolveParentProfileIdAsync(context, userContext, cancellationToken);
-
-        if (!parentProfileId.HasValue)
-        {
-            return null;
-        }
-
-        if (requestedStudentProfileId.HasValue)
-        {
-            return await context.ParentStudentLinks
-                .AsNoTracking()
-                .Where(link =>
-                    link.ParentProfileId == parentProfileId.Value &&
-                    link.StudentProfileId == requestedStudentProfileId.Value)
-                .Select(link => (Guid?)link.StudentProfileId)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        if (userContext.StudentId.HasValue)
-        {
-            var selectedStudentId = await context.ParentStudentLinks
-                .AsNoTracking()
-                .Where(link =>
-                    link.ParentProfileId == parentProfileId.Value &&
-                    link.StudentProfileId == userContext.StudentId.Value)
-                .Select(link => (Guid?)link.StudentProfileId)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (selectedStudentId.HasValue)
-            {
-                return selectedStudentId.Value;
-            }
-        }
-
-        return await context.ParentStudentLinks
-            .AsNoTracking()
-            .Where(link => link.ParentProfileId == parentProfileId.Value)
-            .OrderBy(link => link.CreatedAt)
-            .Select(link => (Guid?)link.StudentProfileId)
-            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private static async Task<Guid?> ResolveParentProfileIdAsync(

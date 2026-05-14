@@ -19,6 +19,7 @@ public class Session : Entity
     public Guid? PlannedAssistantId { get; set; }
     public int DurationMinutes { get; set; }
     public ParticipationType ParticipationType { get; set; }
+    public SectionType SectionType { get; set; }
     public SessionStatus Status { get; set; }
     public DateTime? ActualDatetime { get; set; }
     public Guid? ActualRoomId { get; set; }

@@ -25,6 +25,11 @@ public sealed class GetLookupsQueryHandler : IQueryHandler<GetLookupsQuery, GetL
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
             .ToList();
 
+        // SectionType
+        lookups["sectionType"] = Enum.GetValues<SectionType>()
+            .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
+            .ToList();
+
         // SessionStatus
         lookups["sessionStatus"] = Enum.GetValues<SessionStatus>()
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })

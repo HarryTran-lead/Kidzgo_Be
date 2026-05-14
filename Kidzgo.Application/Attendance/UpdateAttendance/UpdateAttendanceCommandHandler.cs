@@ -87,6 +87,7 @@ public sealed class UpdateAttendanceCommandHandler(
             ? participant.RegistrationId
             : null;
         var impactedClassIds = new HashSet<Guid>();
+        AttendanceTransitionOutcome? transitionOutcome = null;
 
         var newAbsenceType = request.AttendanceStatus == AttendanceStatus.Absent
             ? await ResolveAbsenceType(request.StudentProfileId, attendance.Session, cancellationToken)
@@ -103,15 +104,18 @@ public sealed class UpdateAttendanceCommandHandler(
 
         if (!isMakeupParticipant)
         {
-            var transitionClassIds = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+            transitionOutcome = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+                attendance.SessionId,
+                attendance.Id,
                 registrationId,
                 oldStatus,
                 oldAbsenceType,
                 attendance.AttendanceStatus,
                 attendance.AbsenceType,
+                attendance.Session.SectionType,
                 attendance.Session.ActualDatetime ?? attendance.Session.PlannedDatetime,
                 cancellationToken);
-            impactedClassIds.UnionWith(transitionClassIds);
+            impactedClassIds.UnionWith(transitionOutcome.ImpactedClassIds);
         }
 
         // Create audit log
@@ -159,6 +163,17 @@ public sealed class UpdateAttendanceCommandHandler(
             AttendanceStatus = attendance.AttendanceStatus.ToString(),
             AbsenceType = attendance.AbsenceType.HasValue ? attendance.AbsenceType.Value.ToString() : null,
             Note = attendance.Note,
+            TicketConsumed = attendance.AttendanceStatus is AttendanceStatus.Present ||
+                             (attendance.AttendanceStatus == AttendanceStatus.Absent &&
+                              attendance.AbsenceType == AbsenceType.NoNotice),
+            ConsumedQuantity = attendance.AttendanceStatus is AttendanceStatus.Present ||
+                               (attendance.AttendanceStatus == AttendanceStatus.Absent &&
+                                attendance.AbsenceType == AbsenceType.NoNotice)
+                ? 1
+                : 0,
+            AdvanceLessonProgression = attendance.AttendanceStatus == AttendanceStatus.Present &&
+                                       attendance.Session.SectionType == SectionType.Normal,
+            TicketBalance = transitionOutcome?.TicketBalance,
             UpdatedAt = attendance.MarkedAt
         };
     }

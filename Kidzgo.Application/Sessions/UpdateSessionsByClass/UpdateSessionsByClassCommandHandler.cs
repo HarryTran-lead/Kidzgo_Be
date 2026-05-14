@@ -160,6 +160,12 @@ public sealed class UpdateSessionsByClassCommandHandler(
                     hasChanges = true;
                 }
 
+                if (command.SectionType.HasValue)
+                {
+                    session.SectionType = command.SectionType.Value;
+                    hasChanges = true;
+                }
+
                 if (hasChanges)
                 {
                     session.UpdatedAt = now;

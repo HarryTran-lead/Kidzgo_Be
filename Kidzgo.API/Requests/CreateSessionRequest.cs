@@ -9,6 +9,7 @@ public sealed class CreateSessionRequest
     public Guid? PlannedTeacherId { get; set; }
     public Guid? PlannedAssistantId { get; set; }
     public string ParticipationType { get; set; } = "Main";
+    public string SectionType { get; set; } = "Normal";
 }
 
 

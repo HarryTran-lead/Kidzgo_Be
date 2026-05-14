@@ -65,6 +65,7 @@ public sealed class GetSessionByIdQueryHandler(
                 : null,
             DurationMinutes = session.DurationMinutes,
             ParticipationType = session.ParticipationType.ToString(),
+            SectionType = session.SectionType.ToString(),
             Status = session.Status.ToString(),
             PlannedRoomId = session.PlannedRoomId,
             PlannedRoomName = session.PlannedRoom != null ? session.PlannedRoom.Name : null,

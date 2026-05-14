@@ -67,6 +67,7 @@ public sealed class UpdateSessionCommandHandler(
         session.PlannedTeacherId = command.PlannedTeacherId;
         session.PlannedAssistantId = command.PlannedAssistantId;
         session.ParticipationType = command.ParticipationType;
+        session.SectionType = command.SectionType;
         session.UpdatedAt = VietnamTime.UtcNow();
 
         await studentSessionAssignmentService.SyncAssignmentsForSessionAsync(session, cancellationToken);
@@ -76,7 +77,8 @@ public sealed class UpdateSessionCommandHandler(
         {
             Id = session.Id,
             PlannedDatetime = session.PlannedDatetime,
-            DurationMinutes = session.DurationMinutes
+            DurationMinutes = session.DurationMinutes,
+            SectionType = session.SectionType.ToString()
         };
     }
 

@@ -12,6 +12,7 @@ public sealed class CreateSessionCommand : ICommand<CreateSessionResponse>
     public Guid? PlannedTeacherId { get; init; }
     public Guid? PlannedAssistantId { get; init; }
     public ParticipationType ParticipationType { get; init; } = ParticipationType.Main;
+    public SectionType SectionType { get; init; } = SectionType.Normal;
 }
 
 

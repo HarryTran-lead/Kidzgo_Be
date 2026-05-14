@@ -153,14 +153,18 @@ public sealed class ApprovedLeaveAttendanceService(
             return [];
         }
 
-        return await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+        var outcome = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+            session.Id,
+            attendance.Id,
             participant.Value.RegistrationId,
             attendance.AttendanceStatus,
             attendance.AbsenceType,
             AttendanceStatus.Makeup,
             null,
+            session.SectionType,
             session.ActualDatetime ?? session.PlannedDatetime,
             cancellationToken);
+        return outcome.ImpactedClassIds;
     }
 
     public async Task<IReadOnlyCollection<Guid>> ApplyApprovedLeaveDeactivationAsync(
@@ -184,14 +188,18 @@ public sealed class ApprovedLeaveAttendanceService(
             return [];
         }
 
-        return await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+        var outcome = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+            session.Id,
+            attendance.Id,
             participant.Value.RegistrationId,
             AttendanceStatus.Makeup,
             null,
             attendance.AttendanceStatus,
             attendance.AbsenceType,
+            session.SectionType,
             session.ActualDatetime ?? session.PlannedDatetime,
             cancellationToken);
+        return outcome.ImpactedClassIds;
     }
 
     private async Task<SessionParticipant?> GetRegularParticipantAsync(

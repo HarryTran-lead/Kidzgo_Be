@@ -79,7 +79,10 @@ public sealed class MarkAttendanceCommandHandler(
                     AttendanceStatus = AttendanceStatus.Makeup.ToString(),
                     AbsenceType = null,
                     MarkedAt = null,
-                    Note = attendance?.Note
+                    Note = attendance?.Note,
+                    TicketConsumed = false,
+                    ConsumedQuantity = 0,
+                    AdvanceLessonProgression = false
                 });
 
                 continue;
@@ -107,6 +110,7 @@ public sealed class MarkAttendanceCommandHandler(
             }
 
             var newAbsenceType = default(AbsenceType?);
+            AttendanceTransitionOutcome? transitionOutcome = null;
 
             if (item.AttendanceStatus == AttendanceStatus.Absent)
             {
@@ -143,15 +147,18 @@ public sealed class MarkAttendanceCommandHandler(
 
             if (!participant.IsMakeup)
             {
-                var transitionClassIds = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+                transitionOutcome = await registrationSessionConsumptionService.ApplyAttendanceTransitionAsync(
+                    command.SessionId,
+                    attendance.Id,
                     participant.RegistrationId,
                     previousStatus,
                     previousAbsenceType,
                     attendance.AttendanceStatus,
                     attendance.AbsenceType,
+                    session.SectionType,
                     session.ActualDatetime ?? session.PlannedDatetime,
                     cancellationToken);
-                impactedClassIds.UnionWith(transitionClassIds);
+                impactedClassIds.UnionWith(transitionOutcome.ImpactedClassIds);
             }
 
             attendance.MarkedBy = userContext.UserId;
@@ -170,7 +177,18 @@ public sealed class MarkAttendanceCommandHandler(
                 AttendanceStatus = attendance.AttendanceStatus.ToString(),
                 AbsenceType = attendance.AbsenceType.HasValue ? attendance.AbsenceType.Value.ToString() : null,
                 MarkedAt = attendance.MarkedAt,
-                Note = attendance.Note
+                Note = attendance.Note,
+                TicketConsumed = attendance.AttendanceStatus is AttendanceStatus.Present ||
+                                 (attendance.AttendanceStatus == AttendanceStatus.Absent &&
+                                  attendance.AbsenceType == AbsenceType.NoNotice),
+                ConsumedQuantity = attendance.AttendanceStatus is AttendanceStatus.Present ||
+                                   (attendance.AttendanceStatus == AttendanceStatus.Absent &&
+                                    attendance.AbsenceType == AbsenceType.NoNotice)
+                    ? 1
+                    : 0,
+                AdvanceLessonProgression = attendance.AttendanceStatus == AttendanceStatus.Present &&
+                                           session.SectionType == SectionType.Normal,
+                TicketBalance = transitionOutcome?.TicketBalance
             });
         }
 

@@ -22,6 +22,7 @@ using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.TeachingMaterials;
 using Kidzgo.Domain.Website;
 using Kidzgo.Domain.ProgramProgressions;
+using Kidzgo.Domain.LearningTickets;
 
 namespace Kidzgo.Application.Abstraction.Data;
 
@@ -159,6 +160,8 @@ public interface IDbContext
     // Tickets
     DbSet<Ticket> Tickets { get; }
     DbSet<TicketComment> TicketComments { get; }
+    DbSet<LearningTicketItem> LearningTicketItems { get; }
+    DbSet<LearningTicketLedger> LearningTicketLedgers { get; }
 
     // Audit
     DbSet<AuditLog> AuditLogs { get; }

@@ -37,6 +37,12 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(x => x.SectionType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(SectionType.Normal)
+            .IsRequired();
+
         builder.Property(x => x.Status)
             .HasConversion<string>()
             .HasMaxLength(20)

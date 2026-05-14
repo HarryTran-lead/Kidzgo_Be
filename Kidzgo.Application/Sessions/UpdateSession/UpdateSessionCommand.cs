@@ -12,6 +12,7 @@ public sealed class UpdateSessionCommand : ICommand<UpdateSessionResponse>
     public Guid? PlannedTeacherId { get; init; }
     public Guid? PlannedAssistantId { get; init; }
     public ParticipationType ParticipationType { get; init; }
+    public SectionType SectionType { get; init; } = SectionType.Normal;
 }
 
 

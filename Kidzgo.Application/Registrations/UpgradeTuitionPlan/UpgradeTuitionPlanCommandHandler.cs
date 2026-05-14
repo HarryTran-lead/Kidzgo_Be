@@ -2,7 +2,9 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Registrations.Shared;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.LearningTickets;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Registrations.UpgradeTuitionPlan.Handler;
 
 public sealed class UpgradeTuitionPlanCommandHandler(
-    IDbContext context
+    IDbContext context,
+    TicketGrantService ticketGrantService
 ) : ICommandHandler<UpgradeTuitionPlanCommand, UpgradeTuitionPlanResponse>
 {
     public async Task<Result<UpgradeTuitionPlanResponse>> Handle(
@@ -134,6 +137,15 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             enrollment.TuitionPlanId = newTuitionPlan.Id;
             enrollment.UpdatedAt = now;
         }
+
+        await ticketGrantService.GrantTicketsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            newTuitionPlan.TotalSessions,
+            $"Upgrade to {newTuitionPlan.Name}",
+            LearningTicketSource.Purchase,
+            createdByUserId: null,
+            cancellationToken);
 
         await context.SaveChangesAsync(cancellationToken);
 

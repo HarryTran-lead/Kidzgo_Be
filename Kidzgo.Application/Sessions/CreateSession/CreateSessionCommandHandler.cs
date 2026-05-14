@@ -77,6 +77,7 @@ public sealed class CreateSessionCommandHandler(
             PlannedAssistantId = command.PlannedAssistantId,
             DurationMinutes = command.DurationMinutes,
             ParticipationType = command.ParticipationType,
+            SectionType = command.SectionType,
             Status = SessionStatus.Scheduled,
             CreatedAt = now,
             UpdatedAt = now
@@ -92,7 +93,8 @@ public sealed class CreateSessionCommandHandler(
             ClassId = session.ClassId,
             BranchId = session.BranchId,
             PlannedDatetime = session.PlannedDatetime,
-            DurationMinutes = session.DurationMinutes
+            DurationMinutes = session.DurationMinutes,
+            SectionType = session.SectionType.ToString()
         };
     }
 

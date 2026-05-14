@@ -21,5 +21,6 @@ public sealed class UpdateSessionsByClassRequest
     public Guid? PlannedTeacherId { get; set; }
     public Guid? PlannedAssistantId { get; set; }
     public string? ParticipationType { get; set; }
+    public string? SectionType { get; set; }
 }
 

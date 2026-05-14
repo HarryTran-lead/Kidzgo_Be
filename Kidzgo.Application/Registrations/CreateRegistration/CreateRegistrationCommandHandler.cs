@@ -3,7 +3,9 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Registrations.Shared;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.LearningTickets;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +13,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Registrations.CreateRegistration;
 
 public sealed class CreateRegistrationCommandHandler(
-    IDbContext context
+    IDbContext context,
+    TicketGrantService ticketGrantService
 ) : ICommandHandler<CreateRegistrationCommand, CreateRegistrationResponse>
 {
     public async Task<Result<CreateRegistrationResponse>> Handle(
@@ -174,6 +177,14 @@ public sealed class CreateRegistrationCommandHandler(
         RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         context.Registrations.Add(registration);
+        await ticketGrantService.GrantTicketsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            tuitionPlan.TotalSessions,
+            $"Purchase {tuitionPlan.Name}",
+            LearningTicketSource.Purchase,
+            createdByUserId: null,
+            cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return new CreateRegistrationResponse

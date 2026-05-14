@@ -66,6 +66,10 @@ public class SessionController : ControllerBase
             request.ParticipationType, true, out var parsedType)
             ? parsedType
             : Domain.Sessions.ParticipationType.Main;
+        var sectionType = Enum.TryParse<Domain.Sessions.SectionType>(
+            request.SectionType, true, out var parsedSectionType)
+            ? parsedSectionType
+            : Domain.Sessions.SectionType.Normal;
 
         var command = new CreateSessionCommand
         {
@@ -75,7 +79,8 @@ public class SessionController : ControllerBase
             PlannedRoomId = request.PlannedRoomId,
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
-            ParticipationType = participationType
+            ParticipationType = participationType,
+            SectionType = sectionType
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -137,6 +142,10 @@ public class SessionController : ControllerBase
             request.ParticipationType, true, out var parsedType)
             ? parsedType
             : Domain.Sessions.ParticipationType.Main;
+        var sectionType = Enum.TryParse<Domain.Sessions.SectionType>(
+            request.SectionType, true, out var parsedSectionType)
+            ? parsedSectionType
+            : Domain.Sessions.SectionType.Normal;
 
         var command = new UpdateSessionCommand
         {
@@ -146,7 +155,8 @@ public class SessionController : ControllerBase
             PlannedRoomId = request.PlannedRoomId,
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
-            ParticipationType = participationType
+            ParticipationType = participationType,
+            SectionType = sectionType
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -238,6 +248,13 @@ public class SessionController : ControllerBase
                 : (Domain.Sessions.SessionStatus?)null)
             : null;
 
+        var sectionType = request.SectionType != null
+            ? (Enum.TryParse<Domain.Sessions.SectionType>(
+                request.SectionType, true, out var parsedSectionType)
+                ? parsedSectionType
+                : (Domain.Sessions.SectionType?)null)
+            : null;
+
         var command = new UpdateSessionsByClassCommand
         {
             ClassId = request.ClassId,
@@ -249,7 +266,8 @@ public class SessionController : ControllerBase
             PlannedRoomId = request.PlannedRoomId,
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
-            ParticipationType = participationType
+            ParticipationType = participationType,
+            SectionType = sectionType
         };
 
         var result = await _mediator.Send(command, cancellationToken);

@@ -2,7 +2,9 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations.Shared;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.LearningTickets;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Registrations.ImportActiveRegistration;
 
 public sealed class ImportActiveRegistrationCommandHandler(
-    IDbContext context
+    IDbContext context,
+    TicketGrantService ticketGrantService
 ) : ICommandHandler<ImportActiveRegistrationCommand, ImportActiveRegistrationResponse>
 {
     public async Task<Result<ImportActiveRegistrationResponse>> Handle(
@@ -148,6 +151,43 @@ public sealed class ImportActiveRegistrationCommandHandler(
         RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         context.Registrations.Add(registration);
+        await ticketGrantService.GrantTicketsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            tuitionPlan.TotalSessions,
+            $"Import {tuitionPlan.Name}",
+            LearningTicketSource.Import,
+            createdByUserId: null,
+            cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+
+        if (command.UsedSessions > 0)
+        {
+            var consumedAt = now;
+            var importedItems = await context.LearningTicketItems
+                .Where(x => x.RegistrationId == registration.Id && x.Status == LearningTicketItemStatus.Available)
+                .OrderBy(x => x.CreatedAt)
+                .Take(command.UsedSessions)
+                .ToListAsync(cancellationToken);
+
+            foreach (var item in importedItems)
+            {
+                item.Status = LearningTicketItemStatus.Consumed;
+                item.ConsumedAt = consumedAt;
+            }
+
+            context.LearningTicketLedgers.Add(new LearningTicketLedger
+            {
+                Id = Guid.NewGuid(),
+                StudentProfileId = registration.StudentProfileId,
+                RegistrationId = registration.Id,
+                TransactionType = LearningTicketTransactionType.Consume,
+                Quantity = -command.UsedSessions,
+                Reason = "Import used sessions",
+                CreatedAt = consumedAt
+            });
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         return new ImportActiveRegistrationResponse

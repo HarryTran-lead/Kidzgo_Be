@@ -39,6 +39,12 @@ public sealed class MarkAttendanceCommandHandler(
                 AttendanceErrors.FutureSessionNotAllowed(command.SessionId));
         }
 
+        if (!command.IsAdmin && sessionDate < today)
+        {
+            return Result.Failure<MarkAttendanceResponse>(
+                AttendanceErrors.SessionDateClosed(command.SessionId));
+        }
+
         var results = new List<AttendanceResultItem>();
         var studentsWithClassAttendanceMissionChanges = new HashSet<Guid>();
         var impactedClassIds = new HashSet<Guid>();

@@ -59,12 +59,10 @@ public sealed class UpdateAttendanceCommandHandler(
                 AttendanceErrors.FutureSessionNotAllowed(attendance.SessionId));
         }
 
-        var sessionEndUtc = (attendance.Session.ActualDatetime ?? attendance.Session.PlannedDatetime)
-            .AddMinutes(attendance.Session.DurationMinutes);
-        if (!request.IsAdmin && VietnamTime.UtcNow() - sessionEndUtc > TimeSpan.FromHours(24))
+        if (!request.IsAdmin && sessionDate < today)
         {
             return Result.Failure<UpdateAttendanceResponse>(
-                AttendanceErrors.UpdateWindowClosed(attendance.SessionId));
+                AttendanceErrors.SessionDateClosed(attendance.SessionId));
         }
 
         if (!request.IsAdmin && await approvedLeaveAttendanceService

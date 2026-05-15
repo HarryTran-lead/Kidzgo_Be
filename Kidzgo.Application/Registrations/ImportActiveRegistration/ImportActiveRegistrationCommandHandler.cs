@@ -155,6 +155,7 @@ public sealed class ImportActiveRegistrationCommandHandler(
             registration.StudentProfileId,
             registration.Id,
             tuitionPlan.TotalSessions,
+            tuitionPlan.LearningTicketTypeId,
             $"Import {tuitionPlan.Name}",
             LearningTicketSource.Import,
             createdByUserId: null,

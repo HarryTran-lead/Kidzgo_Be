@@ -33,6 +33,7 @@ public class TuitionPlanController : ControllerBase
         var command = new CreateTuitionPlanCommand
         {
             ProgramId = request.ProgramId,
+            LearningTicketTypeId = request.LearningTicketTypeId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,
             TuitionAmount = request.TuitionAmount,
@@ -118,6 +119,7 @@ public class TuitionPlanController : ControllerBase
         {
             Id = id,
             ProgramId = request.ProgramId,
+            LearningTicketTypeId = request.LearningTicketTypeId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,
             TuitionAmount = request.TuitionAmount,

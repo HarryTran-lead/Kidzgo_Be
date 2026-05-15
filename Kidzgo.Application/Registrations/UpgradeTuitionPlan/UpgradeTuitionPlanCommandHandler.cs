@@ -59,6 +59,34 @@ public sealed class UpgradeTuitionPlanCommandHandler(
                 Error.Validation("DifferentProgram", "New tuition plan must belong to the same program"));
         }
 
+        var activeEnrollmentSlotTypeIds = await context.ClassEnrollments
+            .Where(ce => ce.StudentProfileId == registration.StudentProfileId
+                && ce.Status == Domain.Classes.EnrollmentStatus.Active
+                && (ce.RegistrationId == registration.Id ||
+                    (!ce.RegistrationId.HasValue &&
+                     (ce.ClassId == registration.ClassId || ce.ClassId == registration.SecondaryClassId))))
+            .Join(
+                context.Classes,
+                enrollment => enrollment.ClassId,
+                classEntity => classEntity.Id,
+                (_, classEntity) => classEntity.SlotTypeId)
+            .Where(slotTypeId => slotTypeId.HasValue)
+            .Select(slotTypeId => slotTypeId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var incompatibleSlotTypeId = await GetFirstExplicitIncompatibleSlotTypeAsync(
+            newTuitionPlan.LearningTicketTypeId,
+            activeEnrollmentSlotTypeIds,
+            cancellationToken);
+        if (incompatibleSlotTypeId.HasValue)
+        {
+            return Result.Failure<UpgradeTuitionPlanResponse>(
+                RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
+                    newTuitionPlan.LearningTicketTypeId,
+                    incompatibleSlotTypeId.Value));
+        }
+
         // 5. Extend the current registration in place
         var oldTotalSessions = registration.TotalSessions;
         var carriedForwardSessions = Math.Max(registration.RemainingSessions, 0);
@@ -142,6 +170,7 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             registration.StudentProfileId,
             registration.Id,
             newTuitionPlan.TotalSessions,
+            newTuitionPlan.LearningTicketTypeId,
             $"Upgrade to {newTuitionPlan.Name}",
             LearningTicketSource.Purchase,
             createdByUserId: null,
@@ -168,6 +197,26 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             FinalTuitionAmount = registration.FinalTuitionAmount ?? Math.Max(0m, newTuitionPlan.TuitionAmount - carryOverCreditAmount),
             Status = registration.Status.ToString()
         };
+    }
+
+    private async Task<Guid?> GetFirstExplicitIncompatibleSlotTypeAsync(
+        Guid? learningTicketTypeId,
+        IReadOnlyCollection<Guid> slotTypeIds,
+        CancellationToken cancellationToken)
+    {
+        if (!learningTicketTypeId.HasValue || slotTypeIds.Count == 0)
+        {
+            return null;
+        }
+
+        return await context.TicketTypeCompatibilities
+            .AsNoTracking()
+            .Where(x =>
+                x.LearningTicketTypeId == learningTicketTypeId.Value &&
+                slotTypeIds.Contains(x.SlotTypeId) &&
+                !x.IsCompatible)
+            .Select(x => (Guid?)x.SlotTypeId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
 }

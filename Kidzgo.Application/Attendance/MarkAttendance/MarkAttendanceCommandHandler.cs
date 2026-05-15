@@ -156,6 +156,7 @@ public sealed class MarkAttendanceCommandHandler(
                     attendance.AttendanceStatus,
                     attendance.AbsenceType,
                     session.SectionType,
+                    session.SlotTypeId,
                     session.ActualDatetime ?? session.PlannedDatetime,
                     cancellationToken);
                 impactedClassIds.UnionWith(transitionOutcome.ImpactedClassIds);
@@ -178,17 +179,12 @@ public sealed class MarkAttendanceCommandHandler(
                 AbsenceType = attendance.AbsenceType.HasValue ? attendance.AbsenceType.Value.ToString() : null,
                 MarkedAt = attendance.MarkedAt,
                 Note = attendance.Note,
-                TicketConsumed = attendance.AttendanceStatus is AttendanceStatus.Present ||
-                                 (attendance.AttendanceStatus == AttendanceStatus.Absent &&
-                                  attendance.AbsenceType == AbsenceType.NoNotice),
-                ConsumedQuantity = attendance.AttendanceStatus is AttendanceStatus.Present ||
-                                   (attendance.AttendanceStatus == AttendanceStatus.Absent &&
-                                    attendance.AbsenceType == AbsenceType.NoNotice)
-                    ? 1
-                    : 0,
-                AdvanceLessonProgression = attendance.AttendanceStatus == AttendanceStatus.Present &&
-                                           session.SectionType == SectionType.Normal,
-                TicketBalance = transitionOutcome?.TicketBalance
+                TicketConsumed = transitionOutcome?.TicketDelta == -1,
+                ConsumedQuantity = transitionOutcome?.TicketDelta == -1 ? 1 : 0,
+                AdvanceLessonProgression = transitionOutcome?.AdvanceLessonProgression ?? false,
+                TicketBalance = transitionOutcome?.TicketBalance,
+                TicketCompatibilityPassed = transitionOutcome?.CompatibilityPassed,
+                TicketCompatibilityReason = transitionOutcome?.CompatibilityReason
             });
         }
 

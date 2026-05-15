@@ -11,6 +11,8 @@ public sealed class TuitionPlanDto
 {
     public Guid Id { get; init; }
     public Guid ProgramId { get; init; }
+    public Guid? LearningTicketTypeId { get; init; }
+    public string? LearningTicketTypeCode { get; init; }
     public string ProgramName { get; init; } = null!;
     public string Name { get; init; } = null!;
     public int TotalSessions { get; init; }

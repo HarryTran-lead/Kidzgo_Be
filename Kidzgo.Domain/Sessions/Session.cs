@@ -17,6 +17,7 @@ public class Session : Entity
     public Guid? PlannedRoomId { get; set; }
     public Guid? PlannedTeacherId { get; set; }
     public Guid? PlannedAssistantId { get; set; }
+    public Guid? SlotTypeId { get; set; }
     public int DurationMinutes { get; set; }
     public ParticipationType ParticipationType { get; set; }
     public SectionType SectionType { get; set; }
@@ -35,6 +36,7 @@ public class Session : Entity
     public Classroom? PlannedRoom { get; set; }
     public User? PlannedTeacher { get; set; }
     public User? PlannedAssistant { get; set; }
+    public SlotType? SlotType { get; set; }
     public Classroom? ActualRoom { get; set; }
     public User? ActualTeacher { get; set; }
     public User? ActualAssistant { get; set; }

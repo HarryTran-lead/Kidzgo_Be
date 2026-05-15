@@ -14,6 +14,8 @@ public sealed class UpdateClassResponse
     public Guid? RoomId { get; init; }
     public Guid? MainTeacherId { get; init; }
     public Guid? AssistantTeacherId { get; init; }
+    public Guid? SlotTypeId { get; init; }
+    public string? SlotTypeCode { get; init; }
     public DateOnly StartDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public string Status { get; init; } = null!;

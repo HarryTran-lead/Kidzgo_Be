@@ -248,6 +248,7 @@ public sealed class SessionGenerationService
                 PlannedRoomId = roomId,
                 PlannedTeacherId = classEntity.MainTeacherId,
                 PlannedAssistantId = classEntity.AssistantTeacherId,
+                SlotTypeId = classEntity.SlotTypeId,
                 DurationMinutes = candidate.DurationMinutes,
                 ParticipationType = ParticipationType.Main,
                 Status = SessionStatus.Scheduled,

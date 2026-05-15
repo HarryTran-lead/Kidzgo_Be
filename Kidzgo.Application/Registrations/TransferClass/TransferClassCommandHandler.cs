@@ -39,6 +39,7 @@ public sealed class TransferClassCommandHandler(
         var registration = await context.Registrations
             .Include(r => r.Program)
             .Include(r => r.SecondaryProgram)
+            .Include(r => r.TuitionPlan)
             .Include(r => r.Class)
             .Include(r => r.SecondaryClass)
             .FirstOrDefaultAsync(r => r.Id == command.RegistrationId, cancellationToken);
@@ -89,6 +90,17 @@ public sealed class TransferClassCommandHandler(
         if (newClass == null)
         {
             return Result.Failure<TransferClassResponse>(RegistrationErrors.ClassNotFound(command.NewClassId));
+        }
+
+        if (await IsExplicitlyIncompatibleAsync(
+                registration.TuitionPlan?.LearningTicketTypeId,
+                newClass.SlotTypeId,
+                cancellationToken))
+        {
+            return Result.Failure<TransferClassResponse>(
+                RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
+                    registration.TuitionPlan?.LearningTicketTypeId,
+                    newClass.SlotTypeId));
         }
 
         if (newClass.BranchId != registration.BranchId)
@@ -233,5 +245,25 @@ public sealed class TransferClassCommandHandler(
             EffectiveDate = command.EffectiveDate,
             Status = registration.Status.ToString()
         };
+    }
+
+    private async Task<bool> IsExplicitlyIncompatibleAsync(
+        Guid? learningTicketTypeId,
+        Guid? slotTypeId,
+        CancellationToken cancellationToken)
+    {
+        if (!learningTicketTypeId.HasValue || !slotTypeId.HasValue)
+        {
+            return false;
+        }
+
+        var mapping = await context.TicketTypeCompatibilities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
+                     x.SlotTypeId == slotTypeId.Value,
+                cancellationToken);
+
+        return mapping is not null && !mapping.IsCompatible;
     }
 }

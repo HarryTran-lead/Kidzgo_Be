@@ -45,6 +45,32 @@ public sealed class UpdateSessionCommandHandler(
         }
 
         var plannedUtc = VietnamTime.NormalizeToUtc(command.PlannedDatetime);
+        var slotTypeId = command.SlotTypeId ?? session.SlotTypeId;
+        if (!slotTypeId.HasValue)
+        {
+            slotTypeId = await context.Classes
+                .Where(x => x.Id == session.ClassId)
+                .Select(x => x.SlotTypeId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        string? slotTypeCode = null;
+
+        if (slotTypeId.HasValue)
+        {
+            var slotType = await context.SlotTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == slotTypeId.Value && x.IsActive, cancellationToken);
+
+            if (slotType is null)
+            {
+                return Result.Failure<UpdateSessionResponse>(
+                    Error.Validation(
+                        "Session.SlotTypeNotFound",
+                        $"Slot type '{slotTypeId.Value}' was not found or inactive."));
+            }
+
+            slotTypeCode = slotType.Code;
+        }
 
         var conflictResult = await conflictChecker.CheckConflictsAsync(
             session.Id,
@@ -66,6 +92,7 @@ public sealed class UpdateSessionCommandHandler(
         session.PlannedRoomId = command.PlannedRoomId;
         session.PlannedTeacherId = command.PlannedTeacherId;
         session.PlannedAssistantId = command.PlannedAssistantId;
+        session.SlotTypeId = slotTypeId;
         session.ParticipationType = command.ParticipationType;
         session.SectionType = command.SectionType;
         session.UpdatedAt = VietnamTime.UtcNow();
@@ -78,7 +105,9 @@ public sealed class UpdateSessionCommandHandler(
             Id = session.Id,
             PlannedDatetime = session.PlannedDatetime,
             DurationMinutes = session.DurationMinutes,
-            SectionType = session.SectionType.ToString()
+            SectionType = session.SectionType.ToString(),
+            SlotTypeId = session.SlotTypeId,
+            SlotTypeCode = slotTypeCode
         };
     }
 

@@ -22,5 +22,9 @@ public sealed class CreateTuitionPlanCommandValidator : AbstractValidator<Create
         RuleFor(command => command.Currency)
             .NotEmpty().WithMessage("Currency is required")
             .MaximumLength(10).WithMessage("Currency must not exceed 10 characters");
+
+        RuleFor(command => command.LearningTicketTypeId)
+            .NotEqual(Guid.Empty).WithMessage("Learning ticket type ID must not be empty")
+            .When(command => command.LearningTicketTypeId.HasValue);
     }
 }

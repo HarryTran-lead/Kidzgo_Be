@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Domain.Notifications;
 using Kidzgo.Domain.Users;
 using Kidzgo.Domain.Users.Events;
@@ -11,6 +12,7 @@ namespace Kidzgo.Application.Authentication.ForgetPassword;
 public sealed class ForgetPasswordDomainEventHandler(
     IDbContext context,
     IMailService mailService,
+    IClientUrlProvider clientUrlProvider,
     ITemplateRenderer templateRenderer
 ) : INotificationHandler<ForgetPasswordDomainEvent>
 {
@@ -52,7 +54,7 @@ public sealed class ForgetPasswordDomainEventHandler(
         var placeholders = new Dictionary<string, string>
         {
             ["user_name"] = user.Username ?? user.Email,
-            ["reset_link"] = $"https://kidzgo-centre-pvjj.vercel.app/vi/auth/reset-password?token={token}"
+            ["reset_link"] = $"{clientUrlProvider.GetFrontendUrl()}/vi/auth/reset-password?token={token}"
         };
 
         string subject = template.Subject;

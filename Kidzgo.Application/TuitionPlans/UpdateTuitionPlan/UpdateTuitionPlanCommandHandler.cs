@@ -29,6 +29,22 @@ public sealed class UpdateTuitionPlanCommandHandler(
             return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotFound);
         }
 
+        if (command.LearningTicketTypeId.HasValue)
+        {
+            var ticketTypeExists = await context.LearningTicketTypes
+                .AnyAsync(
+                    x => x.Id == command.LearningTicketTypeId.Value && x.IsActive,
+                    cancellationToken);
+
+            if (!ticketTypeExists)
+            {
+                return Result.Failure<UpdateTuitionPlanResponse>(
+                    Error.Validation(
+                        "TuitionPlan.LearningTicketTypeNotFound",
+                        $"Learning ticket type '{command.LearningTicketTypeId.Value}' was not found or inactive."));
+            }
+        }
+
         // Calculate UnitPriceSession automatically from TuitionAmount / TotalSessions
         decimal unitPriceSession = command.TotalSessions > 0
             ? Math.Round(command.TuitionAmount / command.TotalSessions, 2)
@@ -40,6 +56,7 @@ public sealed class UpdateTuitionPlanCommandHandler(
         tuitionPlan.TuitionAmount = command.TuitionAmount;
         tuitionPlan.UnitPriceSession = unitPriceSession;
         tuitionPlan.Currency = command.Currency;
+        tuitionPlan.LearningTicketTypeId = command.LearningTicketTypeId;
         tuitionPlan.UpdatedAt = VietnamTime.UtcNow();
 
         await context.SaveChangesAsync(cancellationToken);
@@ -47,12 +64,15 @@ public sealed class UpdateTuitionPlanCommandHandler(
         // Query again with includes to get related data for response
         var updatedTuitionPlan = await context.TuitionPlans
             .Include(t => t.Program)
+            .Include(t => t.LearningTicketType)
             .FirstOrDefaultAsync(t => t.Id == command.Id, cancellationToken);
 
         return new UpdateTuitionPlanResponse
         {
             Id = updatedTuitionPlan!.Id,
             ProgramId = updatedTuitionPlan.ProgramId,
+            LearningTicketTypeId = updatedTuitionPlan.LearningTicketTypeId,
+            LearningTicketTypeCode = updatedTuitionPlan.LearningTicketType?.Code,
             ProgramName = updatedTuitionPlan.Program.Name,
             Name = updatedTuitionPlan.Name,
             TotalSessions = updatedTuitionPlan.TotalSessions,

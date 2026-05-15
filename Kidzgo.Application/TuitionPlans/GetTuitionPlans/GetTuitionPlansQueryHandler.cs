@@ -48,6 +48,8 @@ public sealed class GetTuitionPlansQueryHandler(
             {
                 Id = t.Id,
                 ProgramId = t.ProgramId,
+                LearningTicketTypeId = t.LearningTicketTypeId,
+                LearningTicketTypeCode = t.LearningTicketType != null ? t.LearningTicketType.Code : null,
                 ProgramName = t.Program.Name,
                 Name = t.Name,
                 TotalSessions = t.TotalSessions,

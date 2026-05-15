@@ -29,6 +29,8 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
 
         builder.Property(x => x.PlannedAssistantId);
 
+        builder.Property(x => x.SlotTypeId);
+
         builder.Property(x => x.DurationMinutes)
             .IsRequired();
 
@@ -90,6 +92,11 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
             .WithMany(x => x.PlannedAssistantSessions)
             .HasForeignKey(x => x.PlannedAssistantId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.SlotType)
+            .WithMany()
+            .HasForeignKey(x => x.SlotTypeId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.ActualRoom)
             .WithMany(x => x.ActualRoomSessions)

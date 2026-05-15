@@ -80,6 +80,7 @@ public class SessionController : ControllerBase
             PlannedRoomId = request.PlannedRoomId,
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
+            SlotTypeId = request.SlotTypeId,
             ParticipationType = participationType,
             SectionType = sectionType
         };
@@ -156,6 +157,7 @@ public class SessionController : ControllerBase
             PlannedRoomId = request.PlannedRoomId,
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
+            SlotTypeId = request.SlotTypeId,
             ParticipationType = participationType,
             SectionType = sectionType
         };
@@ -292,6 +294,7 @@ public class SessionController : ControllerBase
             PlannedRoomId = request.PlannedRoomId,
             PlannedTeacherId = request.PlannedTeacherId,
             PlannedAssistantId = request.PlannedAssistantId,
+            SlotTypeId = request.SlotTypeId,
             ParticipationType = participationType,
             SectionType = sectionType
         };

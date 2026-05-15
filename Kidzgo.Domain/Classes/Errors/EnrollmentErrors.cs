@@ -52,6 +52,10 @@ public static class EnrollmentErrors
         "Enrollment.TuitionPlanBranchMismatch",
         "Tuition plan is not available for the class branch");
 
+    public static Error TuitionPlanIncompatibleWithClassSlotType(Guid? learningTicketTypeId, Guid? slotTypeId) => Error.Conflict(
+        "Enrollment.TuitionPlanIncompatibleWithClassSlotType",
+        $"Tuition plan ticket type '{learningTicketTypeId}' is incompatible with class slot type '{slotTypeId}'.");
+
     public static readonly Error AlreadyActive = Error.Conflict(
         "Enrollment.AlreadyActive",
         "Enrollment is already active");

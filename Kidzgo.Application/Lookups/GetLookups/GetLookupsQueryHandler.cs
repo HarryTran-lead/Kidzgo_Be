@@ -6,12 +6,14 @@ using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.Payroll;
 using Kidzgo.Domain.Sessions;
+using Microsoft.EntityFrameworkCore;
+using Kidzgo.Application.Abstraction.Data;
 
 namespace Kidzgo.Application.Lookups.GetLookups;
 
-public sealed class GetLookupsQueryHandler : IQueryHandler<GetLookupsQuery, GetLookupsResponse>
+public sealed class GetLookupsQueryHandler(IDbContext context) : IQueryHandler<GetLookupsQuery, GetLookupsResponse>
 {
-    public Task<Result<GetLookupsResponse>> Handle(GetLookupsQuery query, CancellationToken cancellationToken)
+    public async Task<Result<GetLookupsResponse>> Handle(GetLookupsQuery query, CancellationToken cancellationToken)
     {
         var lookups = new Dictionary<string, List<LookupItemDto>>();
 
@@ -20,15 +22,16 @@ public sealed class GetLookupsQueryHandler : IQueryHandler<GetLookupsQuery, GetL
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
             .ToList();
 
-        // SessionType (ParticipationType)
-        lookups["sessionType"] = Enum.GetValues<ParticipationType>()
+        // ParticipationType
+        lookups["participationType"] = Enum.GetValues<ParticipationType>()
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
             .ToList();
 
-        // SectionType
+        // SectionType (also exposed as SessionType in Phase 1.5)
         lookups["sectionType"] = Enum.GetValues<SectionType>()
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
             .ToList();
+        lookups["sessionType"] = lookups["sectionType"];
 
         // SessionStatus
         lookups["sessionStatus"] = Enum.GetValues<SessionStatus>()
@@ -60,11 +63,32 @@ public sealed class GetLookupsQueryHandler : IQueryHandler<GetLookupsQuery, GetL
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
             .ToList();
 
-        return Task.FromResult<Result<GetLookupsResponse>>(
-            new GetLookupsResponse
+        lookups["slotType"] = await context.SlotTypes
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Code)
+            .Select(x => new LookupItemDto
             {
-                Lookups = lookups
-            });
+                Value = x.Id.ToString(),
+                DisplayName = x.Code
+            })
+            .ToListAsync(cancellationToken);
+
+        lookups["learningTicketType"] = await context.LearningTicketTypes
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Code)
+            .Select(x => new LookupItemDto
+            {
+                Value = x.Id.ToString(),
+                DisplayName = x.Code
+            })
+            .ToListAsync(cancellationToken);
+
+        return new GetLookupsResponse
+        {
+            Lookups = lookups
+        };
     }
 }
 

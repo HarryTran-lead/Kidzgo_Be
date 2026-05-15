@@ -12,6 +12,7 @@ public sealed class TicketGrantService(IDbContext context)
         Guid studentProfileId,
         Guid registrationId,
         int quantity,
+        Guid? learningTicketTypeId,
         string reason,
         LearningTicketSource source,
         Guid? createdByUserId,
@@ -30,6 +31,7 @@ public sealed class TicketGrantService(IDbContext context)
                 Id = Guid.NewGuid(),
                 StudentProfileId = studentProfileId,
                 RegistrationId = registrationId,
+                LearningTicketTypeId = learningTicketTypeId,
                 Status = LearningTicketItemStatus.Available,
                 Source = source,
                 CreatedAt = now

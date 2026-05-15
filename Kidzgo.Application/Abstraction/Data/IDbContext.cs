@@ -156,12 +156,15 @@ public interface IDbContext
     DbSet<MakeupSettings> MakeupSettings { get; }
     DbSet<Session> Sessions { get; }
     DbSet<StudentSessionAssignment> StudentSessionAssignments { get; }
+    DbSet<SlotType> SlotTypes { get; }
 
     // Tickets
     DbSet<Ticket> Tickets { get; }
     DbSet<TicketComment> TicketComments { get; }
     DbSet<LearningTicketItem> LearningTicketItems { get; }
     DbSet<LearningTicketLedger> LearningTicketLedgers { get; }
+    DbSet<LearningTicketType> LearningTicketTypes { get; }
+    DbSet<TicketTypeCompatibility> TicketTypeCompatibilities { get; }
 
     // Audit
     DbSet<AuditLog> AuditLogs { get; }

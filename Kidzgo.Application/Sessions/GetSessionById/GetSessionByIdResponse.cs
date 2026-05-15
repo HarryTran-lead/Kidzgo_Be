@@ -19,6 +19,8 @@ public sealed class SessionDetailDto
     public int DurationMinutes { get; init; }
     public string ParticipationType { get; init; } = null!;
     public string SectionType { get; init; } = null!;
+    public Guid? SlotTypeId { get; init; }
+    public string? SlotTypeCode { get; init; }
     public string Status { get; init; } = null!;
     public Guid? PlannedRoomId { get; init; }
     public string? PlannedRoomName { get; init; }

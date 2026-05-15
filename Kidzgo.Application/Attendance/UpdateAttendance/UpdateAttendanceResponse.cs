@@ -14,6 +14,8 @@ public sealed class UpdateAttendanceResponse
     public int ConsumedQuantity { get; init; }
     public bool AdvanceLessonProgression { get; init; }
     public int? TicketBalance { get; init; }
+    public bool? TicketCompatibilityPassed { get; init; }
+    public string? TicketCompatibilityReason { get; init; }
     public DateTime? UpdatedAt { get; init; }
 }
 

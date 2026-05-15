@@ -49,6 +49,25 @@ public sealed class CreateSessionCommandHandler(
 
         var now = VietnamTime.UtcNow();
         var plannedUtc = VietnamTime.NormalizeToUtc(command.PlannedDatetime);
+        var slotTypeId = command.SlotTypeId ?? classEntity.SlotTypeId;
+        string? slotTypeCode = null;
+
+        if (slotTypeId.HasValue)
+        {
+            var slotType = await context.SlotTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == slotTypeId.Value && x.IsActive, cancellationToken);
+
+            if (slotType is null)
+            {
+                return Result.Failure<CreateSessionResponse>(
+                    Error.Validation(
+                        "Session.SlotTypeNotFound",
+                        $"Slot type '{slotTypeId.Value}' was not found or inactive."));
+            }
+
+            slotTypeCode = slotType.Code;
+        }
 
         var conflictResult = await conflictChecker.CheckConflictsAsync(
             Guid.Empty,
@@ -75,6 +94,7 @@ public sealed class CreateSessionCommandHandler(
             PlannedRoomId = command.PlannedRoomId,
             PlannedTeacherId = command.PlannedTeacherId,
             PlannedAssistantId = command.PlannedAssistantId,
+            SlotTypeId = slotTypeId,
             DurationMinutes = command.DurationMinutes,
             ParticipationType = command.ParticipationType,
             SectionType = command.SectionType,
@@ -94,7 +114,9 @@ public sealed class CreateSessionCommandHandler(
             BranchId = session.BranchId,
             PlannedDatetime = session.PlannedDatetime,
             DurationMinutes = session.DurationMinutes,
-            SectionType = session.SectionType.ToString()
+            SectionType = session.SectionType.ToString(),
+            SlotTypeId = session.SlotTypeId,
+            SlotTypeCode = slotTypeCode
         };
     }
 

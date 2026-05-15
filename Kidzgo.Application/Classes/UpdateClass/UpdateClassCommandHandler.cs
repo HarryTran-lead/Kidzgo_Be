@@ -193,6 +193,35 @@ public sealed class UpdateClassCommandHandler(
             }
         }
 
+        string? slotTypeCode = null;
+        var resolvedSlotTypeId = command.SlotTypeId;
+        if (command.SlotTypeId.HasValue)
+        {
+            var slotType = await context.SlotTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.Id == command.SlotTypeId.Value && x.IsActive,
+                    cancellationToken);
+
+            if (slotType is null)
+            {
+                return Result.Failure<UpdateClassResponse>(
+                    Error.Validation(
+                        "Class.SlotTypeNotFound",
+                        $"Slot type '{command.SlotTypeId.Value}' was not found or inactive."));
+            }
+
+            slotTypeCode = slotType.Code;
+        }
+        else if (classEntity.SlotTypeId.HasValue)
+        {
+            var existingSlotType = await context.SlotTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == classEntity.SlotTypeId.Value, cancellationToken);
+            slotTypeCode = existingSlotType?.Code;
+            resolvedSlotTypeId = classEntity.SlotTypeId;
+        }
+
         bool resourcesChanged = classEntity.RoomId != command.RoomId ||
                                 classEntity.MainTeacherId != command.MainTeacherId ||
                                 classEntity.AssistantTeacherId != command.AssistantTeacherId;
@@ -256,6 +285,7 @@ public sealed class UpdateClassCommandHandler(
         classEntity.RoomId = command.RoomId;
         classEntity.MainTeacherId = command.MainTeacherId;
         classEntity.AssistantTeacherId = command.AssistantTeacherId;
+        classEntity.SlotTypeId = resolvedSlotTypeId;
         classEntity.StartDate = command.StartDate;
         classEntity.EndDate = command.EndDate;
         classEntity.Capacity = command.Capacity;
@@ -280,6 +310,8 @@ public sealed class UpdateClassCommandHandler(
             RoomId = classEntity.RoomId,
             MainTeacherId = classEntity.MainTeacherId,
             AssistantTeacherId = classEntity.AssistantTeacherId,
+            SlotTypeId = classEntity.SlotTypeId,
+            SlotTypeCode = slotTypeCode,
             StartDate = classEntity.StartDate,
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),

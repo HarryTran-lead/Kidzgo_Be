@@ -112,6 +112,17 @@ public sealed class CreateEnrollmentCommandHandler(
                 return Result.Failure<CreateEnrollmentResponse>(
                     EnrollmentErrors.TuitionPlanProgramMismatch);
             }
+
+            if (await IsExplicitlyIncompatibleAsync(
+                    tuitionPlan.LearningTicketTypeId,
+                    classEntity.SlotTypeId,
+                    cancellationToken))
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.TuitionPlanIncompatibleWithClassSlotType(
+                        tuitionPlan.LearningTicketTypeId,
+                        classEntity.SlotTypeId));
+            }
         }
 
         var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
@@ -177,6 +188,26 @@ public sealed class CreateEnrollmentCommandHandler(
             TuitionPlanId = enrollmentWithNav.TuitionPlanId,
             TuitionPlanName = enrollmentWithNav.TuitionPlan?.Name
         };
+    }
+
+    private async Task<bool> IsExplicitlyIncompatibleAsync(
+        Guid? learningTicketTypeId,
+        Guid? slotTypeId,
+        CancellationToken cancellationToken)
+    {
+        if (!learningTicketTypeId.HasValue || !slotTypeId.HasValue)
+        {
+            return false;
+        }
+
+        var mapping = await context.TicketTypeCompatibilities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
+                     x.SlotTypeId == slotTypeId.Value,
+                cancellationToken);
+
+        return mapping is not null && !mapping.IsCompatible;
     }
 }
 

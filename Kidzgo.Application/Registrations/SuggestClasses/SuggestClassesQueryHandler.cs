@@ -26,6 +26,7 @@ public sealed class SuggestClassesQueryHandler(
             .Include(r => r.Program)
             .Include(r => r.SecondaryProgram)
             .Include(r => r.Branch)
+            .Include(r => r.TuitionPlan)
             .FirstOrDefaultAsync(r => r.Id == query.RegistrationId, cancellationToken);
 
         if (registration == null)
@@ -36,6 +37,7 @@ public sealed class SuggestClassesQueryHandler(
         var primarySuggestions = await BuildSuggestionsAsync(
             registration.ProgramId,
             registration.BranchId,
+            registration.TuitionPlan?.LearningTicketTypeId,
             registration.PreferredSchedule,
             cancellationToken);
 
@@ -43,6 +45,7 @@ public sealed class SuggestClassesQueryHandler(
             ? await BuildSuggestionsAsync(
                 registration.SecondaryProgramId.Value,
                 registration.BranchId,
+                registration.TuitionPlan?.LearningTicketTypeId,
                 registration.PreferredSchedule,
                 cancellationToken)
             : (Suggested: new List<SuggestedClassDto>(), Alternative: new List<SuggestedClassDto>());
@@ -66,6 +69,7 @@ public sealed class SuggestClassesQueryHandler(
     private async Task<(List<SuggestedClassDto> Suggested, List<SuggestedClassDto> Alternative)> BuildSuggestionsAsync(
         Guid programId,
         Guid branchId,
+        Guid? learningTicketTypeId,
         string? preferredSchedule,
         CancellationToken cancellationToken)
     {
@@ -80,9 +84,20 @@ public sealed class SuggestClassesQueryHandler(
             .OrderBy(c => c.StartDate)
             .ToListAsync(cancellationToken);
 
+        HashSet<Guid> incompatibleSlotTypeIds = new();
+        if (learningTicketTypeId.HasValue)
+        {
+            incompatibleSlotTypeIds = await context.TicketTypeCompatibilities
+                .AsNoTracking()
+                .Where(x => x.LearningTicketTypeId == learningTicketTypeId.Value && !x.IsCompatible)
+                .Select(x => x.SlotTypeId)
+                .ToHashSetAsync(cancellationToken);
+        }
+
         var today = VietnamTime.TodayDateOnly();
 
         var filteredClasses = matchingClasses
+            .Where(c => !c.SlotTypeId.HasValue || !incompatibleSlotTypeIds.Contains(c.SlotTypeId.Value))
             .Where(c => IsScheduleMatching(
                 preferredSchedule ?? string.Empty,
                 ResolveEffectiveWeeklyScheduleJson(c, today),

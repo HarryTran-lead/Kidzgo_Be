@@ -117,6 +117,26 @@ public sealed class CreateClassCommandHandler(
             }
         }
 
+        string? slotTypeCode = null;
+        if (command.SlotTypeId.HasValue)
+        {
+            var slotType = await context.SlotTypes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.Id == command.SlotTypeId.Value && x.IsActive,
+                    cancellationToken);
+
+            if (slotType is null)
+            {
+                return Result.Failure<CreateClassResponse>(
+                    Error.Validation(
+                        "Class.SlotTypeNotFound",
+                        $"Slot type '{command.SlotTypeId.Value}' was not found or inactive."));
+            }
+
+            slotTypeCode = slotType.Code;
+        }
+
         var endDate = command.EndDate;
 
         if (!string.IsNullOrWhiteSpace(normalizedWeeklyScheduleJson) && endDate.HasValue)
@@ -180,6 +200,7 @@ public sealed class CreateClassCommandHandler(
             RoomId = command.RoomId,
             MainTeacherId = command.MainTeacherId,
             AssistantTeacherId = command.AssistantTeacherId,
+            SlotTypeId = command.SlotTypeId,
             StartDate = command.StartDate,
             EndDate = endDate,
             Status = ClassStatus.Active,
@@ -203,6 +224,8 @@ public sealed class CreateClassCommandHandler(
             RoomId = classEntity.RoomId,
             MainTeacherId = classEntity.MainTeacherId,
             AssistantTeacherId = classEntity.AssistantTeacherId,
+            SlotTypeId = classEntity.SlotTypeId,
+            SlotTypeCode = slotTypeCode,
             StartDate = classEntity.StartDate,
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),

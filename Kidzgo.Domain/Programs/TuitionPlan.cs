@@ -1,6 +1,7 @@
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Schools;
 using Kidzgo.Domain.Classes;
+using Kidzgo.Domain.LearningTickets;
 
 namespace Kidzgo.Domain.Programs;
 
@@ -13,6 +14,7 @@ public class TuitionPlan : Entity
     public decimal TuitionAmount { get; set; }
     public decimal UnitPriceSession { get; set; }
     public string Currency { get; set; } = null!;
+    public Guid? LearningTicketTypeId { get; set; }
     public bool IsActive { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -20,5 +22,6 @@ public class TuitionPlan : Entity
 
     // Navigation properties
     public Program Program { get; set; } = null!;
+    public LearningTicketType? LearningTicketType { get; set; }
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
 }

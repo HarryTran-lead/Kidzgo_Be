@@ -113,6 +113,7 @@ public sealed class UpdateAttendanceCommandHandler(
                 attendance.AttendanceStatus,
                 attendance.AbsenceType,
                 attendance.Session.SectionType,
+                attendance.Session.SlotTypeId,
                 attendance.Session.ActualDatetime ?? attendance.Session.PlannedDatetime,
                 cancellationToken);
             impactedClassIds.UnionWith(transitionOutcome.ImpactedClassIds);
@@ -163,17 +164,12 @@ public sealed class UpdateAttendanceCommandHandler(
             AttendanceStatus = attendance.AttendanceStatus.ToString(),
             AbsenceType = attendance.AbsenceType.HasValue ? attendance.AbsenceType.Value.ToString() : null,
             Note = attendance.Note,
-            TicketConsumed = attendance.AttendanceStatus is AttendanceStatus.Present ||
-                             (attendance.AttendanceStatus == AttendanceStatus.Absent &&
-                              attendance.AbsenceType == AbsenceType.NoNotice),
-            ConsumedQuantity = attendance.AttendanceStatus is AttendanceStatus.Present ||
-                               (attendance.AttendanceStatus == AttendanceStatus.Absent &&
-                                attendance.AbsenceType == AbsenceType.NoNotice)
-                ? 1
-                : 0,
-            AdvanceLessonProgression = attendance.AttendanceStatus == AttendanceStatus.Present &&
-                                       attendance.Session.SectionType == SectionType.Normal,
+            TicketConsumed = transitionOutcome?.TicketDelta == -1,
+            ConsumedQuantity = transitionOutcome?.TicketDelta == -1 ? 1 : 0,
+            AdvanceLessonProgression = transitionOutcome?.AdvanceLessonProgression ?? false,
             TicketBalance = transitionOutcome?.TicketBalance,
+            TicketCompatibilityPassed = transitionOutcome?.CompatibilityPassed,
+            TicketCompatibilityReason = transitionOutcome?.CompatibilityReason,
             UpdatedAt = attendance.MarkedAt
         };
     }

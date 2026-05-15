@@ -35,6 +35,10 @@ public sealed class UpdateClassCommandValidator : AbstractValidator<UpdateClassC
 
         RuleFor(command => command.Capacity)
             .GreaterThan(0).WithMessage("Capacity must be greater than 0");
+
+        RuleFor(command => command.SlotTypeId)
+            .NotEqual(Guid.Empty).WithMessage("Slot type ID must not be empty")
+            .When(command => command.SlotTypeId.HasValue);
     }
 }
 

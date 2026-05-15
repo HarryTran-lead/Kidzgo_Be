@@ -87,4 +87,8 @@ public static class RegistrationErrors
     public static Error InvalidEnrollmentConfirmationPdfFormType(string? formType) => Error.Validation(
         "Registration.InvalidEnrollmentConfirmationPdfFormType",
         $"Invalid enrollment confirmation PDF form type: {formType}. Allowed values are auto, new, newStudent, continuing, continuingStudent.");
+
+    public static Error TicketTypeIncompatibleWithClassSlotType(Guid? learningTicketTypeId, Guid? slotTypeId) => Error.Conflict(
+        "Registration.TicketTypeIncompatibleWithClassSlotType",
+        $"Registration ticket type '{learningTicketTypeId}' is incompatible with class slot type '{slotTypeId}'.");
 }

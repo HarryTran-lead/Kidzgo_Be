@@ -181,6 +181,7 @@ public sealed class CreateRegistrationCommandHandler(
             registration.StudentProfileId,
             registration.Id,
             tuitionPlan.TotalSessions,
+            tuitionPlan.LearningTicketTypeId,
             $"Purchase {tuitionPlan.Name}",
             LearningTicketSource.Purchase,
             createdByUserId: null,

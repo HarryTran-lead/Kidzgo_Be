@@ -33,6 +33,7 @@ public sealed class AssignClassCommandHandler(
         var registration = await context.Registrations
             .Include(r => r.Program)
             .Include(r => r.SecondaryProgram)
+            .Include(r => r.TuitionPlan)
             .FirstOrDefaultAsync(r => r.Id == command.RegistrationId, cancellationToken);
 
         if (registration == null)
@@ -117,6 +118,18 @@ public sealed class AssignClassCommandHandler(
         if (classEntity == null && !isWait)
         {
             return Result.Failure<AssignClassResponse>(RegistrationErrors.ClassNotFound(classId ?? Guid.Empty));
+        }
+
+        if (classEntity != null &&
+            await IsExplicitlyIncompatibleAsync(
+                registration.TuitionPlan?.LearningTicketTypeId,
+                classEntity.SlotTypeId,
+                cancellationToken))
+        {
+            return Result.Failure<AssignClassResponse>(
+                RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
+                    registration.TuitionPlan?.LearningTicketTypeId,
+                    classEntity.SlotTypeId));
         }
 
         if (classEntity != null && classEntity.BranchId != registration.BranchId)
@@ -331,5 +344,25 @@ public sealed class AssignClassCommandHandler(
             FirstStudySessionAt = firstStudySessionAt,
             WarningMessage = warningMessage
         };
+    }
+
+    private async Task<bool> IsExplicitlyIncompatibleAsync(
+        Guid? learningTicketTypeId,
+        Guid? slotTypeId,
+        CancellationToken cancellationToken)
+    {
+        if (!learningTicketTypeId.HasValue || !slotTypeId.HasValue)
+        {
+            return false;
+        }
+
+        var mapping = await context.TicketTypeCompatibilities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
+                     x.SlotTypeId == slotTypeId.Value,
+                cancellationToken);
+
+        return mapping is not null && !mapping.IsCompatible;
     }
 }

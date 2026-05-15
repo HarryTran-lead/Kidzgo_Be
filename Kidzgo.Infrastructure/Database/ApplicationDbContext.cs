@@ -160,12 +160,15 @@ public sealed class ApplicationDbContext(
     public DbSet<MakeupSettings> MakeupSettings => Set<MakeupSettings>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<StudentSessionAssignment> StudentSessionAssignments => Set<StudentSessionAssignment>();
+    public DbSet<SlotType> SlotTypes => Set<SlotType>();
 
     // Tickets
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<LearningTicketItem> LearningTicketItems => Set<LearningTicketItem>();
     public DbSet<LearningTicketLedger> LearningTicketLedgers => Set<LearningTicketLedger>();
+    public DbSet<LearningTicketType> LearningTicketTypes => Set<LearningTicketType>();
+    public DbSet<TicketTypeCompatibility> TicketTypeCompatibilities => Set<TicketTypeCompatibility>();
 
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

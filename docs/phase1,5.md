@@ -386,7 +386,7 @@ Nghĩa là:
 vé nào được học loại lớp nào
 
 Chưa phải:
-
+❌
 - tính giá động
 - auto conversion
 - surcharge
@@ -402,4 +402,106 @@ mọi nơi.
 
 Nhưng nếu có TicketType/SlotType
 business logic sẽ sạch hơn rất nhiều.
+BE vẫn thiết kế FULL architecture
+để:
+- future-proof
+- không phải rewrite sau này
+- đúng tư duy enterprise
+Bao gồm:
+✅ TicketType
+✅ SlotType
+✅ Compatibility Matrix
+✅ TicketCompatibilityService
+✅ Runtime Classification
+
+Nhưng trong vận hành THỰC TẾ hiện tại của Rex
+Chỉ bật/use những phần cần thiết
+
+Thực tế Phase 1.5 Rex sẽ dùng:
+BẮT BUỘC dùng
+1. SlotType
+Để phân loại runtime:
+NORMAL
+NATIVE_SUPPORT
+WORKSHOP
+REVIEW_SUPPORT
+ASSESSMENT_SUPPORT
+
+2. SessionType
+Để quyết định behavior:
+NORMAL
+REVIEW
+MAKEUP
+REMEDIAL
+ASSESSMENT
+
+3. Runtime Analytics
+Để biết:
+- lớp nào review nhiều
+- lớp nào native support nhiều
+- curriculum delay
+- runtime composition
+
+4. Teaching Log Integration
+Tracking:
+planned
+vs
+actual
+
+Còn những phần FULL nhưng chưa dùng mạnh
+Chỉ implement để sẵn
+TicketType
+Hiện tại:
+DEFAULT
+
+Compatibility Matrix
+Hiện tại:
+DEFAULT
+→ compatible all
+
+TicketCompatibilityService
+Hiện tại:
+always pass
+
+Nhưng lợi ích rất lớn
+Sau này Rex muốn:
+- native premium
+- VIP teacher
+- branch pricing
+- special package
+↓
+BE chỉ:
+bật policy/config
+
+KHÔNG cần rewrite kiến trúc
+
+Đây là tư duy cực đúng
+“Build enterprise-ready architecture,
+run lightweight business policy.”
+
+Ví dụ thực tế
+Hiện tại
+Package Starters 48
+bao gồm tất cả runtime
+↓
+DEFAULT ticket
+
+Session hôm nay
+SessionType = REVIEW
+SlotType = NATIVE_SUPPORT
+↓
+System hiểu:
+- review session
+- có native teacher
+- consume ticket bình thường
+- không advance lesson
+
+Nhưng:
+KHÔNG có extra charge
+
+Sau này nếu Rex muốn
+Native VIP cần package riêng
+↓
+chỉ cần bật:
+PREMIUM ticket required
 

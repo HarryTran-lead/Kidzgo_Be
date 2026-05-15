@@ -15,12 +15,15 @@ public sealed record AttendanceTransitionOutcome(
     bool TicketChanged,
     int TicketDelta,
     int? TicketBalance,
-    bool AdvanceLessonProgression);
+    bool AdvanceLessonProgression,
+    bool? CompatibilityPassed,
+    string? CompatibilityReason);
 
 public sealed class RegistrationSessionConsumptionService(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    TicketConsumptionPolicyService ticketConsumptionPolicyService)
+    TicketConsumptionPolicyService ticketConsumptionPolicyService,
+    TicketCompatibilityService ticketCompatibilityService)
 {
     public async Task<AttendanceTransitionOutcome> ApplyAttendanceTransitionAsync(
         Guid? sessionId,
@@ -31,6 +34,7 @@ public sealed class RegistrationSessionConsumptionService(
         AttendanceStatus newStatus,
         AbsenceType? newAbsenceType,
         SectionType sectionType,
+        Guid? slotTypeId,
         DateTime sessionDateTimeUtc,
         CancellationToken cancellationToken)
     {
@@ -38,7 +42,7 @@ public sealed class RegistrationSessionConsumptionService(
 
         if (!registrationId.HasValue)
         {
-            return new AttendanceTransitionOutcome(impactedClassIds, false, 0, null, false);
+            return new AttendanceTransitionOutcome(impactedClassIds, false, 0, null, false, null, null);
         }
 
         var beforeDecision = ticketConsumptionPolicyService.Evaluate(previousStatus, previousAbsenceType, sectionType);
@@ -54,7 +58,9 @@ public sealed class RegistrationSessionConsumptionService(
                 false,
                 0,
                 null,
-                afterDecision.AdvanceLessonProgression);
+                afterDecision.AdvanceLessonProgression,
+                null,
+                null);
         }
 
         var registration = await context.Registrations
@@ -62,7 +68,14 @@ public sealed class RegistrationSessionConsumptionService(
 
         if (registration is null)
         {
-            return new AttendanceTransitionOutcome(impactedClassIds, false, 0, null, afterDecision.AdvanceLessonProgression);
+            return new AttendanceTransitionOutcome(
+                impactedClassIds,
+                false,
+                0,
+                null,
+                afterDecision.AdvanceLessonProgression,
+                null,
+                null);
         }
 
         var now = VietnamTime.UtcNow();
@@ -70,11 +83,11 @@ public sealed class RegistrationSessionConsumptionService(
 
         if (consumedAfter)
         {
-            var availableTicket = await context.LearningTicketItems
-                .Where(x => x.RegistrationId == registration.Id && x.Status == LearningTicketItemStatus.Available)
-                .OrderBy(x => x.CreatedAt)
-                .ThenBy(x => x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+            var selection = await ticketCompatibilityService.SelectTicketForConsumptionAsync(
+                registration.Id,
+                slotTypeId,
+                cancellationToken);
+            var availableTicket = selection.TicketItem;
 
             if (availableTicket is null)
             {
@@ -83,7 +96,9 @@ public sealed class RegistrationSessionConsumptionService(
                     false,
                     0,
                     registration.RemainingSessions,
-                    afterDecision.AdvanceLessonProgression);
+                    afterDecision.AdvanceLessonProgression,
+                    selection.IsCompatible,
+                    selection.Reason);
             }
 
             availableTicket.Status = LearningTicketItemStatus.Consumed;
@@ -127,7 +142,9 @@ public sealed class RegistrationSessionConsumptionService(
                 true,
                 -1,
                 registration.RemainingSessions,
-                afterDecision.AdvanceLessonProgression);
+                afterDecision.AdvanceLessonProgression,
+                selection.IsCompatible,
+                selection.Reason);
         }
 
         var wasCompletedBySessionExhaustion =
@@ -200,7 +217,9 @@ public sealed class RegistrationSessionConsumptionService(
             consumedTicket is not null,
             consumedTicket is not null ? 1 : 0,
             registration.RemainingSessions,
-            afterDecision.AdvanceLessonProgression);
+            afterDecision.AdvanceLessonProgression,
+            null,
+            null);
     }
 
     private async Task<HashSet<Guid>> CompleteActiveEnrollmentsAsync(

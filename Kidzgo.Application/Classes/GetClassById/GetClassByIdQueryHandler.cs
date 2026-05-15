@@ -21,6 +21,7 @@ public sealed class GetClassByIdQueryHandler(
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
+            .Include(c => c.SlotType)
             .Include(c => c.ScheduleSegments)
             .FirstOrDefaultAsync(c => c.Id == query.Id, cancellationToken);
 
@@ -60,6 +61,8 @@ public sealed class GetClassByIdQueryHandler(
             BranchName = classEntity.Branch.Name,
             ProgramId = classEntity.ProgramId,
             ProgramName = classEntity.Program.Name,
+            SlotTypeId = classEntity.SlotTypeId,
+            SlotTypeCode = classEntity.SlotType?.Code,
             Code = classEntity.Code,
             Title = classEntity.Title,
             RoomId = classEntity.RoomId,

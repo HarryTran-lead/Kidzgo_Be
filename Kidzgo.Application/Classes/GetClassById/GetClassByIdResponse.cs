@@ -11,6 +11,8 @@ public sealed class GetClassByIdResponse
     public string BranchName { get; init; } = null!;
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
+    public Guid? SlotTypeId { get; init; }
+    public string? SlotTypeCode { get; init; }
     public string Code { get; init; } = null!;
     public string Title { get; init; } = null!;
     public Guid? MainTeacherId { get; init; }

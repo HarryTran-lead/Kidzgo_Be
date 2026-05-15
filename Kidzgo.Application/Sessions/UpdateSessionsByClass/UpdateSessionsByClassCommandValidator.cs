@@ -14,6 +14,11 @@ public sealed class UpdateSessionsByClassCommandValidator : AbstractValidator<Up
             .GreaterThanOrEqualTo(VietnamTime.UtcNow())
             .WithMessage("PlannedDatetime cannot be in the past")
             .When(command => command.PlannedDatetime.HasValue);
+
+        RuleFor(command => command.SlotTypeId)
+            .NotEqual(Guid.Empty)
+            .WithMessage("SlotTypeId must not be empty")
+            .When(command => command.SlotTypeId.HasValue);
     }
 }
 

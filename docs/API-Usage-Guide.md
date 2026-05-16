@@ -3805,7 +3805,7 @@ Base URL: `/api/`
 
 ### 13.2. Get Levels
 
-**Endpoint:** `GET /api/levels`
+**Endpoint:** `GET /api/lookups/levels`
 
 **Mô tả:** Lấy danh sách các level từ Programs (distinct, active programs).
 

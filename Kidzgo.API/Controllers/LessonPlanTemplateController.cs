@@ -32,9 +32,11 @@ public class LessonPlanTemplateController : ControllerBase
         var command = new CreateLessonPlanTemplateCommand
         {
             ProgramId = request.ProgramId,
+            ModuleId = request.ModuleId,
             Title = request.Title,
             Level = request.Level,
             SessionIndex = request.SessionIndex,
+            SessionOrder = request.SessionOrder,
             SyllabusMetadata = request.SyllabusMetadata,
             SyllabusContent = request.SyllabusContent,
             SourceFileName = request.SourceFileName,
@@ -125,9 +127,11 @@ public class LessonPlanTemplateController : ControllerBase
         var command = new UpdateLessonPlanTemplateCommand
         {
             Id = id,
+            ModuleId = request.ModuleId,
             Level = request.Level,
             Title = request.Title,
             SessionIndex = request.SessionIndex,
+            SessionOrder = request.SessionOrder,
             SyllabusMetadata = request.SyllabusMetadata,
             SyllabusContent = request.SyllabusContent,
             SourceFileName = request.SourceFileName,

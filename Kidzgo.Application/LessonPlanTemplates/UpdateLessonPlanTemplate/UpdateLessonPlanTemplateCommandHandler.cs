@@ -40,6 +40,18 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
                 LessonPlanTemplateErrors.NotFound(command.Id));
         }
 
+        if (command.ModuleId.HasValue)
+        {
+            var moduleExists = await context.Modules
+                .Include(x => x.Level)
+                .AnyAsync(x => x.Id == command.ModuleId.Value && x.Level.ProgramId == template.ProgramId, cancellationToken);
+            if (!moduleExists)
+            {
+                return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                    Error.Validation("LessonPlanTemplate.ModuleInvalid", "Module does not belong to the selected program."));
+            }
+        }
+
         // Validate session index if provided
         if (command.SessionIndex.HasValue)
         {
@@ -65,6 +77,11 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         }
 
         // Update fields
+        if (command.ModuleId.HasValue)
+        {
+            template.ModuleId = command.ModuleId;
+        }
+
         if (command.Level != null)
         {
             template.Level = command.Level;
@@ -78,6 +95,11 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         if (command.SessionIndex.HasValue)
         {
             template.SessionIndex = command.SessionIndex.Value;
+        }
+
+        if (command.SessionOrder.HasValue)
+        {
+            template.SessionOrder = command.SessionOrder.Value;
         }
 
         if (command.SyllabusMetadata != null)
@@ -111,9 +133,11 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         {
             Id = template.Id,
             ProgramId = template.ProgramId,
+            ModuleId = template.ModuleId,
             Title = template.Title,
             Level = template.Level,
             SessionIndex = template.SessionIndex,
+            SessionOrder = template.SessionOrder,
             SyllabusMetadata = template.SyllabusMetadata,
             SyllabusContent = template.SyllabusContent,
             SourceFileName = template.SourceFileName,

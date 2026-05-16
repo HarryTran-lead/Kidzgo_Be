@@ -35,6 +35,10 @@ public static class DependencyInjection
         services.AddScoped<ProgramProgressionEvaluationService>();
         services.AddScoped<ProgramProgressionApprovalService>();
         services.AddScoped<ProgramProgressionScheduleNotificationService>();
+        services.AddScoped<ProgressionService>();
+        services.AddScoped<AssessmentService>();
+        services.AddScoped<PromotionService>();
+        services.AddScoped<RemedialService>();
         services.AddScoped<ILevelCalculationService, LevelCalculationService>();
         services.AddScoped<IGamificationService, GamificationService>();
         return services;

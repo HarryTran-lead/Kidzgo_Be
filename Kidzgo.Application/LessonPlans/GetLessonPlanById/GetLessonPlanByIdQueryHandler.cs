@@ -66,6 +66,8 @@ public sealed class GetLessonPlanByIdQueryHandler(
             ActualContent = lessonPlan.ActualContent,
             ActualHomework = lessonPlan.ActualHomework,
             TeacherNotes = lessonPlan.TeacherNotes,
+            CompletionPercent = lessonPlan.CompletionPercent,
+            CarryForwardContent = lessonPlan.CarryForwardContent,
             SubmittedBy = lessonPlan.SubmittedBy,
             SubmittedByName = lessonPlan.SubmittedByUser?.Name,
             SubmittedAt = lessonPlan.SubmittedAt,

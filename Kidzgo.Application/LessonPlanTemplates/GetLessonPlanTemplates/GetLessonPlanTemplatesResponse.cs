@@ -12,10 +12,14 @@ public sealed class LessonPlanTemplateDto
 {
     public Guid Id { get; init; }
     public Guid ProgramId { get; init; }
+    public Guid? ModuleId { get; init; }
+    public string? ModuleCode { get; init; }
+    public string? ModuleName { get; init; }
     public string? ProgramName { get; init; }
     public string? Title { get; init; }
     public string? Level { get; init; }
     public int SessionIndex { get; init; }
+    public int SessionOrder { get; init; }
     public string? SyllabusMetadata { get; init; }
     public string? SyllabusContent { get; init; }
     public string? SourceFileName { get; init; }

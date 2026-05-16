@@ -11,7 +11,8 @@ namespace Kidzgo.Application.LessonPlans.UpdateLessonPlan;
 
 public sealed class UpdateLessonPlanCommandHandler(
     IDbContext context,
-    IUserContext userContext
+    IUserContext userContext,
+    Services.ProgressionService progressionService
 ) : ICommandHandler<UpdateLessonPlanCommand, UpdateLessonPlanResponse>
 {
     public async Task<Result<UpdateLessonPlanResponse>> Handle(
@@ -83,7 +84,22 @@ public sealed class UpdateLessonPlanCommandHandler(
             lessonPlan.TeacherNotes = command.TeacherNotes;
         }
 
+        if (command.CompletionPercent.HasValue)
+        {
+            lessonPlan.CompletionPercent = Math.Clamp(command.CompletionPercent.Value, 0, 100);
+        }
+
+        if (command.CarryForwardContent != null)
+        {
+            lessonPlan.CarryForwardContent = command.CarryForwardContent;
+        }
+
         await context.SaveChangesAsync(cancellationToken);
+
+        await RecalculateStudentProgressAsync(
+            lessonPlan.SessionId,
+            lessonPlan.TemplateId,
+            cancellationToken);
 
         return new UpdateLessonPlanResponse
         {
@@ -93,8 +109,53 @@ public sealed class UpdateLessonPlanCommandHandler(
             PlannedContent = lessonPlan.PlannedContent,
             ActualContent = lessonPlan.ActualContent,
             ActualHomework = lessonPlan.ActualHomework,
-            TeacherNotes = lessonPlan.TeacherNotes
+            TeacherNotes = lessonPlan.TeacherNotes,
+            CompletionPercent = lessonPlan.CompletionPercent,
+            CarryForwardContent = lessonPlan.CarryForwardContent
         };
+    }
+
+    private async Task RecalculateStudentProgressAsync(
+        Guid sessionId,
+        Guid? templateId,
+        CancellationToken cancellationToken)
+    {
+        if (!templateId.HasValue)
+        {
+            return;
+        }
+
+        var moduleId = await context.LessonPlanTemplates
+            .AsNoTracking()
+            .Where(x => x.Id == templateId.Value)
+            .Select(x => x.ModuleId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!moduleId.HasValue)
+        {
+            return;
+        }
+
+        var studentIds = await context.Attendances
+            .AsNoTracking()
+            .Where(x => x.SessionId == sessionId
+                        && (x.AttendanceStatus == Domain.Sessions.AttendanceStatus.Present
+                            || x.AttendanceStatus == Domain.Sessions.AttendanceStatus.Makeup))
+            .Select(x => x.StudentProfileId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var studentId in studentIds)
+        {
+            await progressionService.UpsertStudentProgressAsync(
+                studentId,
+                moduleId.Value,
+                templateId,
+                null,
+                cancellationToken);
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
     }
 }
 

@@ -36,6 +36,11 @@ public class LessonPlanConfiguration : IEntityTypeConfiguration<LessonPlan>
 
         builder.Property(x => x.TeacherNotes);
 
+        builder.Property(x => x.CompletionPercent)
+            .HasPrecision(5, 2);
+
+        builder.Property(x => x.CarryForwardContent);
+
         // Media/Attachment fields
         builder.Property(x => x.CoverImageUrl)
             .HasMaxLength(500);

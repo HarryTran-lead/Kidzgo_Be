@@ -23,6 +23,7 @@ using Kidzgo.Domain.TeachingMaterials;
 using Kidzgo.Domain.Website;
 using Kidzgo.Domain.ProgramProgressions;
 using Kidzgo.Domain.LearningTickets;
+using Kidzgo.Domain.AcademicProgression;
 
 namespace Kidzgo.Application.Abstraction.Data;
 
@@ -121,6 +122,8 @@ public interface IDbContext
 
     // Programs
     DbSet<Program> Programs { get; }
+    DbSet<Level> Levels { get; }
+    DbSet<Module> Modules { get; }
     DbSet<BranchProgram> BranchPrograms { get; }
     DbSet<ExtracurricularProgram> ExtracurricularPrograms { get; }
     DbSet<ProgramLeavePolicy> ProgramLeavePolicies { get; }
@@ -165,6 +168,13 @@ public interface IDbContext
     DbSet<LearningTicketLedger> LearningTicketLedgers { get; }
     DbSet<LearningTicketType> LearningTicketTypes { get; }
     DbSet<TicketTypeCompatibility> TicketTypeCompatibilities { get; }
+
+    // Academic progression
+    DbSet<StudentProgress> StudentProgresses { get; }
+    DbSet<Assessment> Assessments { get; }
+    DbSet<TeacherEvaluation> TeacherEvaluations { get; }
+    DbSet<PromotionDecision> PromotionDecisions { get; }
+    DbSet<RemedialPlan> RemedialPlans { get; }
 
     // Audit
     DbSet<AuditLog> AuditLogs { get; }

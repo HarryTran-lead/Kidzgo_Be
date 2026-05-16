@@ -46,6 +46,11 @@ public class ProgramConfiguration : IEntityTypeConfiguration<Program>
             .HasForeignKey(x => x.ProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasMany(x => x.Levels)
+            .WithOne(x => x.Program)
+            .HasForeignKey(x => x.ProgramId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(x => x.Classes)
             .WithOne(x => x.Program)
             .HasForeignKey(x => x.ProgramId)

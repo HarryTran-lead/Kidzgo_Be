@@ -15,6 +15,8 @@ public class LessonPlan : Entity
     public string? ActualContent { get; set; }
     public string? ActualHomework { get; set; }
     public string? TeacherNotes { get; set; }
+    public decimal? CompletionPercent { get; set; }
+    public string? CarryForwardContent { get; set; }
     
     // Media/Attachment fields
     public string? CoverImageUrl { get; set; }  // Ảnh cover của giáo án

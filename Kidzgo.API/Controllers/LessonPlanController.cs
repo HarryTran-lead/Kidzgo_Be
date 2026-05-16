@@ -36,7 +36,9 @@ public class LessonPlanController : ControllerBase
             PlannedContent = request.PlannedContent,
             ActualContent = request.ActualContent,
             ActualHomework = request.ActualHomework,
-            TeacherNotes = request.TeacherNotes
+            TeacherNotes = request.TeacherNotes,
+            CompletionPercent = request.CompletionPercent,
+            CarryForwardContent = request.CarryForwardContent
         };
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -87,7 +89,9 @@ public class LessonPlanController : ControllerBase
             PlannedContent = request.PlannedContent,
             ActualContent = request.ActualContent,
             ActualHomework = request.ActualHomework,
-            TeacherNotes = request.TeacherNotes
+            TeacherNotes = request.TeacherNotes,
+            CompletionPercent = request.CompletionPercent,
+            CarryForwardContent = request.CarryForwardContent
         };
 
         var result = await _mediator.Send(command, cancellationToken);

@@ -16,6 +16,8 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
         builder.Property(x => x.ProgramId)
             .IsRequired();
 
+        builder.Property(x => x.ModuleId);
+
         builder.Property(x => x.Title)
             .HasMaxLength(255)
             .IsRequired();
@@ -24,6 +26,9 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
             .HasMaxLength(100);
 
         builder.Property(x => x.SessionIndex)
+            .IsRequired();
+
+        builder.Property(x => x.SessionOrder)
             .IsRequired();
 
         builder.Property(x => x.SyllabusMetadata);
@@ -60,6 +65,11 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
             .WithMany(x => x.LessonPlanTemplates)
             .HasForeignKey(x => x.ProgramId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Module)
+            .WithMany(x => x.LessonPlanTemplates)
+            .HasForeignKey(x => x.ModuleId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.CreatedByUser)
             .WithMany(x => x.CreatedLessonPlanTemplates)

@@ -16,6 +16,7 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
     {
         var templateQuery = context.LessonPlanTemplates
             .Include(t => t.Program)
+            .Include(t => t.Module)
             .Include(t => t.CreatedByUser)
             .AsQueryable();
 
@@ -61,10 +62,14 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
             {
                 Id = t.Id,
                 ProgramId = t.ProgramId,
+                ModuleId = t.ModuleId,
+                ModuleCode = t.Module != null ? t.Module.Code : null,
+                ModuleName = t.Module != null ? t.Module.Name : null,
                 ProgramName = t.Program != null ? t.Program.Name : null,
                 Level = t.Level,
                 Title = t.Title,
                 SessionIndex = t.SessionIndex,
+                SessionOrder = t.SessionOrder,
                 SyllabusMetadata = t.SyllabusMetadata,
                 SyllabusContent = t.SyllabusContent,
                 SourceFileName = t.SourceFileName,

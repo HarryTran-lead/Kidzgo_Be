@@ -20,7 +20,7 @@ public class LookupController : ControllerBase
     }
 
     /// Lấy danh sách Levels từ Programs
-    [HttpGet("levels")]
+    [HttpGet("lookups/levels")]
     [Authorize]
     public async Task<IResult> GetLevels(CancellationToken cancellationToken)
     {

@@ -24,6 +24,7 @@ using Kidzgo.Domain.TeachingMaterials;
 using Kidzgo.Domain.Website;
 using Kidzgo.Domain.ProgramProgressions;
 using Kidzgo.Domain.LearningTickets;
+using Kidzgo.Domain.AcademicProgression;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -125,6 +126,8 @@ public sealed class ApplicationDbContext(
 
     // Programs
     public DbSet<Program> Programs => Set<Program>();
+    public DbSet<Level> Levels => Set<Level>();
+    public DbSet<Module> Modules => Set<Module>();
     public DbSet<BranchProgram> BranchPrograms => Set<BranchProgram>();
     public DbSet<ExtracurricularProgram> ExtracurricularPrograms => Set<ExtracurricularProgram>();
     public DbSet<ProgramLeavePolicy> ProgramLeavePolicies => Set<ProgramLeavePolicy>();
@@ -169,6 +172,13 @@ public sealed class ApplicationDbContext(
     public DbSet<LearningTicketLedger> LearningTicketLedgers => Set<LearningTicketLedger>();
     public DbSet<LearningTicketType> LearningTicketTypes => Set<LearningTicketType>();
     public DbSet<TicketTypeCompatibility> TicketTypeCompatibilities => Set<TicketTypeCompatibility>();
+
+    // Academic progression
+    public DbSet<StudentProgress> StudentProgresses => Set<StudentProgress>();
+    public DbSet<Assessment> Assessments => Set<Assessment>();
+    public DbSet<TeacherEvaluation> TeacherEvaluations => Set<TeacherEvaluation>();
+    public DbSet<PromotionDecision> PromotionDecisions => Set<PromotionDecision>();
+    public DbSet<RemedialPlan> RemedialPlans => Set<RemedialPlan>();
 
     // Audit
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

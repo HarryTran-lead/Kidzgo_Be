@@ -21,6 +21,7 @@ public class Program : Entity
 
     // Navigation properties
     public ICollection<BranchProgram> BranchPrograms { get; set; } = new List<BranchProgram>();
+    public ICollection<Level> Levels { get; set; } = new List<Level>();
     public ICollection<Class> Classes { get; set; } = new List<Class>();
     public ICollection<TuitionPlan> TuitionPlans { get; set; } = new List<TuitionPlan>();
     public ICollection<LessonPlanTemplate> LessonPlanTemplates { get; set; } = new List<LessonPlanTemplate>();

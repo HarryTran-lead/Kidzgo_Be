@@ -15,6 +15,8 @@ public sealed class GetLessonPlanByIdResponse
     public string? ActualContent { get; init; }
     public string? ActualHomework { get; init; }
     public string? TeacherNotes { get; init; }
+    public decimal? CompletionPercent { get; init; }
+    public string? CarryForwardContent { get; init; }
     public Guid? SubmittedBy { get; init; }
     public string? SubmittedByName { get; init; }
     public DateTime? SubmittedAt { get; init; }

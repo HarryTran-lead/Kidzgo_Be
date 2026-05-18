@@ -28,6 +28,18 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
                 LessonPlanTemplateErrors.ProgramNotFound(command.ProgramId));
         }
 
+        if (command.ModuleId.HasValue)
+        {
+            var moduleExists = await context.Modules
+                .Include(x => x.Level)
+                .AnyAsync(x => x.Id == command.ModuleId.Value && x.Level.ProgramId == command.ProgramId, cancellationToken);
+            if (!moduleExists)
+            {
+                return Result.Failure<CreateLessonPlanTemplateResponse>(
+                    Error.Validation("LessonPlanTemplate.ModuleInvalid", "Module does not belong to the selected program."));
+            }
+        }
+
         // Validate session index
         if (command.SessionIndex <= 0)
         {
@@ -55,9 +67,11 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         {
             Id = Guid.NewGuid(),
             ProgramId = command.ProgramId,
+            ModuleId = command.ModuleId,
             Level = command.Level,
             Title = command.Title,
             SessionIndex = command.SessionIndex,
+            SessionOrder = command.SessionOrder ?? command.SessionIndex,
             SyllabusMetadata = command.SyllabusMetadata,
             SyllabusContent = command.SyllabusContent,
             SourceFileName = command.SourceFileName,
@@ -75,9 +89,11 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         {
             Id = template.Id,
             ProgramId = template.ProgramId,
+            ModuleId = template.ModuleId,
             Level = template.Level,
             Title = template.Title,
             SessionIndex = template.SessionIndex,
+            SessionOrder = template.SessionOrder,
             SyllabusMetadata = template.SyllabusMetadata,
             SyllabusContent = template.SyllabusContent,
             SourceFileName = template.SourceFileName,

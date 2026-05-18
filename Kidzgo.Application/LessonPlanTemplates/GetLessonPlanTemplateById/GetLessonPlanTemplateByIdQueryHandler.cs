@@ -17,6 +17,7 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
     {
         var template = await context.LessonPlanTemplates
             .Include(t => t.Program)
+            .Include(t => t.Module)
             .Include(t => t.CreatedByUser)
             .FirstOrDefaultAsync(t => t.Id == query.Id && !t.IsDeleted, cancellationToken);
 
@@ -34,10 +35,14 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
         {
             Id = template.Id,
             ProgramId = template.ProgramId,
+            ModuleId = template.ModuleId,
+            ModuleCode = template.Module?.Code,
+            ModuleName = template.Module?.Name,
             ProgramName = template.Program?.Name,
             Level = template.Level,
             Title = template.Title,
             SessionIndex = template.SessionIndex,
+            SessionOrder = template.SessionOrder,
             SyllabusMetadata = template.SyllabusMetadata,
             SyllabusContent = template.SyllabusContent,
             SourceFileName = template.SourceFileName,

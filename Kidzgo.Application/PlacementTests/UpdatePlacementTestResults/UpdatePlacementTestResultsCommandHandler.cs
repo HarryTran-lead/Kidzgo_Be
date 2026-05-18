@@ -21,7 +21,8 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
         var placementTest = await context.PlacementTests
             .Include(pt => pt.LeadChild)
             .Include(pt => pt.ProgramRecommendationProgram)
-            .Include(pt => pt.SecondaryProgramRecommendationProgram)
+            .Include(pt => pt.PrimaryLevelRecommendationLevel)
+            .Include(pt => pt.SecondaryLevelRecommendationLevel)
             .FirstOrDefaultAsync(pt => pt.Id == command.PlacementTestId, cancellationToken);
 
         if (placementTest is null)
@@ -50,6 +51,9 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             if (command.ProgramRecommendationId.Value == Guid.Empty)
             {
                 placementTest.ProgramRecommendationId = null;
+                placementTest.PrimaryLevelRecommendationId = null;
+                placementTest.SecondaryLevelRecommendationId = null;
+                placementTest.SecondaryProgramSkillFocus = null;
             }
             else
             {
@@ -66,46 +70,109 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             }
         }
 
-        if (command.SecondaryProgramRecommendationId.HasValue)
+        var primaryLevelRecommendationId = NormalizeNullableGuid(command.PrimaryLevelRecommendationId);
+        if (command.PrimaryLevelRecommendationId.HasValue)
         {
-            if (command.SecondaryProgramRecommendationId.Value == Guid.Empty)
+            if (primaryLevelRecommendationId is null)
             {
-                placementTest.SecondaryProgramRecommendationId = null;
+                placementTest.PrimaryLevelRecommendationId = null;
+            }
+            else
+            {
+                var primaryLevel = await GetActiveLevelAsync(primaryLevelRecommendationId.Value, cancellationToken);
+                if (primaryLevel is null)
+                {
+                    return Result.Failure<UpdatePlacementTestResultsResponse>(
+                        Error.NotFound(
+                            "PlacementTest.PrimaryLevelRecommendationNotFound",
+                            $"Recommended primary level '{primaryLevelRecommendationId.Value}' was not found."));
+                }
+
+                if (!placementTest.ProgramRecommendationId.HasValue)
+                {
+                    return Result.Failure<UpdatePlacementTestResultsResponse>(
+                        Error.Validation(
+                            "PlacementTest.ProgramRecommendationRequired",
+                            "Program recommendation is required when setting primary level recommendation."));
+                }
+
+                if (primaryLevel.ProgramId != placementTest.ProgramRecommendationId.Value)
+                {
+                    return Result.Failure<UpdatePlacementTestResultsResponse>(
+                        Error.Validation(
+                            "PlacementTest.PrimaryLevelProgramMismatch",
+                            "Primary level recommendation must belong to the recommended program."));
+                }
+
+                placementTest.PrimaryLevelRecommendationId = primaryLevel.Id;
+            }
+        }
+
+        var secondaryLevelRecommendationId = NormalizeNullableGuid(command.SecondaryLevelRecommendationId);
+        if (command.SecondaryLevelRecommendationId.HasValue)
+        {
+            if (secondaryLevelRecommendationId is null)
+            {
+                placementTest.SecondaryLevelRecommendationId = null;
                 placementTest.SecondaryProgramSkillFocus = null;
             }
             else
             {
-                var secondaryRecommendedProgram = await GetActiveProgramAsync(command.SecondaryProgramRecommendationId.Value, cancellationToken);
-                if (secondaryRecommendedProgram is null)
+                var secondaryLevel = await GetActiveLevelAsync(secondaryLevelRecommendationId.Value, cancellationToken);
+                if (secondaryLevel is null)
                 {
                     return Result.Failure<UpdatePlacementTestResultsResponse>(
                         Error.NotFound(
-                            "PlacementTest.SecondaryProgramRecommendationNotFound",
-                            $"Recommended secondary program '{command.SecondaryProgramRecommendationId.Value}' was not found."));
+                            "PlacementTest.SecondaryLevelRecommendationNotFound",
+                            $"Recommended secondary level '{secondaryLevelRecommendationId.Value}' was not found."));
                 }
 
-                placementTest.SecondaryProgramRecommendationId = secondaryRecommendedProgram.Id;
-                placementTest.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryProgramSkillFocus)
+                if (!placementTest.ProgramRecommendationId.HasValue)
+                {
+                    return Result.Failure<UpdatePlacementTestResultsResponse>(
+                        Error.Validation(
+                            "PlacementTest.ProgramRecommendationRequired",
+                            "Program recommendation is required when setting secondary level recommendation."));
+                }
+
+                if (secondaryLevel.ProgramId != placementTest.ProgramRecommendationId.Value)
+                {
+                    return Result.Failure<UpdatePlacementTestResultsResponse>(
+                        Error.Validation(
+                            "PlacementTest.SecondaryLevelProgramMismatch",
+                            "Secondary level recommendation must belong to the recommended program."));
+                }
+
+                placementTest.SecondaryLevelRecommendationId = secondaryLevel.Id;
+                placementTest.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryLevelSkillFocus)
                     ? null
-                    : command.SecondaryProgramSkillFocus.Trim();
+                    : command.SecondaryLevelSkillFocus.Trim();
             }
         }
-        else if (command.SecondaryProgramSkillFocus is not null &&
-                 placementTest.SecondaryProgramRecommendationId is not null)
+        else if (command.SecondaryLevelSkillFocus is not null &&
+                 placementTest.SecondaryLevelRecommendationId is not null)
         {
-            placementTest.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryProgramSkillFocus)
+            placementTest.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryLevelSkillFocus)
                 ? null
-                : command.SecondaryProgramSkillFocus.Trim();
+                : command.SecondaryLevelSkillFocus.Trim();
         }
-
-        if (placementTest.ProgramRecommendationId.HasValue &&
-            placementTest.SecondaryProgramRecommendationId.HasValue &&
-            placementTest.ProgramRecommendationId == placementTest.SecondaryProgramRecommendationId)
+        else if (command.SecondaryLevelSkillFocus is not null &&
+                 placementTest.SecondaryLevelRecommendationId is null)
         {
             return Result.Failure<UpdatePlacementTestResultsResponse>(
                 Error.Validation(
-                    "PlacementTest.SecondaryProgramDuplicated",
-                    "Secondary program recommendation must be different from the primary program recommendation."));
+                    "PlacementTest.SecondaryLevelMissing",
+                    "Secondary level skill focus can only be set when secondary level recommendation exists."));
+        }
+
+        if (placementTest.PrimaryLevelRecommendationId.HasValue &&
+            placementTest.SecondaryLevelRecommendationId.HasValue &&
+            placementTest.PrimaryLevelRecommendationId == placementTest.SecondaryLevelRecommendationId)
+        {
+            return Result.Failure<UpdatePlacementTestResultsResponse>(
+                Error.Validation(
+                    "PlacementTest.SecondaryLevelDuplicated",
+                    "Secondary level recommendation must be different from the primary level recommendation."));
         }
 
         if (command.AttachmentUrls is not null)
@@ -187,9 +254,11 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             ResultScore = placementTest.ResultScore,
             ProgramRecommendationId = placementTest.ProgramRecommendationId,
             ProgramRecommendationName = await GetProgramNameAsync(placementTest.ProgramRecommendationId, cancellationToken),
-            SecondaryProgramRecommendationId = placementTest.SecondaryProgramRecommendationId,
-            SecondaryProgramRecommendationName = await GetProgramNameAsync(placementTest.SecondaryProgramRecommendationId, cancellationToken),
-            SecondaryProgramSkillFocus = placementTest.SecondaryProgramSkillFocus,
+            PrimaryLevelRecommendationId = placementTest.PrimaryLevelRecommendationId,
+            PrimaryLevelRecommendationName = await GetLevelNameAsync(placementTest.PrimaryLevelRecommendationId, cancellationToken),
+            SecondaryLevelRecommendationId = placementTest.SecondaryLevelRecommendationId,
+            SecondaryLevelRecommendationName = await GetLevelNameAsync(placementTest.SecondaryLevelRecommendationId, cancellationToken),
+            SecondaryLevelSkillFocus = placementTest.SecondaryProgramSkillFocus,
             AttachmentUrl = attachmentUrls.FirstOrDefault(),
             AttachmentUrls = attachmentUrls,
             Status = placementTest.Status.ToString(),
@@ -207,7 +276,9 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
         if (pt.OriginalPlacementTestId is null)
             return null;
 
-        if (pt.StudentProfileId is null || !pt.ProgramRecommendationId.HasValue)
+        if (pt.StudentProfileId is null ||
+            !pt.ProgramRecommendationId.HasValue ||
+            !pt.PrimaryLevelRecommendationId.HasValue)
             return null;
 
         var activeReg = await context.Registrations
@@ -240,9 +311,11 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
 
         var targetTuitionPlan = await context.TuitionPlans
             .Where(tp => tp.ProgramId == targetProgram.Id &&
+                         (tp.LevelId == pt.PrimaryLevelRecommendationId.Value || tp.LevelId == null) &&
                          tp.IsActive &&
                          !tp.IsDeleted)
-            .OrderBy(tp => tp.TuitionAmount)
+            .OrderByDescending(tp => tp.LevelId == pt.PrimaryLevelRecommendationId.Value)
+            .ThenBy(tp => tp.TuitionAmount)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (targetTuitionPlan is null)
@@ -261,6 +334,11 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             StudentProfileId = pt.StudentProfileId.Value,
             BranchId = activeReg.BranchId,
             ProgramId = targetProgram.Id,
+            LevelId = pt.PrimaryLevelRecommendationId.Value,
+            SecondaryLevelId = pt.SecondaryLevelRecommendationId,
+            SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(pt.SecondaryProgramSkillFocus)
+                ? null
+                : pt.SecondaryProgramSkillFocus.Trim(),
             TuitionPlanId = targetTuitionPlan.Id,
             RegistrationDate = now,
             ExpectedStartDate = now,
@@ -307,6 +385,12 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             .FirstOrDefaultAsync(p => p.Id == programId && p.IsActive && !p.IsDeleted, cancellationToken);
     }
 
+    private Task<Kidzgo.Domain.Programs.Level?> GetActiveLevelAsync(Guid levelId, CancellationToken cancellationToken)
+    {
+        return context.Levels
+            .FirstOrDefaultAsync(l => l.Id == levelId && l.IsActive, cancellationToken);
+    }
+
     private async Task<string?> GetProgramNameAsync(Guid? programId, CancellationToken cancellationToken)
     {
         if (!programId.HasValue)
@@ -318,5 +402,28 @@ public sealed class UpdatePlacementTestResultsCommandHandler(
             .Where(p => p.Id == programId.Value)
             .Select(p => p.Name)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<string?> GetLevelNameAsync(Guid? levelId, CancellationToken cancellationToken)
+    {
+        if (!levelId.HasValue)
+        {
+            return null;
+        }
+
+        return await context.Levels
+            .Where(l => l.Id == levelId.Value)
+            .Select(l => l.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private static Guid? NormalizeNullableGuid(Guid? value)
+    {
+        if (!value.HasValue || value.Value == Guid.Empty)
+        {
+            return null;
+        }
+
+        return value.Value;
     }
 }

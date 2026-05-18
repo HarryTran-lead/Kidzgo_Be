@@ -19,6 +19,8 @@ public sealed class GetTuitionPlanByIdQueryHandler(
             {
                 Id = t.Id,
                 ProgramId = t.ProgramId,
+                LevelId = t.LevelId,
+                LevelName = t.Level != null ? t.Level.Name : null,
                 LearningTicketTypeId = t.LearningTicketTypeId,
                 LearningTicketTypeCode = t.LearningTicketType != null ? t.LearningTicketType.Code : null,
                 ProgramName = t.Program.Name,

@@ -83,7 +83,7 @@ internal static class RegistrationTrackHelper
         }
 
         if (registration.ClassId == null ||
-            (registration.SecondaryProgramId.HasValue && registration.SecondaryClassId == null))
+            (registration.SecondaryLevelId.HasValue && registration.SecondaryClassId == null))
         {
             return RegistrationStatus.WaitingForClass;
         }

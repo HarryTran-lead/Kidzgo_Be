@@ -7,9 +7,10 @@ public sealed class CreateRegistrationCommand : ICommand<CreateRegistrationRespo
     public Guid StudentProfileId { get; init; }
     public Guid BranchId { get; init; }
     public Guid ProgramId { get; init; }
+    public Guid LevelId { get; init; }
     public Guid TuitionPlanId { get; init; }
-    public Guid? SecondaryProgramId { get; init; }
-    public string? SecondaryProgramSkillFocus { get; init; }
+    public Guid? SecondaryLevelId { get; init; }
+    public string? SecondaryLevelSkillFocus { get; init; }
     
     public DateTime? ExpectedStartDate { get; init; }
     public string? PreferredSchedule { get; init; }

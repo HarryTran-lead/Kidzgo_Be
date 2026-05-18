@@ -16,6 +16,8 @@ public sealed class GetProgramProgressionRuleByIdQueryHandler(
     {
         var rule = await context.ProgramProgressionRules
             .AsNoTracking()
+            .Include(r => r.SourceLevel)
+            .Include(r => r.TargetLevel)
             .Include(r => r.SourceProgram)
             .Include(r => r.TargetProgram)
             .FirstOrDefaultAsync(r => r.Id == query.Id, cancellationToken);

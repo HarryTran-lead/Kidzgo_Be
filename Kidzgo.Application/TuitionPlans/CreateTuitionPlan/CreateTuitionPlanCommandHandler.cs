@@ -22,6 +22,23 @@ public sealed class CreateTuitionPlanCommandHandler(
             return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotFound);
         }
 
+        if (command.LevelId.HasValue)
+        {
+            var levelExistsInProgram = await context.Levels.AnyAsync(
+                x => x.Id == command.LevelId.Value &&
+                     x.ProgramId == command.ProgramId &&
+                     x.IsActive,
+                cancellationToken);
+
+            if (!levelExistsInProgram)
+            {
+                return Result.Failure<CreateTuitionPlanResponse>(
+                    Error.Validation(
+                        "TuitionPlan.LevelNotFoundInProgram",
+                        $"Level '{command.LevelId.Value}' was not found, inactive, or does not belong to program '{command.ProgramId}'."));
+            }
+        }
+
         if (command.LearningTicketTypeId.HasValue)
         {
             var ticketTypeExists = await context.LearningTicketTypes
@@ -47,6 +64,7 @@ public sealed class CreateTuitionPlanCommandHandler(
         {
             Id = Guid.NewGuid(),
             ProgramId = command.ProgramId,
+            LevelId = command.LevelId,
             Name = command.Name,
             TotalSessions = command.TotalSessions,
             TuitionAmount = command.TuitionAmount,
@@ -65,6 +83,7 @@ public sealed class CreateTuitionPlanCommandHandler(
         // Query again with includes to get related data for response
         var createdTuitionPlan = await context.TuitionPlans
             .Include(t => t.Program)
+            .Include(t => t.Level)
             .Include(t => t.LearningTicketType)
             .FirstOrDefaultAsync(t => t.Id == tuitionPlan.Id, cancellationToken);
 
@@ -72,6 +91,8 @@ public sealed class CreateTuitionPlanCommandHandler(
         {
             Id = createdTuitionPlan!.Id,
             ProgramId = createdTuitionPlan.ProgramId,
+            LevelId = createdTuitionPlan.LevelId,
+            LevelName = createdTuitionPlan.Level?.Name,
             LearningTicketTypeId = createdTuitionPlan.LearningTicketTypeId,
             LearningTicketTypeCode = createdTuitionPlan.LearningTicketType?.Code,
             ProgramName = createdTuitionPlan.Program.Name,

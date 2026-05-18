@@ -72,8 +72,16 @@ public sealed class ProgramProgressionApprovalService(
                 ProgramProgressionErrors.SourceProgramMismatch(sourceRegistration.Id, assessment.SourceProgramId));
         }
 
+        if (sourceRegistration.LevelId != assessment.SourceLevelId)
+        {
+            return Result.Failure<ProgramProgressionApprovalResult>(Error.Validation(
+                "ProgramProgression.SourceLevelMismatch",
+                $"Registration '{sourceRegistration.Id}' does not match source level '{assessment.SourceLevelId}'."));
+        }
+
         var now = VietnamTime.UtcNow();
         Guid? generatedRegistrationId = null;
+        Guid? resolvedTargetLevelId = assessment.TargetLevelId;
 
         if (assessment.TargetProgramId.HasValue)
         {
@@ -112,9 +120,60 @@ public sealed class ProgramProgressionApprovalService(
                     RegistrationErrors.TuitionPlanNotFound(tuitionPlanId.Value));
             }
 
+            var targetLevelId = resolvedTargetLevelId;
+
+            if (targetLevelId.HasValue &&
+                selectedTuitionPlan.LevelId.HasValue &&
+                selectedTuitionPlan.LevelId.Value != targetLevelId.Value)
+            {
+                return Result.Failure<ProgramProgressionApprovalResult>(Error.Validation(
+                    "ProgramProgression.TuitionPlanLevelMismatch",
+                    "Selected tuition plan does not match the target level in progression rule."));
+            }
+
+            if (!targetLevelId.HasValue)
+            {
+                targetLevelId = selectedTuitionPlan.LevelId;
+            }
+
+            if (targetLevelId.HasValue)
+            {
+                var targetLevelExists = await context.Levels
+                    .AnyAsync(
+                        x => x.Id == targetLevelId.Value &&
+                             x.ProgramId == targetProgramId &&
+                             x.IsActive,
+                        cancellationToken);
+
+                if (!targetLevelExists)
+                {
+                    return Result.Failure<ProgramProgressionApprovalResult>(Error.Validation(
+                        "ProgramProgression.TargetLevelNotFound",
+                        "Target level from progression rule was not found, inactive, or not in target program."));
+                }
+            }
+
+            if (!targetLevelId.HasValue)
+            {
+                targetLevelId = await context.Levels
+                    .Where(x => x.ProgramId == targetProgramId && x.IsActive)
+                    .OrderBy(x => x.Order)
+                    .Select(x => (Guid?)x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            if (!targetLevelId.HasValue)
+            {
+                return Result.Failure<ProgramProgressionApprovalResult>(
+                    Error.Validation(
+                        "ProgramProgression.TargetLevelNotFound",
+                        "Cannot create registration because the target program has no active level."));
+            }
+
             var duplicateRegistrationExists = await context.Registrations
                 .AnyAsync(r =>
                     r.StudentProfileId == sourceRegistration.StudentProfileId &&
+                    r.Id != sourceRegistration.Id &&
                     r.Status != RegistrationStatus.Completed &&
                     r.Status != RegistrationStatus.Cancelled &&
                     (r.ProgramId == targetProgramId || r.SecondaryProgramId == targetProgramId),
@@ -147,6 +206,7 @@ public sealed class ProgramProgressionApprovalService(
                 StudentProfileId = sourceRegistration.StudentProfileId,
                 BranchId = sourceRegistration.BranchId,
                 ProgramId = targetProgramId,
+                LevelId = targetLevelId.Value,
                 TuitionPlanId = selectedTuitionPlan.Id,
                 RegistrationDate = now,
                 ExpectedStartDate = now,
@@ -168,6 +228,7 @@ public sealed class ProgramProgressionApprovalService(
             RegistrationDiscountPricingHelper.ApplyToRegistration(newRegistration, pricing);
             context.Registrations.Add(newRegistration);
             generatedRegistrationId = newRegistration.Id;
+            resolvedTargetLevelId = targetLevelId;
 
             if (assessment.Rule.CarryOverRemainingSessions)
             {
@@ -205,6 +266,7 @@ public sealed class ProgramProgressionApprovalService(
             ? null
             : approvalNote.Trim();
         assessment.ApprovedTuitionPlanId = generatedRegistrationId.HasValue ? tuitionPlanId : null;
+        assessment.TargetLevelId = resolvedTargetLevelId;
         assessment.GeneratedRegistrationId = generatedRegistrationId;
         assessment.UpdatedAt = now;
 

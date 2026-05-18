@@ -7,7 +7,9 @@ namespace Kidzgo.Application.ProgramProgressions.UpdateProgramProgressionRule;
 public sealed class UpdateProgramProgressionRuleCommand : ICommand<ProgramProgressionRuleDto>
 {
     public Guid Id { get; init; }
-    public Guid SourceProgramId { get; init; }
+    public Guid SourceLevelId { get; init; }
+    public Guid? TargetLevelId { get; init; }
+    public Guid? SourceProgramId { get; init; }
     public Guid? TargetProgramId { get; init; }
     public ProgramProgressionMethod Method { get; init; }
     public int? MinimumShieldCount { get; init; }

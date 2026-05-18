@@ -19,7 +19,8 @@ internal static class RegistrationDetailReadModelBuilder
             .Include(r => r.StudentProfile)
             .Include(r => r.Branch)
             .Include(r => r.Program)
-            .Include(r => r.SecondaryProgram)
+            .Include(r => r.Level)
+            .Include(r => r.SecondaryLevel)
             .Include(r => r.TuitionPlan)
             .Include(r => r.Class)
             .Include(r => r.SecondaryClass)
@@ -76,9 +77,11 @@ internal static class RegistrationDetailReadModelBuilder
             BranchName = registration.Branch.Name,
             ProgramId = registration.ProgramId,
             ProgramName = registration.Program.Name,
-            SecondaryProgramId = registration.SecondaryProgramId,
-            SecondaryProgramName = registration.SecondaryProgram?.Name,
-            SecondaryProgramSkillFocus = registration.SecondaryProgramSkillFocus,
+            LevelId = registration.LevelId,
+            LevelName = registration.Level.Name,
+            SecondaryLevelId = registration.SecondaryLevelId,
+            SecondaryLevelName = registration.SecondaryLevel?.Name,
+            SecondaryLevelSkillFocus = registration.SecondaryProgramSkillFocus,
             TuitionPlanId = registration.TuitionPlanId,
             TuitionPlanName = registration.TuitionPlan.Name,
             RegistrationDate = registration.RegistrationDate,

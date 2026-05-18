@@ -7,6 +7,8 @@ public sealed class UpdateProgramProgressionRuleCommandValidator : AbstractValid
     public UpdateProgramProgressionRuleCommandValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
-        RuleFor(x => x.SourceProgramId).NotEmpty();
+        RuleFor(x => x.SourceLevelId)
+            .NotEmpty()
+            .WithMessage("SourceLevelId is required.");
     }
 }

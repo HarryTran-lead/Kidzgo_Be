@@ -10,9 +10,11 @@ public sealed class UpdatePlacementTestResultsResponse
     public decimal? ResultScore { get; init; }
     public Guid? ProgramRecommendationId { get; init; }
     public string? ProgramRecommendationName { get; init; }
-    public Guid? SecondaryProgramRecommendationId { get; init; }
-    public string? SecondaryProgramRecommendationName { get; init; }
-    public string? SecondaryProgramSkillFocus { get; init; }
+    public Guid? PrimaryLevelRecommendationId { get; init; }
+    public string? PrimaryLevelRecommendationName { get; init; }
+    public Guid? SecondaryLevelRecommendationId { get; init; }
+    public string? SecondaryLevelRecommendationName { get; init; }
+    public string? SecondaryLevelSkillFocus { get; init; }
     public string? AttachmentUrl { get; init; }
     public IReadOnlyList<string> AttachmentUrls { get; init; } = Array.Empty<string>();
     public string Status { get; init; } = null!;

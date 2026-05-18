@@ -7,6 +7,7 @@ public sealed class ImportActiveRegistrationCommand : ICommand<ImportActiveRegis
     public Guid StudentProfileId { get; init; }
     public Guid BranchId { get; init; }
     public Guid ProgramId { get; init; }
+    public Guid LevelId { get; init; }
     public Guid TuitionPlanId { get; init; }
     public DateTime? ExpectedStartDate { get; init; }
     public DateTime ActualStartDate { get; init; }

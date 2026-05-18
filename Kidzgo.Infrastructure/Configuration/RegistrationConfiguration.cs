@@ -22,6 +22,11 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.Property(x => x.ProgramId)
             .IsRequired();
 
+        builder.Property(x => x.LevelId)
+            .IsRequired();
+
+        builder.Property(x => x.SecondaryLevelId);
+
         builder.Property(x => x.TuitionPlanId)
             .IsRequired();
 
@@ -103,6 +108,16 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
             .HasForeignKey(x => x.ProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Level)
+            .WithMany()
+            .HasForeignKey(x => x.LevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.SecondaryLevel)
+            .WithMany()
+            .HasForeignKey(x => x.SecondaryLevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(x => x.SecondaryProgram)
             .WithMany()
             .HasForeignKey(x => x.SecondaryProgramId)
@@ -137,6 +152,8 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.HasIndex(x => x.StudentProfileId);
         builder.HasIndex(x => x.BranchId);
         builder.HasIndex(x => x.ProgramId);
+        builder.HasIndex(x => x.LevelId);
+        builder.HasIndex(x => x.SecondaryLevelId);
         builder.HasIndex(x => x.SecondaryProgramId);
         builder.HasIndex(x => x.TuitionPlanId);
         builder.HasIndex(x => x.ClassId);

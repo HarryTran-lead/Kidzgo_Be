@@ -45,9 +45,10 @@ public class RegistrationController : ControllerBase
             StudentProfileId = request.StudentProfileId,
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
             TuitionPlanId = request.TuitionPlanId,
-            SecondaryProgramId = request.SecondaryProgramId,
-            SecondaryProgramSkillFocus = request.SecondaryProgramSkillFocus,
+            SecondaryLevelId = request.SecondaryLevelId,
+            SecondaryLevelSkillFocus = request.SecondaryLevelSkillFocus,
             ExpectedStartDate = request.ExpectedStartDate,
             PreferredSchedule = request.PreferredSchedule,
             Note = request.Note
@@ -70,6 +71,7 @@ public class RegistrationController : ControllerBase
             StudentProfileId = request.StudentProfileId,
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
             TuitionPlanId = request.TuitionPlanId,
             ExpectedStartDate = request.ExpectedStartDate,
             ActualStartDate = request.ActualStartDate,
@@ -138,9 +140,9 @@ public class RegistrationController : ControllerBase
             PreferredSchedule = request.PreferredSchedule,
             Note = request.Note,
             TuitionPlanId = request.TuitionPlanId,
-            SecondaryProgramId = request.SecondaryProgramId,
-            SecondaryProgramSkillFocus = request.SecondaryProgramSkillFocus,
-            RemoveSecondaryProgram = request.RemoveSecondaryProgram
+            SecondaryLevelId = request.SecondaryLevelId,
+            SecondaryLevelSkillFocus = request.SecondaryLevelSkillFocus,
+            RemoveSecondaryLevel = request.RemoveSecondaryLevel
         };
 
         var result = await _mediator.Send(command, cancellationToken);

@@ -7,6 +7,8 @@ public sealed class ImportActiveRegistrationResponse
     public Guid BranchId { get; init; }
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
+    public Guid LevelId { get; init; }
+    public string LevelName { get; init; } = null!;
     public Guid TuitionPlanId { get; init; }
     public string TuitionPlanName { get; init; } = null!;
     public DateTime RegistrationDate { get; init; }

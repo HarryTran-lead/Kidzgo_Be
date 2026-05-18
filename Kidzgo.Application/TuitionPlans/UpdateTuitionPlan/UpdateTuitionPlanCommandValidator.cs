@@ -12,6 +12,10 @@ public sealed class UpdateTuitionPlanCommandValidator : AbstractValidator<Update
         RuleFor(command => command.ProgramId)
             .NotEmpty().WithMessage("Program ID is required");
 
+        RuleFor(command => command.LevelId)
+            .NotEqual(Guid.Empty).WithMessage("Level ID must not be empty")
+            .When(command => command.LevelId.HasValue);
+
         RuleFor(command => command.Name)
             .NotEmpty().WithMessage("Name is required")
             .MaximumLength(255).WithMessage("Name must not exceed 255 characters");

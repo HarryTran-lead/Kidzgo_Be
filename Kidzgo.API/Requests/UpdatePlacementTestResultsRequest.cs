@@ -16,11 +16,11 @@ public sealed class UpdatePlacementTestResultsRequest
     public Guid? ProgramRecommendationId { get; set; }
 
     /// <summary>
-    /// Recommended secondary program id. Send Guid.Empty to clear the current secondary recommendation.
+    /// Recommended primary/secondary level ids. Send Guid.Empty to clear each recommendation.
     /// </summary>
-    public Guid? SecondaryProgramRecommendationId { get; set; }
-
-    public string? SecondaryProgramSkillFocus { get; set; }
+    public Guid? PrimaryLevelRecommendationId { get; set; }
+    public Guid? SecondaryLevelRecommendationId { get; set; }
+    public string? SecondaryLevelSkillFocus { get; set; }
 
     /// <summary>
     /// Accepts a single URL string for backward compatibility or an array of URL strings.

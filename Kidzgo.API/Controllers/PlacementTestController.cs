@@ -224,8 +224,9 @@ public class PlacementTestController : ControllerBase
             WritingScore = request.WritingScore,
             ResultScore = request.ResultScore,
             ProgramRecommendationId = request.ProgramRecommendationId,
-            SecondaryProgramRecommendationId = request.SecondaryProgramRecommendationId,
-            SecondaryProgramSkillFocus = request.SecondaryProgramSkillFocus,
+            PrimaryLevelRecommendationId = request.PrimaryLevelRecommendationId,
+            SecondaryLevelRecommendationId = request.SecondaryLevelRecommendationId,
+            SecondaryLevelSkillFocus = request.SecondaryLevelSkillFocus,
             AttachmentUrls = request.AttachmentUrl
         };
 

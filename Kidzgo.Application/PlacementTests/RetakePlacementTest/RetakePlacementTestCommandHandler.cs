@@ -213,6 +213,8 @@ public sealed class RetakePlacementTestCommandHandler(
             WritingScore = null,
             LevelRecommendation = null,
             ProgramRecommendationId = newProgram.Id,
+            PrimaryLevelRecommendationId = null,
+            SecondaryLevelRecommendationId = null,
             SecondaryProgramRecommendationId = null,
             SecondaryProgramSkillFocus = null,
             Notes = command.Note ?? $"Retake from PlacementTest {originalPlacementTest.Id}. Target program: {newProgram.Name}.",

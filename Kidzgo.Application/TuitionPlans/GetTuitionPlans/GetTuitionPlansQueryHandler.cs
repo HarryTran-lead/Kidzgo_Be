@@ -30,6 +30,12 @@ public sealed class GetTuitionPlansQueryHandler(
             tuitionPlansQuery = tuitionPlansQuery.Where(t => t.ProgramId == query.ProgramId.Value);
         }
 
+        if (query.LevelId.HasValue)
+        {
+            tuitionPlansQuery = tuitionPlansQuery
+                .Where(t => t.LevelId == query.LevelId.Value || t.LevelId == null);
+        }
+
         // Filter by IsActive
         if (query.IsActive.HasValue)
         {
@@ -48,6 +54,8 @@ public sealed class GetTuitionPlansQueryHandler(
             {
                 Id = t.Id,
                 ProgramId = t.ProgramId,
+                LevelId = t.LevelId,
+                LevelName = t.Level != null ? t.Level.Name : null,
                 LearningTicketTypeId = t.LearningTicketTypeId,
                 LearningTicketTypeCode = t.LearningTicketType != null ? t.LearningTicketType.Code : null,
                 ProgramName = t.Program.Name,

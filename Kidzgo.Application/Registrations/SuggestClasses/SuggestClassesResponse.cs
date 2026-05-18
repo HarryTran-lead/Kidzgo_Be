@@ -27,9 +27,9 @@ public sealed class SuggestClassesResponse
     public string? PreferredSchedule { get; init; }
     public List<SuggestedClassDto> SuggestedClasses { get; init; } = new();
     public List<SuggestedClassDto> AlternativeClasses { get; init; } = new();
-    public Guid? SecondaryProgramId { get; init; }
-    public string? SecondaryProgramName { get; init; }
-    public string? SecondaryProgramSkillFocus { get; init; }
+    public Guid? SecondaryLevelId { get; init; }
+    public string? SecondaryLevelName { get; init; }
+    public string? SecondaryLevelSkillFocus { get; init; }
     public List<SuggestedClassDto> SecondarySuggestedClasses { get; init; } = new();
     public List<SuggestedClassDto> SecondaryAlternativeClasses { get; init; } = new();
 }

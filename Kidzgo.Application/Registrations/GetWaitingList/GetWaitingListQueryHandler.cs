@@ -23,7 +23,7 @@ public sealed class GetWaitingListQueryHandler(
             .Include(r => r.StudentProfile)
             .Include(r => r.Branch)
             .Include(r => r.Program)
-            .Include(r => r.SecondaryProgram)
+            .Include(r => r.SecondaryLevel)
             .Include(r => r.TuitionPlan)
             .ToListAsync(cancellationToken);
 
@@ -71,10 +71,9 @@ public sealed class GetWaitingListQueryHandler(
             }
 
             if ((track is null || track == RegistrationTrackHelper.SecondaryTrack) &&
-                registration.SecondaryProgramId.HasValue &&
+                registration.SecondaryLevelId.HasValue &&
                 registration.SecondaryClassId is null &&
-                registration.SecondaryProgram is not null &&
-                (!query.ProgramId.HasValue || registration.SecondaryProgramId == query.ProgramId.Value))
+                (!query.ProgramId.HasValue || registration.ProgramId == query.ProgramId.Value))
             {
                 items.Add(new WaitingListItemDto
                 {
@@ -84,10 +83,12 @@ public sealed class GetWaitingListQueryHandler(
                     BranchId = registration.BranchId,
                     BranchName = registration.Branch.Name,
                     Track = RegistrationTrackHelper.SecondaryTrack,
-                    ProgramId = registration.SecondaryProgramId.Value,
-                    ProgramName = registration.SecondaryProgram.Name,
-                    IsSupplementaryProgram = registration.SecondaryProgram.IsSupplementary,
-                    ProgramSkillFocus = registration.SecondaryProgramSkillFocus,
+                    ProgramId = registration.ProgramId,
+                    ProgramName = registration.Program.Name,
+                    IsSupplementaryProgram = registration.Program.IsSupplementary,
+                    ProgramSkillFocus = string.IsNullOrWhiteSpace(registration.SecondaryProgramSkillFocus)
+                        ? registration.SecondaryLevel?.Name
+                        : registration.SecondaryProgramSkillFocus,
                     TuitionPlanId = registration.TuitionPlanId,
                     TuitionPlanName = registration.TuitionPlan.Name,
                     RegistrationDate = registration.RegistrationDate,

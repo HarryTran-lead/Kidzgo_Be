@@ -16,6 +16,7 @@ public class Level : Entity
     public DateTime UpdatedAt { get; set; }
 
     public Program Program { get; set; } = null!;
+    public ICollection<TuitionPlan> TuitionPlans { get; set; } = new List<TuitionPlan>();
     public ICollection<Module> Modules { get; set; } = new List<Module>();
     public ICollection<LessonPlanTemplate> LessonPlanTemplates { get; set; } = new List<LessonPlanTemplate>();
 }

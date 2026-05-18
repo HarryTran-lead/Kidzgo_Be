@@ -38,7 +38,6 @@ public sealed class TransferClassCommandHandler(
 
         var registration = await context.Registrations
             .Include(r => r.Program)
-            .Include(r => r.SecondaryProgram)
             .Include(r => r.TuitionPlan)
             .Include(r => r.Class)
             .Include(r => r.SecondaryClass)
@@ -57,12 +56,12 @@ public sealed class TransferClassCommandHandler(
         }
 
         var currentClassId = isSecondaryTrack ? registration.SecondaryClassId : registration.ClassId;
-        var targetProgramId = isSecondaryTrack ? registration.SecondaryProgramId : registration.ProgramId;
+        var targetProgramId = registration.ProgramId;
 
-        if (isSecondaryTrack && !registration.SecondaryProgramId.HasValue)
+        if (isSecondaryTrack && !registration.SecondaryLevelId.HasValue)
         {
             return Result.Failure<TransferClassResponse>(
-                Error.Validation("Registration.SecondaryProgramMissing", "Registration does not have a secondary program to transfer"));
+                Error.Validation("Registration.SecondaryLevelMissing", "Registration does not have a secondary level to transfer"));
         }
 
         if (currentClassId == null)
@@ -112,7 +111,7 @@ public sealed class TransferClassCommandHandler(
         if (newClass.ProgramId != targetProgramId)
         {
             return Result.Failure<TransferClassResponse>(
-                RegistrationErrors.ClassNotMatchingProgram(command.NewClassId, targetProgramId ?? Guid.Empty));
+                RegistrationErrors.ClassNotMatchingProgram(command.NewClassId, targetProgramId));
         }
 
         var selectionPatternValidation = await studentSessionAssignmentService
@@ -188,7 +187,7 @@ public sealed class TransferClassCommandHandler(
         };
 
         context.ClassEnrollments.Add(newEnrollment);
-        var targetProgram = isSecondaryTrack ? registration.SecondaryProgram : registration.Program;
+        var targetProgram = registration.Program;
         if (targetProgram?.IsSupplementary == true)
         {
             context.ClassEnrollmentScheduleSegments.Add(new ClassEnrollmentScheduleSegment

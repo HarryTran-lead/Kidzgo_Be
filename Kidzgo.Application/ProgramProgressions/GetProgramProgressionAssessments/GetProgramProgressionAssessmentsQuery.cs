@@ -8,6 +8,8 @@ public sealed class GetProgramProgressionAssessmentsQuery : IQuery<GetProgramPro
     public Guid? SourceRegistrationId { get; init; }
     public Guid? StudentProfileId { get; init; }
     public Guid? SourceProgramId { get; init; }
+    public Guid? SourceLevelId { get; init; }
+    public Guid? TargetLevelId { get; init; }
     public ProgramProgressionMethod? Method { get; init; }
     public ProgramProgressionAssessmentStatus? Status { get; init; }
     public bool? IsEligible { get; init; }

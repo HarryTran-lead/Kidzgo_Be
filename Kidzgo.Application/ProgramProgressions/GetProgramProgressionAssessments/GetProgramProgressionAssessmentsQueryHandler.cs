@@ -31,6 +31,16 @@ public sealed class GetProgramProgressionAssessmentsQueryHandler(
             assessmentsQuery = assessmentsQuery.Where(a => a.SourceProgramId == query.SourceProgramId.Value);
         }
 
+        if (query.SourceLevelId.HasValue)
+        {
+            assessmentsQuery = assessmentsQuery.Where(a => a.SourceLevelId == query.SourceLevelId.Value);
+        }
+
+        if (query.TargetLevelId.HasValue)
+        {
+            assessmentsQuery = assessmentsQuery.Where(a => a.TargetLevelId == query.TargetLevelId.Value);
+        }
+
         if (query.Method.HasValue)
         {
             assessmentsQuery = assessmentsQuery.Where(a => a.Method == query.Method.Value);

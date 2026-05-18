@@ -85,4 +85,3 @@ public class TicketTypeCompatibilityController : ControllerBase
         return result.MatchOk();
     }
 }
-

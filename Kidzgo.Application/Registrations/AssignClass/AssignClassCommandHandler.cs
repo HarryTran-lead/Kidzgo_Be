@@ -32,7 +32,6 @@ public sealed class AssignClassCommandHandler(
 
         var registration = await context.Registrations
             .Include(r => r.Program)
-            .Include(r => r.SecondaryProgram)
             .Include(r => r.TuitionPlan)
             .FirstOrDefaultAsync(r => r.Id == command.RegistrationId, cancellationToken);
 
@@ -48,17 +47,17 @@ public sealed class AssignClassCommandHandler(
                 RegistrationErrors.InvalidStatus(registration.Status.ToString(), "assign-class"));
         }
 
-        if (isSecondaryTrack && !registration.SecondaryProgramId.HasValue)
+        if (isSecondaryTrack && !registration.SecondaryLevelId.HasValue)
         {
             return Result.Failure<AssignClassResponse>(
                 Error.Validation(
-                    "Registration.SecondaryProgramMissing",
-                    "Registration does not have a secondary program to assign"));
+                    "Registration.SecondaryLevelMissing",
+                    "Registration does not have a secondary level to assign"));
         }
 
         var currentEntryType = isSecondaryTrack ? registration.SecondaryEntryType : registration.EntryType;
         var currentClassId = isSecondaryTrack ? registration.SecondaryClassId : registration.ClassId;
-        var targetProgramId = isSecondaryTrack ? registration.SecondaryProgramId!.Value : registration.ProgramId;
+        var targetProgramId = registration.ProgramId;
 
         if (currentEntryType != null &&
             currentEntryType != EntryType.Wait &&
@@ -269,7 +268,7 @@ public sealed class AssignClassCommandHandler(
 
             context.ClassEnrollments.Add(enrollment);
 
-            var targetProgram = isSecondaryTrack ? registration.SecondaryProgram : registration.Program;
+            var targetProgram = registration.Program;
             if (targetProgram?.IsSupplementary == true)
             {
                 context.ClassEnrollmentScheduleSegments.Add(new ClassEnrollmentScheduleSegment

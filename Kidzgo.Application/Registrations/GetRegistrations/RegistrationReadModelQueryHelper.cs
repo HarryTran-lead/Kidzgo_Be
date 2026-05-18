@@ -13,7 +13,8 @@ internal static class RegistrationReadModelQueryHelper
             .Include(r => r.StudentProfile)
             .Include(r => r.Branch)
             .Include(r => r.Program)
-            .Include(r => r.SecondaryProgram)
+            .Include(r => r.Level)
+            .Include(r => r.SecondaryLevel)
             .Include(r => r.TuitionPlan)
             .Include(r => r.Class)
             .Include(r => r.SecondaryClass);
@@ -71,9 +72,11 @@ internal static class RegistrationReadModelQueryHelper
             BranchName = r.Branch.Name,
             ProgramId = r.ProgramId,
             ProgramName = r.Program.Name,
-            SecondaryProgramId = r.SecondaryProgramId,
-            SecondaryProgramName = r.SecondaryProgram != null ? r.SecondaryProgram.Name : null,
-            SecondaryProgramSkillFocus = r.SecondaryProgramSkillFocus,
+            LevelId = r.LevelId,
+            LevelName = r.Level.Name,
+            SecondaryLevelId = r.SecondaryLevelId,
+            SecondaryLevelName = r.SecondaryLevel != null ? r.SecondaryLevel.Name : null,
+            SecondaryLevelSkillFocus = r.SecondaryProgramSkillFocus,
             TuitionPlanId = r.TuitionPlanId,
             TuitionPlanName = r.TuitionPlan.Name,
             RegistrationDate = r.RegistrationDate,

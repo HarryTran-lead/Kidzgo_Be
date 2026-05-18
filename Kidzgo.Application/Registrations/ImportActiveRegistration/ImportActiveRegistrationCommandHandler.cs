@@ -64,10 +64,26 @@ public sealed class ImportActiveRegistrationCommandHandler(
                 RegistrationErrors.ProgramNotAvailableInBranch(command.ProgramId, command.BranchId));
         }
 
+        var level = await context.Levels
+            .FirstOrDefaultAsync(
+                l => l.Id == command.LevelId &&
+                     l.ProgramId == command.ProgramId &&
+                     l.IsActive,
+                cancellationToken);
+
+        if (level is null)
+        {
+            return Result.Failure<ImportActiveRegistrationResponse>(
+                Error.Validation(
+                    "Registration.LevelNotFoundInProgram",
+                    $"Level '{command.LevelId}' was not found, inactive, or does not belong to the selected program."));
+        }
+
         var tuitionPlan = await context.TuitionPlans
             .FirstOrDefaultAsync(
                 tp => tp.Id == command.TuitionPlanId &&
                       tp.ProgramId == command.ProgramId &&
+                      (tp.LevelId == command.LevelId || tp.LevelId == null) &&
                       tp.IsActive &&
                       !tp.IsDeleted,
                 cancellationToken);
@@ -135,6 +151,7 @@ public sealed class ImportActiveRegistrationCommandHandler(
             StudentProfileId = command.StudentProfileId,
             BranchId = command.BranchId,
             ProgramId = command.ProgramId,
+            LevelId = command.LevelId,
             TuitionPlanId = command.TuitionPlanId,
             RegistrationDate = now,
             ExpectedStartDate = expectedStartDate,
@@ -198,6 +215,8 @@ public sealed class ImportActiveRegistrationCommandHandler(
             BranchId = registration.BranchId,
             ProgramId = registration.ProgramId,
             ProgramName = program.Name,
+            LevelId = registration.LevelId,
+            LevelName = level.Name,
             TuitionPlanId = registration.TuitionPlanId,
             TuitionPlanName = tuitionPlan.Name,
             RegistrationDate = registration.RegistrationDate,

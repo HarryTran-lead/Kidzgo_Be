@@ -6,7 +6,7 @@ public sealed class UpdateRegistrationRequest
     public string? PreferredSchedule { get; set; }
     public string? Note { get; set; }
     public Guid? TuitionPlanId { get; set; }
-    public Guid? SecondaryProgramId { get; set; }
-    public string? SecondaryProgramSkillFocus { get; set; }
-    public bool RemoveSecondaryProgram { get; set; }
+    public Guid? SecondaryLevelId { get; set; }
+    public string? SecondaryLevelSkillFocus { get; set; }
+    public bool RemoveSecondaryLevel { get; set; }
 }

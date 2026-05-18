@@ -15,10 +15,17 @@ internal static class ProgramProgressionAssessmentReadQuery
                 .ThenInclude(participant => participant!.Schedule)
                     .ThenInclude(schedule => schedule.SourceClass)
             .Include(a => a.StudentProfile)
+            .Include(a => a.SourceLevel)
+            .Include(a => a.TargetLevel)
             .Include(a => a.SourceProgram)
             .Include(a => a.TargetProgram)
             .Include(a => a.SourceEnrollment)
                 .ThenInclude(enrollment => enrollment!.Class)
-            .Include(a => a.ApprovedTuitionPlan);
+            .Include(a => a.ApprovedTuitionPlan)
+                .ThenInclude(plan => plan!.Level)
+            .Include(a => a.SourceRegistration)
+                .ThenInclude(registration => registration.Level)
+            .Include(a => a.GeneratedRegistration)
+                .ThenInclude(registration => registration!.Level);
     }
 }

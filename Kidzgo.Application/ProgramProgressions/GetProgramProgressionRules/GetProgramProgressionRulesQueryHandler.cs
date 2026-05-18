@@ -15,9 +15,21 @@ public sealed class GetProgramProgressionRulesQueryHandler(
     {
         var rulesQuery = context.ProgramProgressionRules
             .AsNoTracking()
+            .Include(r => r.SourceLevel)
+            .Include(r => r.TargetLevel)
             .Include(r => r.SourceProgram)
             .Include(r => r.TargetProgram)
             .AsQueryable();
+
+        if (query.SourceLevelId.HasValue)
+        {
+            rulesQuery = rulesQuery.Where(r => r.SourceLevelId == query.SourceLevelId.Value);
+        }
+
+        if (query.TargetLevelId.HasValue)
+        {
+            rulesQuery = rulesQuery.Where(r => r.TargetLevelId == query.TargetLevelId.Value);
+        }
 
         if (query.SourceProgramId.HasValue)
         {

@@ -5,7 +5,9 @@ namespace Kidzgo.API.Requests;
 
 public sealed class SaveProgramProgressionRuleRequest
 {
-    public Guid SourceProgramId { get; set; }
+    public Guid SourceLevelId { get; set; }
+    public Guid? TargetLevelId { get; set; }
+    public Guid? SourceProgramId { get; set; }
     public Guid? TargetProgramId { get; set; }
     public ProgramProgressionMethod Method { get; set; }
     public int? MinimumShieldCount { get; set; }

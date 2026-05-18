@@ -42,13 +42,25 @@ public sealed class ProgramProgressionRuleConfiguration : IEntityTypeConfigurati
             .HasForeignKey(x => x.SourceProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.SourceLevel)
+            .WithMany()
+            .HasForeignKey(x => x.SourceLevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(x => x.TargetProgram)
             .WithMany()
             .HasForeignKey(x => x.TargetProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.TargetLevel)
+            .WithMany()
+            .HasForeignKey(x => x.TargetLevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.SourceLevelId);
+        builder.HasIndex(x => x.TargetLevelId);
         builder.HasIndex(x => x.SourceProgramId);
         builder.HasIndex(x => x.TargetProgramId);
-        builder.HasIndex(x => new { x.SourceProgramId, x.IsActive });
+        builder.HasIndex(x => new { x.SourceLevelId, x.IsActive });
     }
 }

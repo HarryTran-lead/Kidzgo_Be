@@ -57,10 +57,60 @@ public sealed class CreateRegistrationCommandHandler(
                 RegistrationErrors.ProgramNotAvailableInBranch(command.ProgramId, command.BranchId));
         }
 
+        var level = await context.Levels
+            .FirstOrDefaultAsync(
+                l => l.Id == command.LevelId &&
+                     l.ProgramId == command.ProgramId &&
+                     l.IsActive,
+                cancellationToken);
+
+        if (level is null)
+        {
+            return Result.Failure<CreateRegistrationResponse>(
+                Error.Validation(
+                    "Registration.LevelNotFoundInProgram",
+                    $"Level '{command.LevelId}' was not found, inactive, or does not belong to the selected program."));
+        }
+
+        Kidzgo.Domain.Programs.Level? secondaryLevel = null;
+        if (command.SecondaryLevelId.HasValue)
+        {
+            if (command.SecondaryLevelId.Value == command.LevelId)
+            {
+                return Result.Failure<CreateRegistrationResponse>(
+                    Error.Validation(
+                        "Registration.SecondaryLevelDuplicated",
+                        "Secondary level must be different from primary level."));
+            }
+
+            secondaryLevel = await context.Levels
+                .FirstOrDefaultAsync(
+                    l => l.Id == command.SecondaryLevelId.Value &&
+                         l.ProgramId == command.ProgramId &&
+                         l.IsActive,
+                    cancellationToken);
+
+            if (secondaryLevel is null)
+            {
+                return Result.Failure<CreateRegistrationResponse>(
+                    Error.Validation(
+                        "Registration.SecondaryLevelNotFoundInProgram",
+                        $"Secondary level '{command.SecondaryLevelId.Value}' was not found, inactive, or does not belong to the selected program."));
+            }
+        }
+        else if (command.SecondaryLevelSkillFocus is not null)
+        {
+            return Result.Failure<CreateRegistrationResponse>(
+                Error.Validation(
+                    "Registration.SecondaryLevelMissing",
+                    "Secondary level skill focus can only be set when secondary level exists."));
+        }
+
         var tuitionPlan = await context.TuitionPlans
             .FirstOrDefaultAsync(
                 tp => tp.Id == command.TuitionPlanId &&
                       tp.ProgramId == command.ProgramId &&
+                      (tp.LevelId == command.LevelId || tp.LevelId == null) &&
                       tp.IsActive &&
                       !tp.IsDeleted,
                 cancellationToken);
@@ -68,43 +118,6 @@ public sealed class CreateRegistrationCommandHandler(
         if (tuitionPlan == null)
         {
             return Result.Failure<CreateRegistrationResponse>(RegistrationErrors.TuitionPlanNotFound(command.TuitionPlanId));
-        }
-
-        if (command.SecondaryProgramId == command.ProgramId)
-        {
-            return Result.Failure<CreateRegistrationResponse>(
-                Error.Validation("Registration.SecondaryProgramDuplicated", "Secondary program must be different from primary program"));
-        }
-
-        Domain.Programs.Program? secondaryProgram = null;
-        if (command.SecondaryProgramId.HasValue)
-        {
-            secondaryProgram = await context.Programs
-                .FirstOrDefaultAsync(p => p.Id == command.SecondaryProgramId.Value && p.IsActive && !p.IsDeleted, cancellationToken);
-
-            if (secondaryProgram is null)
-            {
-                return Result.Failure<CreateRegistrationResponse>(
-                    RegistrationErrors.ProgramNotFound(command.SecondaryProgramId.Value));
-            }
-
-            var secondaryProgramAssignedToBranch = await BranchProgramAccessHelper.IsProgramAssignedToBranchAsync(
-                context,
-                command.BranchId,
-                command.SecondaryProgramId.Value,
-                cancellationToken);
-
-            if (!secondaryProgramAssignedToBranch)
-            {
-                return Result.Failure<CreateRegistrationResponse>(
-                    RegistrationErrors.ProgramNotAvailableInBranch(command.SecondaryProgramId.Value, command.BranchId));
-            }
-
-            if (secondaryProgram.IsSupplementary)
-            {
-                return Result.Failure<CreateRegistrationResponse>(
-                    RegistrationErrors.SecondarySupplementaryRequiresSeparateRegistration(command.SecondaryProgramId.Value));
-            }
         }
 
         var activeRegistrations = context.Registrations
@@ -120,20 +133,6 @@ public sealed class CreateRegistrationCommandHandler(
         {
             return Result.Failure<CreateRegistrationResponse>(
                 RegistrationErrors.AlreadyExists(command.StudentProfileId, command.ProgramId));
-        }
-
-        if (command.SecondaryProgramId.HasValue)
-        {
-            var secondaryProgramId = command.SecondaryProgramId.Value;
-            var hasSecondaryConflict = await activeRegistrations.AnyAsync(
-                r => r.ProgramId == secondaryProgramId || r.SecondaryProgramId == secondaryProgramId,
-                cancellationToken);
-
-            if (hasSecondaryConflict)
-            {
-                return Result.Failure<CreateRegistrationResponse>(
-                    RegistrationErrors.AlreadyExists(command.StudentProfileId, secondaryProgramId));
-            }
         }
 
         var now = VietnamTime.UtcNow();
@@ -158,15 +157,17 @@ public sealed class CreateRegistrationCommandHandler(
             StudentProfileId = command.StudentProfileId,
             BranchId = command.BranchId,
             ProgramId = command.ProgramId,
+            LevelId = command.LevelId,
+            SecondaryLevelId = command.SecondaryLevelId,
             TuitionPlanId = command.TuitionPlanId,
-            SecondaryProgramId = command.SecondaryProgramId,
+            SecondaryProgramId = null,
             RegistrationDate = now,
             ExpectedStartDate = command.ExpectedStartDate,
             PreferredSchedule = command.PreferredSchedule,
             Note = command.Note,
-            SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryProgramSkillFocus)
+            SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryLevelSkillFocus)
                 ? null
-                : command.SecondaryProgramSkillFocus.Trim(),
+                : command.SecondaryLevelSkillFocus.Trim(),
             Status = RegistrationStatus.New,
             TotalSessions = tuitionPlan.TotalSessions,
             UsedSessions = 0,
@@ -195,9 +196,11 @@ public sealed class CreateRegistrationCommandHandler(
             BranchId = registration.BranchId,
             ProgramId = registration.ProgramId,
             ProgramName = program.Name,
-            SecondaryProgramId = registration.SecondaryProgramId,
-            SecondaryProgramName = secondaryProgram?.Name,
-            SecondaryProgramSkillFocus = registration.SecondaryProgramSkillFocus,
+            LevelId = registration.LevelId,
+            LevelName = level.Name,
+            SecondaryLevelId = registration.SecondaryLevelId,
+            SecondaryLevelName = secondaryLevel?.Name,
+            SecondaryLevelSkillFocus = registration.SecondaryProgramSkillFocus,
             TuitionPlanId = registration.TuitionPlanId,
             TuitionPlanName = tuitionPlan.Name,
             RegistrationDate = registration.RegistrationDate,

@@ -59,7 +59,8 @@ public sealed class GetPlacementTestsQueryHandler(
             .Include(pt => pt.PlacementRoom)
             .Include(pt => pt.InvigilatorUser)
             .Include(pt => pt.ProgramRecommendationProgram)
-            .Include(pt => pt.SecondaryProgramRecommendationProgram)
+            .Include(pt => pt.PrimaryLevelRecommendationLevel)
+            .Include(pt => pt.SecondaryLevelRecommendationLevel)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(cancellationToken);
@@ -93,12 +94,13 @@ public sealed class GetPlacementTestsQueryHandler(
                     SpeakingScore = pt.SpeakingScore,
                     ReadingScore = pt.ReadingScore,
                     WritingScore = pt.WritingScore,
-                    LevelRecommendation = pt.LevelRecommendation,
                     ProgramRecommendationId = pt.ProgramRecommendationId,
                     ProgramRecommendationName = pt.ProgramRecommendationProgram?.Name,
-                    SecondaryProgramRecommendationId = pt.SecondaryProgramRecommendationId,
-                    SecondaryProgramRecommendationName = pt.SecondaryProgramRecommendationProgram?.Name,
-                    SecondaryProgramSkillFocus = pt.SecondaryProgramSkillFocus,
+                    PrimaryLevelRecommendationId = pt.PrimaryLevelRecommendationId,
+                    PrimaryLevelRecommendationName = pt.PrimaryLevelRecommendationLevel?.Name,
+                    SecondaryLevelRecommendationId = pt.SecondaryLevelRecommendationId,
+                    SecondaryLevelRecommendationName = pt.SecondaryLevelRecommendationLevel?.Name,
+                    SecondaryLevelSkillFocus = pt.SecondaryProgramSkillFocus,
                     Notes = pt.Notes,
                     AttachmentUrl = attachmentUrls.FirstOrDefault(),
                     AttachmentUrls = attachmentUrls,

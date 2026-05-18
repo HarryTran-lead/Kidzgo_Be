@@ -16,32 +16,81 @@ public sealed class CreateProgramProgressionRuleCommandHandler(
         CreateProgramProgressionRuleCommand command,
         CancellationToken cancellationToken)
     {
-        if (command.TargetProgramId.HasValue && command.TargetProgramId.Value == command.SourceProgramId)
+        var sourceLevel = await context.Levels
+            .FirstOrDefaultAsync(x => x.Id == command.SourceLevelId && x.IsActive, cancellationToken);
+
+        if (sourceLevel is null)
         {
             return Result.Failure<ProgramProgressionRuleDto>(Error.Validation(
-                "ProgramProgression.TargetProgramDuplicated",
-                "Target program must be different from source program."));
+                "ProgramProgression.SourceLevelNotFound",
+                $"Source level '{command.SourceLevelId}' was not found or inactive."));
+        }
+
+        if (command.SourceProgramId.HasValue &&
+            command.SourceProgramId.Value != sourceLevel.ProgramId)
+        {
+            return Result.Failure<ProgramProgressionRuleDto>(Error.Validation(
+                "ProgramProgression.SourceProgramLevelMismatch",
+                "SourceProgramId does not match SourceLevelId."));
+        }
+
+        var sourceProgramId = sourceLevel.ProgramId;
+
+        Kidzgo.Domain.Programs.Level? targetLevel = null;
+        if (command.TargetLevelId.HasValue)
+        {
+            targetLevel = await context.Levels
+                .FirstOrDefaultAsync(x => x.Id == command.TargetLevelId.Value && x.IsActive, cancellationToken);
+
+            if (targetLevel is null)
+            {
+                return Result.Failure<ProgramProgressionRuleDto>(Error.Validation(
+                    "ProgramProgression.TargetLevelNotFound",
+                    $"Target level '{command.TargetLevelId.Value}' was not found or inactive."));
+            }
+        }
+
+        if (command.TargetProgramId.HasValue &&
+            targetLevel is not null &&
+            command.TargetProgramId.Value != targetLevel.ProgramId)
+        {
+            return Result.Failure<ProgramProgressionRuleDto>(Error.Validation(
+                "ProgramProgression.TargetProgramLevelMismatch",
+                "TargetProgramId does not match TargetLevelId."));
+        }
+
+        var targetProgramId = targetLevel?.ProgramId ?? command.TargetProgramId;
+
+        if (targetProgramId.HasValue && targetProgramId.Value == sourceProgramId)
+        {
+            if (!command.TargetLevelId.HasValue ||
+                command.SourceLevelId == command.TargetLevelId.Value)
+            {
+                return Result.Failure<ProgramProgressionRuleDto>(Error.Validation(
+                    "ProgramProgression.TargetProgramDuplicated",
+                    "When source and target are in the same program, SourceLevelId and TargetLevelId must be provided and different."));
+            }
         }
 
         var sourceProgram = await context.Programs
-            .FirstOrDefaultAsync(p => p.Id == command.SourceProgramId && p.IsActive && !p.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == sourceProgramId && p.IsActive && !p.IsDeleted, cancellationToken);
 
         if (sourceProgram is null)
         {
             return Result.Failure<ProgramProgressionRuleDto>(
-                RegistrationErrors.ProgramNotFound(command.SourceProgramId));
+                RegistrationErrors.ProgramNotFound(sourceProgramId));
         }
 
         Kidzgo.Domain.Programs.Program? targetProgram = null;
-        if (command.TargetProgramId.HasValue)
+        if (targetProgramId.HasValue)
         {
             targetProgram = await context.Programs
-                .FirstOrDefaultAsync(p => p.Id == command.TargetProgramId.Value && p.IsActive && !p.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(p => p.Id == targetProgramId.Value && p.IsActive && !p.IsDeleted, cancellationToken);
 
             if (targetProgram is null)
             {
                 return Result.Failure<ProgramProgressionRuleDto>(
-                    RegistrationErrors.ProgramNotFound(command.TargetProgramId.Value));
+                    RegistrationErrors.ProgramNotFound(targetProgramId.Value));
             }
         }
 
@@ -60,12 +109,12 @@ public sealed class CreateProgramProgressionRuleCommandHandler(
         if (command.IsActive)
         {
             var activeRuleExists = await context.ProgramProgressionRules
-                .AnyAsync(r => r.SourceProgramId == command.SourceProgramId && r.IsActive, cancellationToken);
+                .AnyAsync(r => r.SourceLevelId == command.SourceLevelId && r.IsActive, cancellationToken);
 
             if (activeRuleExists)
             {
                 return Result.Failure<ProgramProgressionRuleDto>(
-                    ProgramProgressionErrors.ActiveRuleAlreadyExists(command.SourceProgramId));
+                    ProgramProgressionErrors.ActiveRuleAlreadyExists(sourceProgramId));
             }
         }
 
@@ -73,8 +122,10 @@ public sealed class CreateProgramProgressionRuleCommandHandler(
         var rule = new ProgramProgressionRule
         {
             Id = Guid.NewGuid(),
-            SourceProgramId = command.SourceProgramId,
-            TargetProgramId = command.TargetProgramId,
+            SourceLevelId = command.SourceLevelId,
+            TargetLevelId = command.TargetLevelId,
+            SourceProgramId = sourceProgramId,
+            TargetProgramId = targetProgramId,
             Method = command.Method,
             MinimumShieldCount = command.MinimumShieldCount,
             MinimumSkillShieldCount = command.MinimumSkillShieldCount,
@@ -88,6 +139,8 @@ public sealed class CreateProgramProgressionRuleCommandHandler(
             PracticeTestScoreMappingsJson = ProgramProgressionRuleDefinition.SerializePracticeTestScoreMappings(command.PracticeTestScoreMappings),
             CreatedAt = now,
             UpdatedAt = now,
+            SourceLevel = sourceLevel,
+            TargetLevel = targetLevel,
             SourceProgram = sourceProgram,
             TargetProgram = targetProgram
         };

@@ -57,6 +57,10 @@ public class PlacementTestConfiguration : IEntityTypeConfiguration<PlacementTest
 
         builder.Property(x => x.ProgramRecommendationId);
 
+        builder.Property(x => x.PrimaryLevelRecommendationId);
+
+        builder.Property(x => x.SecondaryLevelRecommendationId);
+
         builder.Property(x => x.SecondaryProgramRecommendationId);
 
         builder.Property(x => x.SecondaryProgramSkillFocus)
@@ -106,6 +110,16 @@ public class PlacementTestConfiguration : IEntityTypeConfiguration<PlacementTest
         builder.HasOne(x => x.ProgramRecommendationProgram)
             .WithMany(x => x.PrimaryPlacementTestRecommendations)
             .HasForeignKey(x => x.ProgramRecommendationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.PrimaryLevelRecommendationLevel)
+            .WithMany()
+            .HasForeignKey(x => x.PrimaryLevelRecommendationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.SecondaryLevelRecommendationLevel)
+            .WithMany()
+            .HasForeignKey(x => x.SecondaryLevelRecommendationId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.SecondaryProgramRecommendationProgram)

@@ -33,6 +33,7 @@ public class TuitionPlanController : ControllerBase
         var command = new CreateTuitionPlanCommand
         {
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
             LearningTicketTypeId = request.LearningTicketTypeId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,
@@ -50,6 +51,7 @@ public class TuitionPlanController : ControllerBase
     public async Task<IResult> GetTuitionPlans(
         [FromQuery] Guid? branchId,
         [FromQuery] Guid? programId,
+        [FromQuery] Guid? levelId,
         [FromQuery] bool? isActive,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -59,6 +61,7 @@ public class TuitionPlanController : ControllerBase
         {
             BranchId = branchId,
             ProgramId = programId,
+            LevelId = levelId,
             IsActive = isActive,
             PageNumber = pageNumber,
             PageSize = pageSize
@@ -74,6 +77,7 @@ public class TuitionPlanController : ControllerBase
     public async Task<IResult> GetActiveTuitionPlans(
         [FromQuery] Guid? branchId,
         [FromQuery] Guid? programId,
+        [FromQuery] Guid? levelId,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
@@ -82,6 +86,7 @@ public class TuitionPlanController : ControllerBase
         {
             BranchId = branchId,
             ProgramId = programId,
+            LevelId = levelId,
             IsActive = true, // Hardcode IsActive = true
             PageNumber = pageNumber,
             PageSize = pageSize
@@ -119,6 +124,7 @@ public class TuitionPlanController : ControllerBase
         {
             Id = id,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
             LearningTicketTypeId = request.LearningTicketTypeId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,

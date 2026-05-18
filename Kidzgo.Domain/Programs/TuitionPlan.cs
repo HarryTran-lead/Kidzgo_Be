@@ -9,6 +9,7 @@ public class TuitionPlan : Entity
 {
     public Guid Id { get; set; }
     public Guid ProgramId { get; set; }
+    public Guid? LevelId { get; set; }
     public string Name { get; set; } = null!;
     public int TotalSessions { get; set; }
     public decimal TuitionAmount { get; set; }
@@ -22,6 +23,7 @@ public class TuitionPlan : Entity
 
     // Navigation properties
     public Program Program { get; set; } = null!;
+    public Level? Level { get; set; }
     public LearningTicketType? LearningTicketType { get; set; }
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
 }

@@ -29,6 +29,23 @@ public sealed class UpdateTuitionPlanCommandHandler(
             return Result.Failure<UpdateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotFound);
         }
 
+        if (command.LevelId.HasValue)
+        {
+            var levelExistsInProgram = await context.Levels.AnyAsync(
+                x => x.Id == command.LevelId.Value &&
+                     x.ProgramId == command.ProgramId &&
+                     x.IsActive,
+                cancellationToken);
+
+            if (!levelExistsInProgram)
+            {
+                return Result.Failure<UpdateTuitionPlanResponse>(
+                    Error.Validation(
+                        "TuitionPlan.LevelNotFoundInProgram",
+                        $"Level '{command.LevelId.Value}' was not found, inactive, or does not belong to program '{command.ProgramId}'."));
+            }
+        }
+
         if (command.LearningTicketTypeId.HasValue)
         {
             var ticketTypeExists = await context.LearningTicketTypes
@@ -51,6 +68,7 @@ public sealed class UpdateTuitionPlanCommandHandler(
             : 0;
 
         tuitionPlan.ProgramId = command.ProgramId;
+        tuitionPlan.LevelId = command.LevelId;
         tuitionPlan.Name = command.Name;
         tuitionPlan.TotalSessions = command.TotalSessions;
         tuitionPlan.TuitionAmount = command.TuitionAmount;
@@ -64,6 +82,7 @@ public sealed class UpdateTuitionPlanCommandHandler(
         // Query again with includes to get related data for response
         var updatedTuitionPlan = await context.TuitionPlans
             .Include(t => t.Program)
+            .Include(t => t.Level)
             .Include(t => t.LearningTicketType)
             .FirstOrDefaultAsync(t => t.Id == command.Id, cancellationToken);
 
@@ -71,6 +90,8 @@ public sealed class UpdateTuitionPlanCommandHandler(
         {
             Id = updatedTuitionPlan!.Id,
             ProgramId = updatedTuitionPlan.ProgramId,
+            LevelId = updatedTuitionPlan.LevelId,
+            LevelName = updatedTuitionPlan.Level?.Name,
             LearningTicketTypeId = updatedTuitionPlan.LearningTicketTypeId,
             LearningTicketTypeCode = updatedTuitionPlan.LearningTicketType?.Code,
             ProgramName = updatedTuitionPlan.Program.Name,

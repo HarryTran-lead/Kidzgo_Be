@@ -5,6 +5,10 @@ namespace Kidzgo.Application.ProgramProgressions.Shared;
 public sealed class ProgramProgressionRuleDto
 {
     public Guid Id { get; init; }
+    public Guid SourceLevelId { get; init; }
+    public string SourceLevelName { get; init; } = null!;
+    public Guid? TargetLevelId { get; init; }
+    public string? TargetLevelName { get; init; }
     public Guid SourceProgramId { get; init; }
     public string SourceProgramName { get; init; } = null!;
     public Guid? TargetProgramId { get; init; }
@@ -33,8 +37,12 @@ public sealed class ProgramProgressionAssessmentDto
     public string StudentName { get; init; } = null!;
     public Guid SourceProgramId { get; init; }
     public string SourceProgramName { get; init; } = null!;
+    public Guid SourceLevelId { get; init; }
+    public string SourceLevelName { get; init; } = null!;
     public Guid? TargetProgramId { get; init; }
     public string? TargetProgramName { get; init; }
+    public Guid? TargetLevelId { get; init; }
+    public string? TargetLevelName { get; init; }
     public Guid SourceRegistrationId { get; init; }
     public Guid? SourceEnrollmentId { get; init; }
     public Guid? SourceClassId { get; init; }
@@ -130,6 +138,10 @@ internal static class ProgramProgressionDtoMapper
         return new ProgramProgressionRuleDto
         {
             Id = rule.Id,
+            SourceLevelId = rule.SourceLevelId,
+            SourceLevelName = rule.SourceLevel?.Name ?? string.Empty,
+            TargetLevelId = rule.TargetLevelId,
+            TargetLevelName = rule.TargetLevel?.Name,
             SourceProgramId = rule.SourceProgramId,
             SourceProgramName = rule.SourceProgram.Name,
             TargetProgramId = rule.TargetProgramId,
@@ -154,6 +166,16 @@ internal static class ProgramProgressionDtoMapper
     {
         var sourceClass = assessment.ScheduleParticipant?.Schedule.SourceClass
             ?? assessment.SourceEnrollment?.Class;
+        var sourceLevelId = assessment.SourceLevelId;
+        var sourceLevelName = assessment.SourceLevel?.Name
+            ?? assessment.SourceRegistration?.Level?.Name
+            ?? string.Empty;
+        var targetLevelId = assessment.TargetLevelId
+            ?? assessment.GeneratedRegistration?.LevelId
+            ?? assessment.ApprovedTuitionPlan?.LevelId;
+        var targetLevelName = assessment.TargetLevel?.Name
+            ?? assessment.GeneratedRegistration?.Level?.Name
+            ?? assessment.ApprovedTuitionPlan?.Level?.Name;
 
         return new ProgramProgressionAssessmentDto
         {
@@ -164,8 +186,12 @@ internal static class ProgramProgressionDtoMapper
             StudentName = assessment.StudentProfile.DisplayName,
             SourceProgramId = assessment.SourceProgramId,
             SourceProgramName = assessment.SourceProgram.Name,
+            SourceLevelId = sourceLevelId,
+            SourceLevelName = sourceLevelName,
             TargetProgramId = assessment.TargetProgramId,
             TargetProgramName = assessment.TargetProgram?.Name,
+            TargetLevelId = targetLevelId,
+            TargetLevelName = targetLevelName,
             SourceRegistrationId = assessment.SourceRegistrationId,
             SourceEnrollmentId = assessment.SourceEnrollmentId,
             SourceClassId = sourceClass?.Id,

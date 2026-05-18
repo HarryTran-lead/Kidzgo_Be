@@ -29,16 +29,6 @@ public sealed class CreateProgramProgressionScheduleCommandHandler(
                 ProgramProgressionErrors.SourceClassNotFound(command.SourceClassId));
         }
 
-        var hasActiveRule = await context.ProgramProgressionRules
-            .AsNoTracking()
-            .AnyAsync(rule => rule.SourceProgramId == sourceClass.ProgramId && rule.IsActive, cancellationToken);
-
-        if (!hasActiveRule)
-        {
-            return Result.Failure<ProgramProgressionScheduleDto>(
-                ProgramProgressionErrors.NoActiveRuleForProgram(sourceClass.ProgramId));
-        }
-
         if (!command.AssignedTeacherUserId.HasValue)
         {
             return Result.Failure<ProgramProgressionScheduleDto>(ProgramProgressionErrors.AssignedTeacherRequired);
@@ -96,6 +86,26 @@ public sealed class CreateProgramProgressionScheduleCommandHandler(
         {
             return Result.Failure<ProgramProgressionScheduleDto>(
                 ProgramProgressionErrors.ScheduleHasNoEligibleStudents(sourceClass.Id));
+        }
+
+        var sourceLevelIds = eligibleEnrollments
+            .Select(enrollment => enrollment.Registration!.LevelId)
+            .Distinct()
+            .ToList();
+
+        var configuredLevelIds = await context.ProgramProgressionRules
+            .AsNoTracking()
+            .Where(rule => rule.IsActive && sourceLevelIds.Contains(rule.SourceLevelId))
+            .Select(rule => rule.SourceLevelId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var missingLevelId = sourceLevelIds.FirstOrDefault(levelId => !configuredLevelIds.Contains(levelId));
+        if (missingLevelId != Guid.Empty)
+        {
+            return Result.Failure<ProgramProgressionScheduleDto>(Error.Validation(
+                "ProgramProgression.NoActiveRuleForLevel",
+                $"No active progression rule was found for source level '{missingLevelId}'."));
         }
 
         if (requestedStudentIds is { Count: > 0 })

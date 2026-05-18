@@ -25,7 +25,8 @@ public sealed class GetPlacementTestByIdQueryHandler(
             .Include(pt => pt.PlacementRoom)
             .Include(pt => pt.InvigilatorUser)
             .Include(pt => pt.ProgramRecommendationProgram)
-            .Include(pt => pt.SecondaryProgramRecommendationProgram)
+            .Include(pt => pt.PrimaryLevelRecommendationLevel)
+            .Include(pt => pt.SecondaryLevelRecommendationLevel)
             .FirstOrDefaultAsync(pt => pt.Id == query.PlacementTestId, cancellationToken);
 
         if (placementTest is null)
@@ -60,12 +61,13 @@ public sealed class GetPlacementTestByIdQueryHandler(
             SpeakingScore = placementTest.SpeakingScore,
             ReadingScore = placementTest.ReadingScore,
             WritingScore = placementTest.WritingScore,
-            LevelRecommendation = placementTest.LevelRecommendation,
             ProgramRecommendationId = placementTest.ProgramRecommendationId,
             ProgramRecommendationName = placementTest.ProgramRecommendationProgram?.Name,
-            SecondaryProgramRecommendationId = placementTest.SecondaryProgramRecommendationId,
-            SecondaryProgramRecommendationName = placementTest.SecondaryProgramRecommendationProgram?.Name,
-            SecondaryProgramSkillFocus = placementTest.SecondaryProgramSkillFocus,
+            PrimaryLevelRecommendationId = placementTest.PrimaryLevelRecommendationId,
+            PrimaryLevelRecommendationName = placementTest.PrimaryLevelRecommendationLevel?.Name,
+            SecondaryLevelRecommendationId = placementTest.SecondaryLevelRecommendationId,
+            SecondaryLevelRecommendationName = placementTest.SecondaryLevelRecommendationLevel?.Name,
+            SecondaryLevelSkillFocus = placementTest.SecondaryProgramSkillFocus,
             Notes = placementTest.Notes,
             AttachmentUrl = attachmentUrls.FirstOrDefault(),
             AttachmentUrls = attachmentUrls,

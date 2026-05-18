@@ -15,6 +15,8 @@ public class Registration : Entity
     // Thong tin dang ky
     public Guid BranchId { get; set; }
     public Guid ProgramId { get; set; }
+    public Guid LevelId { get; set; }
+    public Guid? SecondaryLevelId { get; set; }
     public Guid TuitionPlanId { get; set; }
     public Guid? SecondaryProgramId { get; set; }
     
@@ -68,6 +70,8 @@ public class Registration : Entity
     public Profile StudentProfile { get; set; } = null!;
     public Branch Branch { get; set; } = null!;
     public Program Program { get; set; } = null!;
+    public Level Level { get; set; } = null!;
+    public Level? SecondaryLevel { get; set; }
     public TuitionPlan TuitionPlan { get; set; } = null!;
     public Classes.Class? Class { get; set; }
     public Program? SecondaryProgram { get; set; }

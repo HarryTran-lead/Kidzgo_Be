@@ -3,6 +3,7 @@ using Kidzgo.Domain.Users;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Schools;
 using DomainProgram = Kidzgo.Domain.Programs.Program;
+using DomainLevel = Kidzgo.Domain.Programs.Level;
 
 namespace Kidzgo.Domain.CRM;
 
@@ -27,6 +28,8 @@ public class PlacementTest : Entity
     public decimal? WritingScore { get; set; }
     public string? LevelRecommendation { get; set; }
     public Guid? ProgramRecommendationId { get; set; }
+    public Guid? PrimaryLevelRecommendationId { get; set; }
+    public Guid? SecondaryLevelRecommendationId { get; set; }
     public Guid? SecondaryProgramRecommendationId { get; set; }
     public string? SecondaryProgramSkillFocus { get; set; }
     public string? Notes { get; set; }
@@ -43,5 +46,7 @@ public class PlacementTest : Entity
     public User? InvigilatorUser { get; set; }
     public PlacementTest? OriginalPlacementTest { get; set; }
     public DomainProgram? ProgramRecommendationProgram { get; set; }
+    public DomainLevel? PrimaryLevelRecommendationLevel { get; set; }
+    public DomainLevel? SecondaryLevelRecommendationLevel { get; set; }
     public DomainProgram? SecondaryProgramRecommendationProgram { get; set; }
 }

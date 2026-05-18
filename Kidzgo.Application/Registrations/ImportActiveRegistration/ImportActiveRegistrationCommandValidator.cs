@@ -15,6 +15,9 @@ public sealed class ImportActiveRegistrationCommandValidator : AbstractValidator
         RuleFor(command => command.ProgramId)
             .NotEmpty().WithMessage("Program ID is required.");
 
+        RuleFor(command => command.LevelId)
+            .NotEmpty().WithMessage("Level ID is required.");
+
         RuleFor(command => command.TuitionPlanId)
             .NotEmpty().WithMessage("Tuition plan ID is required.");
 

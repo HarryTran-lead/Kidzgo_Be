@@ -127,14 +127,20 @@ public sealed class CreateProgramProgressionAssessmentCommandHandler(
         }
 
         var rule = await context.ProgramProgressionRules
+            .Include(r => r.SourceLevel)
+            .Include(r => r.TargetLevel)
             .Include(r => r.SourceProgram)
             .Include(r => r.TargetProgram)
-            .FirstOrDefaultAsync(r => r.SourceProgramId == registration.ProgramId && r.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(
+                r => r.SourceLevelId == registration.LevelId && r.IsActive,
+                cancellationToken);
 
         if (rule is null)
         {
             return Result.Failure<ProgramProgressionAssessmentDto>(
-                ProgramProgressionErrors.NoActiveRuleForProgram(registration.ProgramId));
+                Error.Validation(
+                    "ProgramProgression.NoActiveRuleForLevel",
+                    $"No active progression rule was found for source level '{registration.LevelId}'."));
         }
 
         // Convert Practice Scores to Cambridge Scale if provided
@@ -202,6 +208,8 @@ public sealed class CreateProgramProgressionAssessmentCommandHandler(
             RuleId = rule.Id,
             ScheduleParticipantId = scheduleParticipant?.Id,
             StudentProfileId = registration.StudentProfileId,
+            SourceLevelId = registration.LevelId,
+            TargetLevelId = rule.TargetLevelId,
             SourceProgramId = registration.ProgramId,
             TargetProgramId = rule.TargetProgramId,
             SourceRegistrationId = registration.Id,

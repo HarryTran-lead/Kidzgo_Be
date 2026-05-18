@@ -20,7 +20,7 @@ public sealed class UpdateRegistrationCommandHandler(
 
         var registration = await context.Registrations
             .Include(r => r.TuitionPlan)
-            .Include(r => r.SecondaryProgram)
+            .Include(r => r.SecondaryLevel)
             .FirstOrDefaultAsync(r => r.Id == command.Id, cancellationToken);
 
         if (registration == null)
@@ -51,85 +51,73 @@ public sealed class UpdateRegistrationCommandHandler(
             registration.Note = command.Note;
         }
 
-        if (command.RemoveSecondaryProgram)
+        if (command.RemoveSecondaryLevel)
         {
             if (registration.SecondaryClassId.HasValue)
             {
                 return Result.Failure<UpdateRegistrationResponse>(
-                    Error.Validation("Registration.SecondaryClassAssigned", "Cannot remove the secondary program while a secondary class is assigned"));
+                    Error.Validation("Registration.SecondaryClassAssigned", "Cannot remove the secondary level while a secondary class is assigned"));
             }
 
+            registration.SecondaryLevelId = null;
             registration.SecondaryProgramId = null;
+            registration.SecondaryLevel = null;
             registration.SecondaryProgramSkillFocus = null;
             registration.SecondaryClassAssignedDate = null;
             registration.SecondaryEntryType = null;
-            registration.SecondaryProgram = null;
         }
 
-        if (command.SecondaryProgramId == registration.ProgramId)
+        if (command.SecondaryLevelId.HasValue)
         {
-            return Result.Failure<UpdateRegistrationResponse>(
-                Error.Validation("Registration.SecondaryProgramDuplicated", "Secondary program must be different from primary program"));
-        }
-
-        if (command.SecondaryProgramId.HasValue)
-        {
-            var secondaryProgram = await context.Programs
-                .FirstOrDefaultAsync(
-                    p => p.Id == command.SecondaryProgramId.Value && p.IsActive && !p.IsDeleted,
-                    cancellationToken);
-
-            if (secondaryProgram is null)
+            if (command.SecondaryLevelId.Value == registration.LevelId)
             {
                 return Result.Failure<UpdateRegistrationResponse>(
-                    RegistrationErrors.ProgramNotFound(command.SecondaryProgramId.Value));
+                    Error.Validation("Registration.SecondaryLevelDuplicated", "Secondary level must be different from primary level"));
             }
 
-            if (secondaryProgram.IsSupplementary)
+            var secondaryLevel = await context.Levels
+                .FirstOrDefaultAsync(
+                    l => l.Id == command.SecondaryLevelId.Value &&
+                         l.ProgramId == registration.ProgramId &&
+                         l.IsActive,
+                    cancellationToken);
+
+            if (secondaryLevel is null)
             {
                 return Result.Failure<UpdateRegistrationResponse>(
-                    RegistrationErrors.SecondarySupplementaryRequiresSeparateRegistration(command.SecondaryProgramId.Value));
+                    Error.Validation(
+                        "Registration.SecondaryLevelNotFoundInProgram",
+                        $"Secondary level '{command.SecondaryLevelId.Value}' was not found, inactive, or does not belong to the registration program."));
             }
 
             if (registration.SecondaryClassId.HasValue &&
-                registration.SecondaryProgramId != command.SecondaryProgramId.Value)
+                registration.SecondaryLevelId != command.SecondaryLevelId.Value)
             {
                 return Result.Failure<UpdateRegistrationResponse>(
-                    Error.Validation("Registration.SecondaryClassAssigned", "Cannot change the secondary program while a secondary class is assigned"));
+                    Error.Validation("Registration.SecondaryClassAssigned", "Cannot change the secondary level while a secondary class is assigned"));
             }
 
-            var hasConflict = await context.Registrations.AnyAsync(
-                r => r.Id != registration.Id &&
-                     r.StudentProfileId == registration.StudentProfileId &&
-                     r.Status != RegistrationStatus.Completed &&
-                     r.Status != RegistrationStatus.Cancelled &&
-                     (r.ProgramId == command.SecondaryProgramId.Value ||
-                      r.SecondaryProgramId == command.SecondaryProgramId.Value),
-                cancellationToken);
-
-            if (hasConflict)
-            {
-                return Result.Failure<UpdateRegistrationResponse>(
-                    RegistrationErrors.AlreadyExists(registration.StudentProfileId, command.SecondaryProgramId.Value));
-            }
-
-            registration.SecondaryProgramId = secondaryProgram.Id;
-            registration.SecondaryProgram = secondaryProgram;
+            registration.SecondaryLevelId = secondaryLevel.Id;
+            registration.SecondaryLevel = secondaryLevel;
+            registration.SecondaryProgramId = null;
+            registration.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryLevelSkillFocus)
+                ? null
+                : command.SecondaryLevelSkillFocus.Trim();
             registration.SecondaryEntryType = null;
             registration.SecondaryClassAssignedDate = null;
         }
-
-        if (command.SecondaryProgramSkillFocus is not null)
+        else if (command.SecondaryLevelSkillFocus is not null && registration.SecondaryLevelId is not null)
         {
-            registration.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryProgramSkillFocus)
+            registration.SecondaryProgramSkillFocus = string.IsNullOrWhiteSpace(command.SecondaryLevelSkillFocus)
                 ? null
-                : command.SecondaryProgramSkillFocus.Trim();
+                : command.SecondaryLevelSkillFocus.Trim();
         }
-
-        if (command.SecondaryProgramId is null && command.SecondaryProgramSkillFocus is not null && registration.SecondaryProgramId is null)
+        else if (command.SecondaryLevelSkillFocus is not null && registration.SecondaryLevelId is null)
         {
             return Result.Failure<UpdateRegistrationResponse>(
-                Error.Validation("Registration.SecondaryProgramMissing", "Secondary program skill focus can only be set when a secondary program exists"));
+                Error.Validation(
+                    "Registration.SecondaryLevelMissing",
+                    "Secondary level skill focus can only be set when secondary level exists."));
         }
 
         if (command.TuitionPlanId.HasValue && (registration.ClassId != null || registration.SecondaryClassId != null))
@@ -155,6 +143,12 @@ public sealed class UpdateRegistrationCommandHandler(
             {
                 return Result.Failure<UpdateRegistrationResponse>(
                     Error.Validation("DifferentProgram", "Tuition plan must belong to the same program"));
+            }
+
+            if (tuitionPlan.LevelId.HasValue && tuitionPlan.LevelId != registration.LevelId)
+            {
+                return Result.Failure<UpdateRegistrationResponse>(
+                    Error.Validation("DifferentLevel", "Tuition plan must be either program-wide or match registration level"));
             }
 
             registration.TuitionPlanId = command.TuitionPlanId.Value;
@@ -196,9 +190,9 @@ public sealed class UpdateRegistrationCommandHandler(
             Note = registration.Note,
             TuitionPlanId = registration.TuitionPlanId,
             TuitionPlanName = registration.TuitionPlan?.Name,
-            SecondaryProgramId = registration.SecondaryProgramId,
-            SecondaryProgramName = registration.SecondaryProgram?.Name,
-            SecondaryProgramSkillFocus = registration.SecondaryProgramSkillFocus,
+            SecondaryLevelId = registration.SecondaryLevelId,
+            SecondaryLevelName = registration.SecondaryLevel?.Name,
+            SecondaryLevelSkillFocus = registration.SecondaryProgramSkillFocus,
             OperationType = registration.OperationType?.ToString(),
             DiscountCampaignId = registration.DiscountCampaignId,
             DiscountCampaignName = registration.DiscountCampaignName,

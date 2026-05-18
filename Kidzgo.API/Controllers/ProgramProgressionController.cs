@@ -25,14 +25,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Kidzgo.API.Controllers;
 
-[Route("api/program-progressions")]
+[Route("api/level-progressions")]
 [ApiController]
 [Authorize]
-public class ProgramProgressionController : ControllerBase
+public class LevelProgressionController : ControllerBase
 {
     private readonly ISender _mediator;
 
-    public ProgramProgressionController(ISender mediator)
+    public LevelProgressionController(ISender mediator)
     {
         _mediator = mediator;
     }
@@ -40,13 +40,15 @@ public class ProgramProgressionController : ControllerBase
     [HttpGet("rules")]
     [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> GetRules(
-        [FromQuery] Guid? sourceProgramId,
+        [FromQuery] Guid? sourceLevelId,
+        [FromQuery] Guid? targetLevelId,
         [FromQuery] bool? isActive,
         CancellationToken cancellationToken = default)
     {
         var query = new GetProgramProgressionRulesQuery
         {
-            SourceProgramId = sourceProgramId,
+            SourceLevelId = sourceLevelId,
+            TargetLevelId = targetLevelId,
             IsActive = isActive
         };
 
@@ -72,6 +74,8 @@ public class ProgramProgressionController : ControllerBase
     {
         var command = new CreateProgramProgressionRuleCommand
         {
+            SourceLevelId = request.SourceLevelId,
+            TargetLevelId = request.TargetLevelId,
             SourceProgramId = request.SourceProgramId,
             TargetProgramId = request.TargetProgramId,
             Method = request.Method,
@@ -88,7 +92,7 @@ public class ProgramProgressionController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
-        return result.MatchCreated(rule => $"/api/program-progressions/rules/{rule.Id}");
+        return result.MatchCreated(rule => $"/api/level-progressions/rules/{rule.Id}");
     }
 
     [HttpPut("rules/{id:guid}")]
@@ -101,6 +105,8 @@ public class ProgramProgressionController : ControllerBase
         var command = new UpdateProgramProgressionRuleCommand
         {
             Id = id,
+            SourceLevelId = request.SourceLevelId,
+            TargetLevelId = request.TargetLevelId,
             SourceProgramId = request.SourceProgramId,
             TargetProgramId = request.TargetProgramId,
             Method = request.Method,
@@ -202,7 +208,7 @@ public class ProgramProgressionController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
-        return result.MatchCreated(schedule => $"/api/program-progressions/schedules/{schedule.Id}");
+        return result.MatchCreated(schedule => $"/api/level-progressions/schedules/{schedule.Id}");
     }
 
     [HttpPut("schedules/{id:guid}")]
@@ -286,7 +292,8 @@ public class ProgramProgressionController : ControllerBase
     public async Task<IResult> GetAssessments(
         [FromQuery] Guid? sourceRegistrationId,
         [FromQuery] Guid? studentProfileId,
-        [FromQuery] Guid? sourceProgramId,
+        [FromQuery] Guid? sourceLevelId,
+        [FromQuery] Guid? targetLevelId,
         [FromQuery] ProgramProgressionMethod? method,
         [FromQuery] ProgramProgressionAssessmentStatus? status,
         [FromQuery] bool? isEligible,
@@ -298,7 +305,8 @@ public class ProgramProgressionController : ControllerBase
         {
             SourceRegistrationId = sourceRegistrationId,
             StudentProfileId = studentProfileId,
-            SourceProgramId = sourceProgramId,
+            SourceLevelId = sourceLevelId,
+            TargetLevelId = targetLevelId,
             Method = method,
             Status = status,
             IsEligible = isEligible,
@@ -346,7 +354,7 @@ public class ProgramProgressionController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
-        return result.MatchCreated(assessment => $"/api/program-progressions/assessments/{assessment.Id}");
+        return result.MatchCreated(assessment => $"/api/level-progressions/assessments/{assessment.Id}");
     }
 
     [HttpPut("assessments/{id:guid}")]

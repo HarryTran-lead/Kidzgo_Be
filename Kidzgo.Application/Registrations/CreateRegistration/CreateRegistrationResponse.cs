@@ -7,9 +7,11 @@ public sealed class CreateRegistrationResponse
     public Guid BranchId { get; init; }
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
-    public Guid? SecondaryProgramId { get; init; }
-    public string? SecondaryProgramName { get; init; }
-    public string? SecondaryProgramSkillFocus { get; init; }
+    public Guid LevelId { get; init; }
+    public string LevelName { get; init; } = null!;
+    public Guid? SecondaryLevelId { get; init; }
+    public string? SecondaryLevelName { get; init; }
+    public string? SecondaryLevelSkillFocus { get; init; }
     public Guid TuitionPlanId { get; init; }
     public string TuitionPlanName { get; init; } = null!;
     public DateTime RegistrationDate { get; init; }

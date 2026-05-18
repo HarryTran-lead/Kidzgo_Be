@@ -8,9 +8,9 @@ public sealed class UpdateRegistrationResponse
     public string? Note { get; init; }
     public Guid? TuitionPlanId { get; init; }
     public string? TuitionPlanName { get; init; }
-    public Guid? SecondaryProgramId { get; init; }
-    public string? SecondaryProgramName { get; init; }
-    public string? SecondaryProgramSkillFocus { get; init; }
+    public Guid? SecondaryLevelId { get; init; }
+    public string? SecondaryLevelName { get; init; }
+    public string? SecondaryLevelSkillFocus { get; init; }
     public string? OperationType { get; init; }
     public Guid? DiscountCampaignId { get; init; }
     public string? DiscountCampaignName { get; init; }

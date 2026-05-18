@@ -13,6 +13,8 @@ public class ProgramProgressionAssessment : Entity
     public Guid RuleId { get; set; }
     public Guid? ScheduleParticipantId { get; set; }
     public Guid StudentProfileId { get; set; }
+    public Guid SourceLevelId { get; set; }
+    public Guid? TargetLevelId { get; set; }
     public Guid SourceProgramId { get; set; }
     public Guid? TargetProgramId { get; set; }
     public Guid SourceRegistrationId { get; set; }
@@ -52,6 +54,8 @@ public class ProgramProgressionAssessment : Entity
     public ProgramProgressionRule Rule { get; set; } = null!;
     public ProgramProgressionScheduleParticipant? ScheduleParticipant { get; set; }
     public Profile StudentProfile { get; set; } = null!;
+    public Level SourceLevel { get; set; } = null!;
+    public Level? TargetLevel { get; set; }
     public DomainProgram SourceProgram { get; set; } = null!;
     public DomainProgram? TargetProgram { get; set; }
     public Registration SourceRegistration { get; set; } = null!;

@@ -44,6 +44,16 @@ public sealed class ProgramProgressionAssessmentConfiguration : IEntityTypeConfi
             .HasForeignKey(x => x.StudentProfileId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.SourceLevel)
+            .WithMany()
+            .HasForeignKey(x => x.SourceLevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.TargetLevel)
+            .WithMany()
+            .HasForeignKey(x => x.TargetLevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(x => x.SourceProgram)
             .WithMany()
             .HasForeignKey(x => x.SourceProgramId)
@@ -87,6 +97,8 @@ public sealed class ProgramProgressionAssessmentConfiguration : IEntityTypeConfi
         builder.HasIndex(x => x.RuleId);
         builder.HasIndex(x => x.ScheduleParticipantId).IsUnique();
         builder.HasIndex(x => x.StudentProfileId);
+        builder.HasIndex(x => x.SourceLevelId);
+        builder.HasIndex(x => x.TargetLevelId);
         builder.HasIndex(x => x.SourceRegistrationId);
         builder.HasIndex(x => x.SourceProgramId);
         builder.HasIndex(x => x.TargetProgramId);

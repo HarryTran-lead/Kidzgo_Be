@@ -24,7 +24,7 @@ public sealed class SuggestClassesQueryHandler(
     {
         var registration = await context.Registrations
             .Include(r => r.Program)
-            .Include(r => r.SecondaryProgram)
+            .Include(r => r.SecondaryLevel)
             .Include(r => r.Branch)
             .Include(r => r.TuitionPlan)
             .FirstOrDefaultAsync(r => r.Id == query.RegistrationId, cancellationToken);
@@ -41,9 +41,9 @@ public sealed class SuggestClassesQueryHandler(
             registration.PreferredSchedule,
             cancellationToken);
 
-        var secondarySuggestions = registration.SecondaryProgramId.HasValue
+        var secondarySuggestions = registration.SecondaryLevelId.HasValue
             ? await BuildSuggestionsAsync(
-                registration.SecondaryProgramId.Value,
+                registration.ProgramId,
                 registration.BranchId,
                 registration.TuitionPlan?.LearningTicketTypeId,
                 registration.PreferredSchedule,
@@ -58,9 +58,9 @@ public sealed class SuggestClassesQueryHandler(
             PreferredSchedule = registration.PreferredSchedule,
             SuggestedClasses = primarySuggestions.Suggested,
             AlternativeClasses = primarySuggestions.Alternative,
-            SecondaryProgramId = registration.SecondaryProgramId,
-            SecondaryProgramName = registration.SecondaryProgram?.Name,
-            SecondaryProgramSkillFocus = registration.SecondaryProgramSkillFocus,
+            SecondaryLevelId = registration.SecondaryLevelId,
+            SecondaryLevelName = registration.SecondaryLevel?.Name,
+            SecondaryLevelSkillFocus = registration.SecondaryProgramSkillFocus,
             SecondarySuggestedClasses = secondarySuggestions.Suggested,
             SecondaryAlternativeClasses = secondarySuggestions.Alternative
         };

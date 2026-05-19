@@ -35,4 +35,12 @@ public static class SyllabusErrors
     public static Error ModuleMappingNotFound(string identifier) => Error.NotFound(
         "Syllabus.ModuleMappingNotFound",
         $"Could not map imported content to a module using '{identifier}'");
+
+    public static Error ImportConfigurationNotFound(Guid programId, Guid levelId) => Error.NotFound(
+        "Syllabus.ImportConfigurationNotFound",
+        $"Curriculum import configuration for Program '{programId}' and Level '{levelId}' was not found");
+
+    public static Error InvalidImportConfiguration(string message) => Error.Validation(
+        "Syllabus.InvalidImportConfiguration",
+        message);
 }

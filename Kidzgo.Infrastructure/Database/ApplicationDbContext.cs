@@ -111,6 +111,8 @@ public sealed class ApplicationDbContext(
     public DbSet<SyllabusLesson> SyllabusLessons => Set<SyllabusLesson>();
     public DbSet<SyllabusResource> SyllabusResources => Set<SyllabusResource>();
     public DbSet<SessionTemplate> SessionTemplates => Set<SessionTemplate>();
+    public DbSet<CurriculumImportConfiguration> CurriculumImportConfigurations => Set<CurriculumImportConfiguration>();
+    public DbSet<CurriculumImportModuleRule> CurriculumImportModuleRules => Set<CurriculumImportModuleRule>();
 
     // Media
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();

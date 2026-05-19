@@ -4,6 +4,7 @@ using Kidzgo.Application.LessonPlanTemplates.CreateLessonPlanTemplate;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplateById;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplates;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplates;
+using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
 using Kidzgo.Application.LessonPlanTemplates.UpdateLessonPlanTemplate;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -31,14 +32,21 @@ public class LessonPlanTemplateController : ControllerBase
     {
         var command = new CreateLessonPlanTemplateCommand
         {
-            ProgramId = request.ProgramId,
             ModuleId = request.ModuleId,
             Title = request.Title,
-            Level = request.Level,
             SessionIndex = request.SessionIndex,
             SessionOrder = request.SessionOrder,
             SyllabusMetadata = request.SyllabusMetadata,
             SyllabusContent = request.SyllabusContent,
+            Objectives = request.Objectives,
+            LanguageContent = request.LanguageContent,
+            Vocabulary = request.Vocabulary,
+            Grammar = request.Grammar,
+            TeachingMethodology = request.TeachingMethodology,
+            TeacherMaterials = request.TeacherMaterials,
+            StudentMaterials = request.StudentMaterials,
+            Procedure = request.Procedure,
+            Evaluation = request.Evaluation,
             SourceFileName = request.SourceFileName,
             Attachment = request.Attachment
         };
@@ -65,8 +73,7 @@ public class LessonPlanTemplateController : ControllerBase
     [HttpGet]
     [Authorize(Roles = "ManagementStaff,Admin")]
     public async Task<IResult> GetLessonPlanTemplates(
-        [FromQuery] Guid? programId,
-        [FromQuery] string? level,
+        [FromQuery] Guid? moduleId,
         [FromQuery] string? title,
         [FromQuery] bool? isActive,
         [FromQuery] bool includeDeleted = false,
@@ -76,8 +83,7 @@ public class LessonPlanTemplateController : ControllerBase
     {
         var query = new GetLessonPlanTemplatesQuery
         {
-            ProgramId = programId,
-            Level = level,
+            ModuleId = moduleId,
             Title = title,
             IsActive = isActive,
             IncludeDeleted = includeDeleted,
@@ -93,8 +99,7 @@ public class LessonPlanTemplateController : ControllerBase
     [Authorize(Roles = "ManagementStaff,Admin")]
     [RequestSizeLimit(20_971_520)]
     public async Task<IResult> ImportLessonPlanTemplates(
-        [FromQuery] Guid? programId,
-        [FromQuery] string? level,
+        [FromQuery] Guid? moduleId,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)
@@ -106,14 +111,49 @@ public class LessonPlanTemplateController : ControllerBase
 
         var command = new ImportLessonPlanTemplatesFromFileCommand
         {
-            ProgramId = programId,
-            Level = level,
+            ModuleId = moduleId,
             OverwriteExisting = overwriteExisting,
             FileName = file.FileName,
             FileStream = file.OpenReadStream()
         };
 
         var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Import one lesson plan Word file for a specific module.
+    /// </summary>
+    /// <remarks>
+    /// Use one lesson docx from a UNIT or REVISION folder. The importer maps headings like Objectives, Vocabulary, Grammar, Procedure, Evaluation, and Homework.
+    /// </remarks>
+    [HttpPost("import-word")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [RequestSizeLimit(41_943_040)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> ImportLessonPlanTemplateFromWord(
+        [FromQuery] Guid moduleId,
+        IFormFile file,
+        [FromQuery] bool overwriteExisting = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest(new { error = "No file provided" });
+        }
+
+        var result = await _mediator.Send(new ImportLessonPlanTemplateFromWordCommand
+        {
+            ModuleId = moduleId,
+            OverwriteExisting = overwriteExisting,
+            FileName = file.FileName,
+            FileStream = file.OpenReadStream()
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 
@@ -128,12 +168,20 @@ public class LessonPlanTemplateController : ControllerBase
         {
             Id = id,
             ModuleId = request.ModuleId,
-            Level = request.Level,
             Title = request.Title,
             SessionIndex = request.SessionIndex,
             SessionOrder = request.SessionOrder,
             SyllabusMetadata = request.SyllabusMetadata,
             SyllabusContent = request.SyllabusContent,
+            Objectives = request.Objectives,
+            LanguageContent = request.LanguageContent,
+            Vocabulary = request.Vocabulary,
+            Grammar = request.Grammar,
+            TeachingMethodology = request.TeachingMethodology,
+            TeacherMaterials = request.TeacherMaterials,
+            StudentMaterials = request.StudentMaterials,
+            Procedure = request.Procedure,
+            Evaluation = request.Evaluation,
             SourceFileName = request.SourceFileName,
             Attachment = request.Attachment,
             IsActive = request.IsActive

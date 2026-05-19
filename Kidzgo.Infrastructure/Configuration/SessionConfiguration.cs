@@ -1,5 +1,6 @@
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.LessonPlans;
+using Kidzgo.Domain.Programs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,6 +20,14 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
 
         builder.Property(x => x.BranchId)
             .IsRequired();
+
+        builder.Property(x => x.ModuleId);
+
+        builder.Property(x => x.LessonPlanTemplateId);
+
+        builder.Property(x => x.SessionIndexInModule);
+
+        builder.Property(x => x.RescheduledFromSessionId);
 
         builder.Property(x => x.PlannedDatetime)
             .IsRequired();
@@ -76,6 +85,21 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.HasOne(x => x.Branch)
             .WithMany(x => x.Sessions)
             .HasForeignKey(x => x.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Module)
+            .WithMany(x => x.Sessions)
+            .HasForeignKey(x => x.ModuleId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.LessonPlanTemplate)
+            .WithMany(x => x.Sessions)
+            .HasForeignKey(x => x.LessonPlanTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.RescheduledFromSession)
+            .WithMany(x => x.RescheduledSessions)
+            .HasForeignKey(x => x.RescheduledFromSessionId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.PlannedRoom)
@@ -138,9 +162,19 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasForeignKey(x => x.TargetSessionId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(x => x.SessionLessons)
+            .WithOne(x => x.Session)
+            .HasForeignKey(x => x.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasOne(x => x.LessonPlan)
             .WithOne(x => x.Session)
             .HasForeignKey<LessonPlan>(x => x.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.TeachingLog)
+            .WithOne(x => x.Session)
+            .HasForeignKey<TeachingLog>(x => x.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.HomeworkAssignments)

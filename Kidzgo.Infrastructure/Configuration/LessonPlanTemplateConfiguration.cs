@@ -13,17 +13,14 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
         builder.Property(x => x.Id)
             .IsRequired();
 
-        builder.Property(x => x.ProgramId)
+        builder.Property(x => x.ModuleId)
             .IsRequired();
 
-        builder.Property(x => x.ModuleId);
+        builder.Property(x => x.SessionTemplateId);
 
         builder.Property(x => x.Title)
             .HasMaxLength(255)
             .IsRequired();
-
-        builder.Property(x => x.Level)
-            .HasMaxLength(100);
 
         builder.Property(x => x.SessionIndex)
             .IsRequired();
@@ -34,6 +31,24 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
         builder.Property(x => x.SyllabusMetadata);
 
         builder.Property(x => x.SyllabusContent);
+
+        builder.Property(x => x.Objectives);
+
+        builder.Property(x => x.LanguageContent);
+
+        builder.Property(x => x.Vocabulary);
+
+        builder.Property(x => x.Grammar);
+
+        builder.Property(x => x.TeachingMethodology);
+
+        builder.Property(x => x.TeacherMaterials);
+
+        builder.Property(x => x.StudentMaterials);
+
+        builder.Property(x => x.Procedure);
+
+        builder.Property(x => x.Evaluation);
 
         builder.Property(x => x.SourceFileName)
             .HasMaxLength(255);
@@ -60,15 +75,18 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 
-        // Relationships
-        builder.HasOne(x => x.Program)
-            .WithMany(x => x.LessonPlanTemplates)
-            .HasForeignKey(x => x.ProgramId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.UpdatedAt)
+            .IsRequired();
 
+        // Relationships
         builder.HasOne(x => x.Module)
             .WithMany(x => x.LessonPlanTemplates)
             .HasForeignKey(x => x.ModuleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.SessionTemplate)
+            .WithOne(x => x.LessonPlanTemplate)
+            .HasForeignKey<LessonPlanTemplate>(x => x.SessionTemplateId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.CreatedByUser)
@@ -80,5 +98,17 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
             .WithOne(x => x.Template)
             .HasForeignKey(x => x.TemplateId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.Sessions)
+            .WithOne(x => x.LessonPlanTemplate)
+            .HasForeignKey(x => x.LessonPlanTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(x => new { x.ModuleId, x.SessionIndex })
+            .IsUnique();
+
+        builder.HasIndex(x => x.SessionTemplateId)
+            .IsUnique()
+            .HasFilter("\"SessionTemplateId\" IS NOT NULL");
     }
 }

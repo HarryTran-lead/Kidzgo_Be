@@ -28,6 +28,14 @@ public static class RegistrationErrors
         "Registration.ClassNotMatchingProgram",
         $"Class does not match the registered program");
 
+    public static Error TuitionPlanLevelMismatch(Guid tuitionPlanId, Guid classId) => Error.Validation(
+        "Registration.TuitionPlanLevelMismatch",
+        $"Tuition plan '{tuitionPlanId}' does not match class '{classId}' level.");
+
+    public static Error TuitionPlanModuleMismatch(Guid tuitionPlanId, Guid classId) => Error.Validation(
+        "Registration.TuitionPlanModuleMismatch",
+        $"Tuition plan '{tuitionPlanId}' does not match class '{classId}' start module.");
+
     public static Error StudentNotFound(Guid studentProfileId) => Error.NotFound(
         "Registration.StudentNotFound",
         $"Student profile with ID {studentProfileId} not found");

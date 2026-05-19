@@ -1,0 +1,19 @@
+using Kidzgo.Application.Abstraction.Messaging;
+
+namespace Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
+
+public sealed class ImportLessonPlanTemplateFromWordCommand : ICommand<ImportLessonPlanTemplateFromWordResponse>
+{
+    public Guid ModuleId { get; init; }
+    public bool OverwriteExisting { get; init; } = true;
+    public string FileName { get; init; } = null!;
+    public Stream FileStream { get; init; } = null!;
+}
+
+public sealed class ImportLessonPlanTemplateFromWordResponse
+{
+    public Guid LessonPlanTemplateId { get; init; }
+    public Guid? SessionTemplateId { get; init; }
+    public int SessionIndex { get; init; }
+    public string Title { get; init; } = null!;
+}

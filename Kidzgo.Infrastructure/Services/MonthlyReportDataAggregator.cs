@@ -334,6 +334,7 @@ public sealed class MonthlyReportDataAggregator(
         var sessionsQuery = context.Sessions
             .Include(s => s.LessonPlan)
             .ThenInclude(lp => lp!.Template)
+            .ThenInclude(t => t!.Module)
             .Where(s => s.Attendances.Any(a => a.StudentProfileId == studentProfileId) &&
                        s.PlannedDatetime >= startDate &&
                        s.PlannedDatetime <= endDate &&
@@ -351,8 +352,8 @@ public sealed class MonthlyReportDataAggregator(
 
         // Extract unique topics from lesson plan templates
         var topics = sessionsWithLessonPlans
-            .Where(s => s.LessonPlan?.Template?.Level != null)
-            .Select(s => s.LessonPlan!.Template!.Level!)
+            .Where(s => !string.IsNullOrWhiteSpace(s.LessonPlan?.Template?.Module?.Name))
+            .Select(s => s.LessonPlan!.Template!.Module!.Name)
             .Distinct()
             .ToList();
 

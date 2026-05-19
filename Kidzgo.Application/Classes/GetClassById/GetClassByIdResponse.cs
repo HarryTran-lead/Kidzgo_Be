@@ -11,6 +11,12 @@ public sealed class GetClassByIdResponse
     public string BranchName { get; init; } = null!;
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
+    public Guid LevelId { get; init; }
+    public string LevelName { get; init; } = null!;
+    public Guid StartModuleId { get; init; }
+    public string StartModuleName { get; init; } = null!;
+    public Guid CurrentModuleId { get; init; }
+    public string CurrentModuleName { get; init; } = null!;
     public Guid? SlotTypeId { get; init; }
     public string? SlotTypeCode { get; init; }
     public string Code { get; init; } = null!;
@@ -37,6 +43,7 @@ public sealed class GetClassByIdResponse
     public int StudentCount => CurrentEnrollmentCount;
     public int TotalSessions { get; init; }
     public int CompletedSessions { get; init; }
+    public List<ClassModuleProgressDto> ModuleProgresses { get; init; } = new();
     public List<ClassScheduleSegmentDto> ScheduleSegments { get; init; } = new();
     public decimal ProgressPercent => TotalSessions <= 0
         ? 0
@@ -49,5 +56,17 @@ public sealed class ClassScheduleSegmentDto
     public DateOnly EffectiveFrom { get; init; }
     public DateOnly? EffectiveTo { get; init; }
     public List<ScheduleSlot> WeeklyScheduleSlots { get; init; } = [];
+}
+
+public sealed class ClassModuleProgressDto
+{
+    public Guid ModuleId { get; init; }
+    public string ModuleName { get; init; } = null!;
+    public int OrderIndex { get; init; }
+    public int RequiredSessions { get; init; }
+    public int CompletedSessions { get; init; }
+    public string Status { get; init; } = null!;
+    public DateTime? StartedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
 }
 

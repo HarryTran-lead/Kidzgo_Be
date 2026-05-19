@@ -20,6 +20,9 @@ public sealed class GetClassesQueryHandler(
         var classesQuery = context.Classes
             .Include(c => c.Branch)
             .Include(c => c.Program)
+            .Include(c => c.Level)
+            .Include(c => c.StartModule)
+            .Include(c => c.CurrentModule)
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
@@ -90,6 +93,12 @@ public sealed class GetClassesQueryHandler(
                 BranchName = c.Branch.Name,
                 ProgramId = c.ProgramId,
                 ProgramName = c.Program.Name,
+                LevelId = c.LevelId,
+                LevelName = c.Level.Name,
+                StartModuleId = c.StartModuleId,
+                StartModuleName = c.StartModule.Name,
+                CurrentModuleId = c.CurrentModuleId,
+                CurrentModuleName = c.CurrentModule.Name,
                 SlotTypeId = c.SlotTypeId,
                 SlotTypeCode = c.SlotType != null ? c.SlotType.Code : null,
                 Code = c.Code,

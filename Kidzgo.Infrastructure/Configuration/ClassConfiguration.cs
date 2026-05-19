@@ -20,6 +20,17 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.Property(x => x.ProgramId)
             .IsRequired();
 
+        builder.Property(x => x.LevelId)
+            .IsRequired();
+
+        builder.Property(x => x.SyllabusId);
+
+        builder.Property(x => x.StartModuleId)
+            .IsRequired();
+
+        builder.Property(x => x.CurrentModuleId)
+            .IsRequired();
+
         builder.Property(x => x.Code)
             .HasMaxLength(50)
             .IsRequired();
@@ -74,6 +85,26 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .HasForeignKey(x => x.ProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Level)
+            .WithMany()
+            .HasForeignKey(x => x.LevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Syllabus)
+            .WithMany(x => x.Classes)
+            .HasForeignKey(x => x.SyllabusId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.StartModule)
+            .WithMany(x => x.StartClasses)
+            .HasForeignKey(x => x.StartModuleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.CurrentModule)
+            .WithMany(x => x.CurrentClasses)
+            .HasForeignKey(x => x.CurrentModuleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(x => x.Room)
             .WithMany()
             .HasForeignKey(x => x.RoomId)
@@ -95,6 +126,11 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(x => x.ClassEnrollments)
+            .WithOne(x => x.Class)
+            .HasForeignKey(x => x.ClassId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.ModuleProgresses)
             .WithOne(x => x.Class)
             .HasForeignKey(x => x.ClassId)
             .OnDelete(DeleteBehavior.Cascade);

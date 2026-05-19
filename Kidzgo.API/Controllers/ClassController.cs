@@ -40,6 +40,8 @@ public class ClassController : ControllerBase
         {
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
+            StartModuleId = request.StartModuleId,
             Code = request.Code,
             Title = request.Name ?? request.Title ?? request.Code,
             RoomId = request.RoomId,
@@ -169,6 +171,8 @@ public class ClassController : ControllerBase
             Id = id,
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
+            StartModuleId = request.StartModuleId,
             Code = request.Code,
             Title = request.Name ?? request.Title ?? request.Code,
             RoomId = request.RoomId,

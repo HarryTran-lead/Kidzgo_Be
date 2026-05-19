@@ -14,13 +14,17 @@ public sealed class GetTuitionPlanByIdQueryHandler(
     {
         var tuitionPlan = await context.TuitionPlans
             .Include(t => t.Program)
+            .Include(t => t.Level)
+            .Include(t => t.Module)
             .Where(t => t.Id == query.Id && !t.IsDeleted)
             .Select(t => new GetTuitionPlanByIdResponse
             {
                 Id = t.Id,
                 ProgramId = t.ProgramId,
                 LevelId = t.LevelId,
-                LevelName = t.Level != null ? t.Level.Name : null,
+                LevelName = t.Level.Name,
+                ModuleId = t.ModuleId,
+                ModuleName = t.Module != null ? t.Module.Name : null,
                 LearningTicketTypeId = t.LearningTicketTypeId,
                 LearningTicketTypeCode = t.LearningTicketType != null ? t.LearningTicketType.Code : null,
                 ProgramName = t.Program.Name,

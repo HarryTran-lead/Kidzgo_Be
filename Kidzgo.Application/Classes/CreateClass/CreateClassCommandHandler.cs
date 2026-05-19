@@ -44,6 +44,33 @@ public sealed class CreateClassCommandHandler(
             return Result.Failure<CreateClassResponse>(ClassErrors.ProgramNotFound);
         }
 
+        var level = await context.Levels
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == command.LevelId, cancellationToken);
+        if (level is null)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.LevelNotFound);
+        }
+
+        if (level.ProgramId != command.ProgramId)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.LevelProgramMismatch);
+        }
+
+        var modules = await context.Modules
+            .AsNoTracking()
+            .Where(x => x.LevelId == command.LevelId && x.IsActive)
+            .OrderBy(x => x.Order)
+            .ToListAsync(cancellationToken);
+        var startModule = modules.FirstOrDefault(x => x.Id == command.StartModuleId);
+        if (startModule is null)
+        {
+            var moduleExists = await context.Modules.AnyAsync(x => x.Id == command.StartModuleId, cancellationToken);
+            return Result.Failure<CreateClassResponse>(moduleExists
+                ? ClassErrors.StartModuleLevelMismatch
+                : ClassErrors.StartModuleNotFound);
+        }
+
         var codeExists = await context.Classes
             .AnyAsync(c => c.Code == command.Code, cancellationToken);
 
@@ -195,6 +222,9 @@ public sealed class CreateClassCommandHandler(
             Id = Guid.NewGuid(),
             BranchId = command.BranchId,
             ProgramId = command.ProgramId,
+            LevelId = command.LevelId,
+            StartModuleId = command.StartModuleId,
+            CurrentModuleId = command.StartModuleId,
             Code = command.Code,
             Title = command.Title,
             RoomId = command.RoomId,
@@ -212,6 +242,25 @@ public sealed class CreateClassCommandHandler(
         };
 
         context.Classes.Add(classEntity);
+        context.ClassModuleProgresses.AddRange(
+            modules.Select(module => new ClassModuleProgress
+            {
+                Id = Guid.NewGuid(),
+                ClassId = classEntity.Id,
+                ModuleId = module.Id,
+                OrderIndex = module.Order,
+                RequiredSessions = module.PlannedSessionCount,
+                CompletedSessions = 0,
+                Status = module.Order < startModule.Order
+                    ? ClassModuleProgressStatus.Skipped
+                    : module.Id == startModule.Id
+                        ? ClassModuleProgressStatus.Active
+                        : ClassModuleProgressStatus.Pending,
+                StartedAt = module.Id == startModule.Id ? now : null,
+                CompletedAt = null,
+                CreatedAt = now,
+                UpdatedAt = now
+            }));
         await context.SaveChangesAsync(cancellationToken);
 
         return new CreateClassResponse
@@ -219,6 +268,9 @@ public sealed class CreateClassCommandHandler(
             Id = classEntity.Id,
             BranchId = classEntity.BranchId,
             ProgramId = classEntity.ProgramId,
+            LevelId = classEntity.LevelId,
+            StartModuleId = classEntity.StartModuleId,
+            CurrentModuleId = classEntity.CurrentModuleId,
             Code = classEntity.Code,
             Title = classEntity.Title,
             RoomId = classEntity.RoomId,

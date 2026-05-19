@@ -30,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<TicketCompatibilityService>();
         services.AddScoped<TicketGrantService>();
         services.AddScoped<ClassLifecycleService>();
+        services.AddScoped<ClassSessionPlanningService>();
+        services.AddScoped<ClassProgressionService>();
         services.AddScoped<ApprovedLeaveAttendanceService>();
         services.AddScoped<PauseEnrollmentReactivationService>();
         services.AddScoped<ProgramProgressionEvaluationService>();

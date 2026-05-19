@@ -15,69 +15,71 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
         CancellationToken cancellationToken)
     {
         var templateQuery = context.LessonPlanTemplates
-            .Include(t => t.Program)
             .Include(t => t.Module)
+                .ThenInclude(t => t.Level)
+                    .ThenInclude(t => t.Program)
             .Include(t => t.CreatedByUser)
             .AsQueryable();
 
-        // Filter by IsDeleted
         if (!query.IncludeDeleted)
         {
             templateQuery = templateQuery.Where(t => !t.IsDeleted);
         }
 
-        // Filter by program
-        if (query.ProgramId.HasValue)
+        if (query.ModuleId.HasValue)
         {
-            templateQuery = templateQuery.Where(t => t.ProgramId == query.ProgramId.Value);
+            templateQuery = templateQuery.Where(t => t.ModuleId == query.ModuleId.Value);
         }
 
-        // Filter by level
-        if (!string.IsNullOrWhiteSpace(query.Level))
-        {
-            templateQuery = templateQuery.Where(t => t.Level == query.Level);
-        }
-        
         if (!string.IsNullOrWhiteSpace(query.Title))
         {
             var normalizedTitle = query.Title.ToLower();
             templateQuery = templateQuery.Where(t => t.Title != null && t.Title.ToLower() == normalizedTitle);
         }
 
-        // Filter by IsActive
         if (query.IsActive.HasValue)
         {
             templateQuery = templateQuery.Where(t => t.IsActive == query.IsActive.Value);
         }
 
-        // Get total count
-        int totalCount = await templateQuery.CountAsync(cancellationToken);
+        var totalCount = await templateQuery.CountAsync(cancellationToken);
 
-        // Apply pagination and select
         var templates = await templateQuery
-            .OrderBy(t => t.ProgramId)
+            .OrderBy(t => t.Module.Level.Order)
+            .ThenBy(t => t.Module.Order)
             .ThenBy(t => t.SessionIndex)
             .ApplyPagination(query.PageNumber, query.PageSize)
             .Select(t => new LessonPlanTemplateDto
             {
                 Id = t.Id,
-                ProgramId = t.ProgramId,
                 ModuleId = t.ModuleId,
-                ModuleCode = t.Module != null ? t.Module.Code : null,
-                ModuleName = t.Module != null ? t.Module.Name : null,
-                ProgramName = t.Program != null ? t.Program.Name : null,
-                Level = t.Level,
+                ModuleCode = t.Module.Code,
+                ModuleName = t.Module.Name,
+                LevelId = t.Module.LevelId,
+                LevelName = t.Module.Level.Name,
+                ProgramId = t.Module.Level.ProgramId,
+                ProgramName = t.Module.Level.Program.Name,
                 Title = t.Title,
                 SessionIndex = t.SessionIndex,
                 SessionOrder = t.SessionOrder,
                 SyllabusMetadata = t.SyllabusMetadata,
                 SyllabusContent = t.SyllabusContent,
+                Objectives = t.Objectives,
+                LanguageContent = t.LanguageContent,
+                Vocabulary = t.Vocabulary,
+                Grammar = t.Grammar,
+                TeachingMethodology = t.TeachingMethodology,
+                TeacherMaterials = t.TeacherMaterials,
+                StudentMaterials = t.StudentMaterials,
+                Procedure = t.Procedure,
+                Evaluation = t.Evaluation,
                 SourceFileName = t.SourceFileName,
                 Attachment = t.AttachmentUrl,
                 IsActive = t.IsActive,
                 CreatedBy = t.CreatedBy,
                 CreatedByName = t.CreatedByUser != null ? t.CreatedByUser.Name : null,
                 CreatedAt = t.CreatedAt,
+                UpdatedAt = t.UpdatedAt,
                 UsedCount = t.LessonPlans.Count(lp => !lp.IsDeleted)
             })
             .ToListAsync(cancellationToken);
@@ -94,4 +96,3 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
         };
     }
 }
-

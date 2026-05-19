@@ -30,6 +30,7 @@ public sealed class UpdateClassCommandHandler(
         var normalizedWeeklyScheduleJson = normalizedPatternResult.Value;
 
         var classEntity = await context.Classes
+            .Include(x => x.ModuleProgresses)
             .FirstOrDefaultAsync(c => c.Id == command.Id, cancellationToken);
 
         if (classEntity is null)
@@ -58,6 +59,33 @@ public sealed class UpdateClassCommandHandler(
                 ClassErrors.ProgramNotFound);
         }
 
+        var level = await context.Levels
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == command.LevelId, cancellationToken);
+        if (level is null)
+        {
+            return Result.Failure<UpdateClassResponse>(ClassErrors.LevelNotFound);
+        }
+
+        if (level.ProgramId != command.ProgramId)
+        {
+            return Result.Failure<UpdateClassResponse>(ClassErrors.LevelProgramMismatch);
+        }
+
+        var modules = await context.Modules
+            .AsNoTracking()
+            .Where(x => x.LevelId == command.LevelId && x.IsActive)
+            .OrderBy(x => x.Order)
+            .ToListAsync(cancellationToken);
+        var startModule = modules.FirstOrDefault(x => x.Id == command.StartModuleId);
+        if (startModule is null)
+        {
+            var moduleExists = await context.Modules.AnyAsync(x => x.Id == command.StartModuleId, cancellationToken);
+            return Result.Failure<UpdateClassResponse>(moduleExists
+                ? ClassErrors.StartModuleLevelMismatch
+                : ClassErrors.StartModuleNotFound);
+        }
+
         // Check if code is unique (excluding current class)
         bool codeExists = await context.Classes
             .AnyAsync(c => c.Code == command.Code && c.Id != command.Id, cancellationToken);
@@ -69,7 +97,9 @@ public sealed class UpdateClassCommandHandler(
         }
 
         bool branchOrProgramChanged = classEntity.BranchId != command.BranchId ||
-                                      classEntity.ProgramId != command.ProgramId;
+                                      classEntity.ProgramId != command.ProgramId ||
+                                      classEntity.LevelId != command.LevelId;
+        bool startModuleChanged = classEntity.StartModuleId != command.StartModuleId;
         bool scheduleChanged = classEntity.StartDate != command.StartDate ||
                                classEntity.EndDate != command.EndDate ||
                                classEntity.WeeklyScheduleJson != normalizedWeeklyScheduleJson;
@@ -85,6 +115,15 @@ public sealed class UpdateClassCommandHandler(
             {
                 return Result.Failure<UpdateClassResponse>(
                     ClassErrors.HasOperationalDependencies);
+            }
+        }
+
+        if (startModuleChanged)
+        {
+            var hasSessions = await context.Sessions.AnyAsync(x => x.ClassId == command.Id, cancellationToken);
+            if (hasSessions)
+            {
+                return Result.Failure<UpdateClassResponse>(ClassErrors.StartModuleImmutableAfterSessions);
             }
         }
 
@@ -280,6 +319,8 @@ public sealed class UpdateClassCommandHandler(
 
         classEntity.BranchId = command.BranchId;
         classEntity.ProgramId = command.ProgramId;
+        classEntity.LevelId = command.LevelId;
+        classEntity.StartModuleId = command.StartModuleId;
         classEntity.Code = command.Code;
         classEntity.Title = command.Title;
         classEntity.RoomId = command.RoomId;
@@ -298,6 +339,32 @@ public sealed class UpdateClassCommandHandler(
             classEntity.EndDate,
             VietnamTime.ToVietnamDateOnly(classEntity.UpdatedAt));
 
+        if (startModuleChanged || branchOrProgramChanged)
+        {
+            classEntity.CurrentModuleId = command.StartModuleId;
+            context.ClassModuleProgresses.RemoveRange(classEntity.ModuleProgresses);
+            var now = classEntity.UpdatedAt;
+            context.ClassModuleProgresses.AddRange(
+                modules.Select(module => new ClassModuleProgress
+                {
+                    Id = Guid.NewGuid(),
+                    ClassId = classEntity.Id,
+                    ModuleId = module.Id,
+                    OrderIndex = module.Order,
+                    RequiredSessions = module.PlannedSessionCount,
+                    CompletedSessions = 0,
+                    Status = module.Order < startModule.Order
+                        ? ClassModuleProgressStatus.Skipped
+                        : module.Id == startModule.Id
+                            ? ClassModuleProgressStatus.Active
+                            : ClassModuleProgressStatus.Pending,
+                    StartedAt = module.Id == startModule.Id ? now : null,
+                    CompletedAt = null,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                }));
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         return new UpdateClassResponse
@@ -305,6 +372,9 @@ public sealed class UpdateClassCommandHandler(
             Id = classEntity.Id,
             BranchId = classEntity.BranchId,
             ProgramId = classEntity.ProgramId,
+            LevelId = classEntity.LevelId,
+            StartModuleId = classEntity.StartModuleId,
+            CurrentModuleId = classEntity.CurrentModuleId,
             Code = classEntity.Code,
             Title = classEntity.Title,
             RoomId = classEntity.RoomId,

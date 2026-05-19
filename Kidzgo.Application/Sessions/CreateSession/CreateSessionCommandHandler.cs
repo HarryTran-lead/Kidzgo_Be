@@ -15,7 +15,8 @@ namespace Kidzgo.Application.Sessions.CreateSession;
 public sealed class CreateSessionCommandHandler(
     IDbContext context,
     SessionConflictChecker conflictChecker,
-    StudentSessionAssignmentService studentSessionAssignmentService
+    StudentSessionAssignmentService studentSessionAssignmentService,
+    ClassSessionPlanningService classSessionPlanningService
 ) : ICommandHandler<CreateSessionCommand, CreateSessionResponse>
 {
     public async Task<Result<CreateSessionResponse>> Handle(CreateSessionCommand command, CancellationToken cancellationToken)
@@ -103,6 +104,7 @@ public sealed class CreateSessionCommandHandler(
             UpdatedAt = now
         };
 
+        await classSessionPlanningService.AssignMetadataAsync(classEntity.Id, [session], cancellationToken);
         context.Sessions.Add(session);
         await studentSessionAssignmentService.SyncAssignmentsForSessionAsync(session, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
@@ -112,6 +114,9 @@ public sealed class CreateSessionCommandHandler(
             Id = session.Id,
             ClassId = session.ClassId,
             BranchId = session.BranchId,
+            ModuleId = session.ModuleId,
+            LessonPlanTemplateId = session.LessonPlanTemplateId,
+            SessionIndexInModule = session.SessionIndexInModule,
             PlannedDatetime = session.PlannedDatetime,
             DurationMinutes = session.DurationMinutes,
             SectionType = session.SectionType.ToString(),

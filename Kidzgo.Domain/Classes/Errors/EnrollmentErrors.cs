@@ -48,6 +48,14 @@ public static class EnrollmentErrors
         "Enrollment.TuitionPlanProgramMismatch",
         "Tuition plan must belong to the same program as the class");
 
+    public static readonly Error TuitionPlanLevelMismatch = Error.Conflict(
+        "Enrollment.TuitionPlanLevelMismatch",
+        "Tuition plan must belong to the same level as the class");
+
+    public static readonly Error TuitionPlanModuleMismatch = Error.Conflict(
+        "Enrollment.TuitionPlanModuleMismatch",
+        "Module-specific tuition plan must match the class start module");
+
     public static readonly Error TuitionPlanBranchMismatch = Error.Conflict(
         "Enrollment.TuitionPlanBranchMismatch",
         "Tuition plan is not available for the class branch");

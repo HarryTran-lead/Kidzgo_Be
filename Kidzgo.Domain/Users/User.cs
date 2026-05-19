@@ -53,6 +53,8 @@ public class User : Entity
     public ICollection<Attendance> MarkedAttendances { get; set; } = new List<Attendance>();
     public ICollection<MakeupAllocation> AssignedMakeupAllocations { get; set; } = new List<MakeupAllocation>();
     public ICollection<LessonPlanTemplate> CreatedLessonPlanTemplates { get; set; } = new List<LessonPlanTemplate>();
+    public ICollection<Syllabus> CreatedSyllabuses { get; set; } = new List<Syllabus>();
+    public ICollection<Sessions.TeachingLog> TeachingLogs { get; set; } = new List<Sessions.TeachingLog>();
     public ICollection<LessonPlan> SubmittedLessonPlans { get; set; } = new List<LessonPlan>();
     public ICollection<HomeworkAssignment> CreatedHomeworkAssignments { get; set; } = new List<HomeworkAssignment>();
     public ICollection<Exam> CreatedExams { get; set; } = new List<Exam>();

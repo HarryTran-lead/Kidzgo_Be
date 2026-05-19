@@ -4,8 +4,7 @@ namespace Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplates;
 
 public sealed class GetLessonPlanTemplatesQuery : IQuery<GetLessonPlanTemplatesResponse>
 {
-    public Guid? ProgramId { get; init; }
-    public string? Level { get; init; }
+    public Guid? ModuleId { get; init; }
     public string? Title { get; init; }
     public bool? IsActive { get; init; }
     public bool IncludeDeleted { get; init; } = false;

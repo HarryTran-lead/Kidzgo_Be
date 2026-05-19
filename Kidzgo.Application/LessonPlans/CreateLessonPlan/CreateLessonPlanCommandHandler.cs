@@ -157,7 +157,7 @@ public sealed class CreateLessonPlanCommandHandler(
             .Select(x => x.ModuleId)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (!moduleId.HasValue)
+        if (moduleId == Guid.Empty)
         {
             return;
         }
@@ -175,7 +175,7 @@ public sealed class CreateLessonPlanCommandHandler(
         {
             await progressionService.UpsertStudentProgressAsync(
                 studentId,
-                moduleId.Value,
+                moduleId,
                 templateId,
                 null,
                 cancellationToken);

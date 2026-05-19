@@ -143,6 +143,22 @@ public sealed class AssignClassCommandHandler(
                 RegistrationErrors.ClassNotMatchingProgram(classEntity.Id, targetProgramId));
         }
 
+        if (classEntity != null && registration.TuitionPlan != null)
+        {
+            if (registration.TuitionPlan.LevelId != classEntity.LevelId)
+            {
+                return Result.Failure<AssignClassResponse>(
+                    RegistrationErrors.TuitionPlanLevelMismatch(registration.TuitionPlanId, classEntity.Id));
+            }
+
+            if (registration.TuitionPlan.ModuleId.HasValue &&
+                registration.TuitionPlan.ModuleId != classEntity.StartModuleId)
+            {
+                return Result.Failure<AssignClassResponse>(
+                    RegistrationErrors.TuitionPlanModuleMismatch(registration.TuitionPlanId, classEntity.Id));
+            }
+        }
+
         if (classEntity != null)
         {
             var selectionPatternValidation = await studentSessionAssignmentService

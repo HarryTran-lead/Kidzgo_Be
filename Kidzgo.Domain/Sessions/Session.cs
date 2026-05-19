@@ -5,6 +5,7 @@ using Kidzgo.Domain.Schools;
 using Kidzgo.Domain.Users;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.Payroll;
+using Kidzgo.Domain.Programs;
 
 namespace Kidzgo.Domain.Sessions;
 
@@ -13,6 +14,10 @@ public class Session : Entity
     public Guid Id { get; set; }
     public Guid ClassId { get; set; }
     public Guid BranchId { get; set; }
+    public Guid? ModuleId { get; set; }
+    public Guid? LessonPlanTemplateId { get; set; }
+    public int? SessionIndexInModule { get; set; }
+    public Guid? RescheduledFromSessionId { get; set; }
     public DateTime PlannedDatetime { get; set; }
     public Guid? PlannedRoomId { get; set; }
     public Guid? PlannedTeacherId { get; set; }
@@ -33,6 +38,9 @@ public class Session : Entity
     // Navigation properties
     public Class Class { get; set; } = null!;
     public Branch Branch { get; set; } = null!;
+    public Module? Module { get; set; }
+    public LessonPlanTemplate? LessonPlanTemplate { get; set; }
+    public Session? RescheduledFromSession { get; set; }
     public Classroom? PlannedRoom { get; set; }
     public User? PlannedTeacher { get; set; }
     public User? PlannedAssistant { get; set; }
@@ -45,7 +53,10 @@ public class Session : Entity
     public ICollection<MakeupCredit> SourceMakeupCredits { get; set; } = new List<MakeupCredit>();
     public ICollection<MakeupCredit> UsedMakeupCredits { get; set; } = new List<MakeupCredit>();
     public ICollection<MakeupAllocation> TargetMakeupAllocations { get; set; } = new List<MakeupAllocation>();
+    public ICollection<Session> RescheduledSessions { get; set; } = new List<Session>();
+    public ICollection<ClassSessionLesson> SessionLessons { get; set; } = new List<ClassSessionLesson>();
     public LessonPlan? LessonPlan { get; set; }
+    public TeachingLog? TeachingLog { get; set; }
     public ICollection<HomeworkAssignment> HomeworkAssignments { get; set; } = new List<HomeworkAssignment>();
     public ICollection<SessionRole> SessionRoles { get; set; } = new List<SessionRole>();
 }

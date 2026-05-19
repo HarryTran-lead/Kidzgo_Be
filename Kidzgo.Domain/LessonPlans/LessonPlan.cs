@@ -36,4 +36,5 @@ public class LessonPlan : Entity
     public Session Session { get; set; } = null!;
     public LessonPlanTemplate? Template { get; set; }
     public User? SubmittedByUser { get; set; }
+    public Sessions.TeachingLog? TeachingLog { get; set; }
 }

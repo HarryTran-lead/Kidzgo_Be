@@ -6,6 +6,8 @@ public sealed class UpdateClassRequest
 {
     public Guid BranchId { get; set; }
     public Guid ProgramId { get; set; }
+    public Guid LevelId { get; set; }
+    public Guid StartModuleId { get; set; }
     public string Code { get; set; } = null!;
     public string? Title { get; set; }
     public string? Name { get; set; }

@@ -18,10 +18,15 @@ public sealed class GetClassByIdQueryHandler(
         var classEntity = await context.Classes
             .Include(c => c.Branch)
             .Include(c => c.Program)
+            .Include(c => c.Level)
+            .Include(c => c.StartModule)
+            .Include(c => c.CurrentModule)
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
             .Include(c => c.SlotType)
+            .Include(c => c.ModuleProgresses)
+                .ThenInclude(x => x.Module)
             .Include(c => c.ScheduleSegments)
             .FirstOrDefaultAsync(c => c.Id == query.Id, cancellationToken);
 
@@ -61,6 +66,12 @@ public sealed class GetClassByIdQueryHandler(
             BranchName = classEntity.Branch.Name,
             ProgramId = classEntity.ProgramId,
             ProgramName = classEntity.Program.Name,
+            LevelId = classEntity.LevelId,
+            LevelName = classEntity.Level.Name,
+            StartModuleId = classEntity.StartModuleId,
+            StartModuleName = classEntity.StartModule.Name,
+            CurrentModuleId = classEntity.CurrentModuleId,
+            CurrentModuleName = classEntity.CurrentModule.Name,
             SlotTypeId = classEntity.SlotTypeId,
             SlotTypeCode = classEntity.SlotType?.Code,
             Code = classEntity.Code,
@@ -90,6 +101,20 @@ public sealed class GetClassByIdQueryHandler(
                 .ToList(),
             TotalSessions = totalSessions,
             CompletedSessions = completedSessions,
+            ModuleProgresses = classEntity.ModuleProgresses
+                .OrderBy(x => x.OrderIndex)
+                .Select(x => new ClassModuleProgressDto
+                {
+                    ModuleId = x.ModuleId,
+                    ModuleName = x.Module.Name,
+                    OrderIndex = x.OrderIndex,
+                    RequiredSessions = x.RequiredSessions,
+                    CompletedSessions = x.CompletedSessions,
+                    Status = x.Status.ToString(),
+                    StartedAt = x.StartedAt,
+                    CompletedAt = x.CompletedAt
+                })
+                .ToList(),
             ScheduleSegments = classEntity.ScheduleSegments
                 .OrderBy(segment => segment.EffectiveFrom)
                 .Select(segment => new ClassScheduleSegmentDto

@@ -12,37 +12,40 @@ internal static class LessonPlanTemplateResolver
         Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var classProgram = await context.Classes
-            .Where(c => c.Id == classId)
-            .Select(c => new
+        var sessionMetadata = await context.Sessions
+            .Where(s => s.ClassId == classId && s.Id == sessionId)
+            .Select(s => new
             {
-                c.Id,
-                c.ProgramId
+                s.ModuleId,
+                s.LessonPlanTemplateId,
+                s.SessionIndexInModule
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (classProgram is null)
+        if (sessionMetadata is null)
         {
             return null;
         }
 
-        var orderedSessionIds = await context.Sessions
-            .Where(s => s.ClassId == classId)
-            .OrderBy(s => s.PlannedDatetime)
-            .ThenBy(s => s.CreatedAt)
-            .Select(s => s.Id)
-            .ToListAsync(cancellationToken);
+        if (sessionMetadata.LessonPlanTemplateId.HasValue)
+        {
+            return await context.LessonPlanTemplates
+                .FirstOrDefaultAsync(
+                    t => t.Id == sessionMetadata.LessonPlanTemplateId.Value &&
+                         t.IsActive &&
+                         !t.IsDeleted,
+                    cancellationToken);
+        }
 
-        var sessionIndex = orderedSessionIds.FindIndex(id => id == sessionId);
-        if (sessionIndex < 0)
+        if (!sessionMetadata.ModuleId.HasValue || !sessionMetadata.SessionIndexInModule.HasValue)
         {
             return null;
         }
 
         return await context.LessonPlanTemplates
             .FirstOrDefaultAsync(
-                t => t.ProgramId == classProgram.ProgramId &&
-                     t.SessionIndex == sessionIndex + 1 &&
+                t => t.ModuleId == sessionMetadata.ModuleId.Value &&
+                     t.SessionIndex == sessionMetadata.SessionIndexInModule.Value &&
                      t.IsActive &&
                      !t.IsDeleted,
                 cancellationToken);

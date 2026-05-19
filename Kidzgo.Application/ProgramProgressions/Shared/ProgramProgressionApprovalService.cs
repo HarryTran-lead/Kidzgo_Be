@@ -123,8 +123,7 @@ public sealed class ProgramProgressionApprovalService(
             var targetLevelId = resolvedTargetLevelId;
 
             if (targetLevelId.HasValue &&
-                selectedTuitionPlan.LevelId.HasValue &&
-                selectedTuitionPlan.LevelId.Value != targetLevelId.Value)
+                selectedTuitionPlan.LevelId != targetLevelId.Value)
             {
                 return Result.Failure<ProgramProgressionApprovalResult>(Error.Validation(
                     "ProgramProgression.TuitionPlanLevelMismatch",

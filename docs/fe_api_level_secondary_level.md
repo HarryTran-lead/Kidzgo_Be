@@ -106,7 +106,8 @@ Base path: `/api/tuition-plans`
 | Field | Type | Required |
 |---|---|---|
 | programId | Guid | Yes |
-| levelId | Guid? | No |
+| levelId | Guid | Yes |
+| moduleId | Guid? | No |
 | learningTicketTypeId | Guid? | No |
 | name | string | Yes |
 | totalSessions | int | Yes |
@@ -117,12 +118,12 @@ Base path: `/api/tuition-plans`
 | Rule | Error code |
 |---|---|
 | Program phai ton tai | `TuitionPlan.ProgramNotFound` |
-| Neu co `levelId` thi level phai active va thuoc dung program | `TuitionPlan.LevelNotFoundInProgram` |
+| Level bat buoc ton tai va thuoc dung program | `TuitionPlan.LevelNotFound`, `TuitionPlan.LevelProgramMismatch` |
+| Neu co `moduleId` thi module phai ton tai va thuoc dung level | `TuitionPlan.ModuleNotFound`, `TuitionPlan.ModuleLevelMismatch` |
 | Neu co `learningTicketTypeId` thi ticket type phai active | `TuitionPlan.LearningTicketTypeNotFound` |
-| `levelId = null` nghia la goi ap dung toan program | N/A |
 
 - Success data chinh:
-`id, programId, levelId, levelName, learningTicketTypeId, name, totalSessions, tuitionAmount, unitPriceSession, currency, isActive`.
+`id, programId, programName, levelId, levelName, moduleId, moduleName, learningTicketTypeId, learningTicketTypeCode, name, totalSessions, tuitionAmount, unitPriceSession, currency, isActive`.
 
 ### PUT /api/tuition-plans/{id}
 - Body giong create.
@@ -133,9 +134,8 @@ Base path: `/api/tuition-plans`
 
 ### GET /api/tuition-plans, GET /api/tuition-plans/active
 - Query:
-`branchId?, programId?, levelId?, isActive?, pageNumber=1, pageSize=10`
+`branchId?, programId?, levelId?, moduleId?, isActive?, pageNumber=1, pageSize=10`
 - Voi `active` endpoint: backend tu ep `isActive = true`.
-- Logic loc theo level: khi truyen `levelId`, backend tra ca plan match level do hoac plan chung (`levelId = null`).
 
 ### PATCH /api/tuition-plans/{id}/toggle-status
 - Rule:
@@ -371,6 +371,8 @@ Luong chuyen chinh:
 - Khong con dung secondary program trong form nhap ket qua/dang ky.
 - Dung `secondaryLevelId` va `secondaryLevelSkillFocus`.
 - Truong `programId` van bat buoc o registration va tuition plan.
-- Khi lay tuition plan theo level, backend da ho tro tra ca plan rieng level va plan chung program (`levelId = null`).
+- FE can gui `totalSessions`, khong gui `sessionCount`.
+- FE khong can gui `unitPriceSession`; backend tu tinh theo `tuitionAmount / totalSessions`.
+- `branchId` khong nam trong body create/update cua tuition plan hien tai.
 - Route progression: `/api/level-progressions`.
 - Progression assessment list da ho tro filter them theo `sourceLevelId` va `targetLevelId`.

@@ -800,6 +800,28 @@ Base URL: `/api/tuition-plans`
 
 ---
 
+**Contract correction for `POST /api/tuition-plans` and `PUT /api/tuition-plans/{id}`:**
+- Required body fields: `programId`, `levelId`, `name`, `totalSessions`, `tuitionAmount`, `currency`
+- Optional body fields: `moduleId`, `learningTicketTypeId`
+- Do not send `branchId` in the body
+- Do not send `unitPriceSession` in the body
+- FE must send `totalSessions`, not `sessionCount`
+- Current backend returns `isActive = true` after create
+
+**Correct request body example:**
+```json
+{
+  "programId": "12345678-1234-1234-1234-123456789012",
+  "levelId": "22345678-1234-1234-1234-123456789012",
+  "moduleId": null,
+  "learningTicketTypeId": null,
+  "name": "Starter 24",
+  "totalSessions": 24,
+  "tuitionAmount": 2400000,
+  "currency": "VND"
+}
+```
+
 ### 4.2. Get Tuition Plans
 
 **Endpoint:** `GET /api/tuition-plans`

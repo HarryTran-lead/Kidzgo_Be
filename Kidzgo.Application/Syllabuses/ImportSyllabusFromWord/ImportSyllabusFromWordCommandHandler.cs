@@ -41,6 +41,12 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             return Result.Failure<ImportSyllabusFromWordResponse>(parsed.Error);
         }
 
+        if (parsed.Value.Lessons.Count == 0)
+        {
+            return Result.Failure<ImportSyllabusFromWordResponse>(
+                SyllabusErrors.InvalidImportFile("No syllabus lessons were found in the imported Word document."));
+        }
+
         var syllabus = await context.Syllabuses
             .Include(x => x.Units)
             .Include(x => x.Lessons)
@@ -86,7 +92,10 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         syllabus.Edition = parsed.Value.Edition;
         syllabus.Overview = parsed.Value.Overview;
         syllabus.TotalLessons = parsed.Value.Lessons.Count;
-        syllabus.TotalPeriods = parsed.Value.Lessons.Max(x => x.PeriodTo ?? x.PeriodFrom ?? 0);
+        syllabus.TotalPeriods = parsed.Value.Lessons
+            .Select(x => x.PeriodTo ?? x.PeriodFrom ?? 0)
+            .DefaultIfEmpty(0)
+            .Max();
         syllabus.SourceFileName = command.FileName;
         syllabus.RawContentJson = JsonSerializer.Serialize(parsed.Value);
         syllabus.IsActive = true;

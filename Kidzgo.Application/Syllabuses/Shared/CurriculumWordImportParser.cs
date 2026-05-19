@@ -146,70 +146,216 @@ internal static class CurriculumWordImportParser
                 continue;
             }
 
-            var header = rows[0].Select(Normalize).ToArray();
-            var periodIndex = FindHeaderIndex(header, "period", "week", "session");
-            var topicIndex = FindHeaderIndex(header, "topic", "theme", "unit", "revision");
-            var lessonIndex = FindHeaderIndex(header, "lesson");
-            var contentIndex = FindHeaderIndex(header, "content", "aim", "objective", "outcome");
-            var structureIndex = FindHeaderIndex(header, "structure", "languagefocus", "grammar");
-            var componentIndex = FindHeaderIndex(header, "component", "skill", "competenc");
-            var studentBookIndex = FindHeaderIndex(header, "studentbook", "sb");
-            var teacherBookIndex = FindHeaderIndex(header, "teacherbook", "tb");
-
-            if (periodIndex < 0 || (topicIndex < 0 && lessonIndex < 0 && contentIndex < 0))
+            var parsed = TryParseLessonsFromTable(rows);
+            if (parsed.Count == 0)
             {
                 continue;
             }
 
-            string? currentTopic = null;
-            var lessons = new List<ParsedSyllabusLesson>();
-
-            foreach (var row in rows.Skip(1))
-            {
-                if (row.All(string.IsNullOrWhiteSpace))
-                {
-                    continue;
-                }
-
-                var periods = GetByIndex(row, periodIndex, 0);
-                var topic = GetByIndex(row, topicIndex, 1);
-                var lesson = GetByIndex(row, lessonIndex, 2);
-                var content = GetByIndex(row, contentIndex, 3);
-                var structures = GetByIndex(row, structureIndex, 4);
-                var components = GetByIndex(row, componentIndex, 5);
-                var studentBook = GetByIndex(row, studentBookIndex, 6);
-                var teacherBook = GetByIndex(row, teacherBookIndex, 7);
-
-                if (!string.IsNullOrWhiteSpace(topic))
-                {
-                    currentTopic = topic;
-                }
-
-                if (string.IsNullOrWhiteSpace(currentTopic) && string.IsNullOrWhiteSpace(lesson) && string.IsNullOrWhiteSpace(content))
-                {
-                    continue;
-                }
-
-                var (periodFrom, periodTo) = ParsePeriodRange(periods);
-                var lessonNumber = ParseFirstInt(lesson);
-                lessons.Add(new ParsedSyllabusLesson(
-                    lessons.Count + 1,
-                    periodFrom,
-                    periodTo,
-                    currentTopic,
-                    lessonNumber,
-                    content,
-                    structures,
-                    components,
-                    studentBook,
-                    teacherBook,
-                    currentTopic));
-            }
-
-            return lessons;
+            return parsed;
         }
 
         return [];
+    }
+
+    private static List<ParsedSyllabusLesson> TryParseLessonsFromTable(IReadOnlyList<string[]> rows)
+    {
+        var headerSearchLimit = Math.Min(5, rows.Count - 1);
+        for (var headerRowIndex = 0; headerRowIndex < headerSearchLimit; headerRowIndex++)
+        {
+            var header = rows[headerRowIndex].Select(Normalize).ToArray();
+            var layout = BuildLessonTableLayout(header);
+            if (!layout.IsRecognized)
+            {
+                continue;
+            }
+
+            var lessons = ParseLessonRows(rows.Skip(headerRowIndex + 1), layout);
+            if (lessons.Count > 0)
+            {
+                return lessons;
+            }
+        }
+
+        var heuristicLayout = BuildHeuristicLessonTableLayout(rows);
+        return heuristicLayout.IsRecognized ? ParseLessonRows(rows, heuristicLayout) : [];
+    }
+
+    private static LessonTableLayout BuildLessonTableLayout(IReadOnlyList<string> header)
+    {
+        var periodIndex = FindHeaderIndex(header, "period", "week", "session");
+        var topicIndex = FindHeaderIndex(header, "topic", "theme", "unit", "revision");
+        var lessonIndex = FindHeaderIndex(header, "lesson");
+        var contentIndex = FindHeaderIndex(header, "content", "aim", "objective", "outcome", "classwork");
+        var structureIndex = FindHeaderIndex(header, "structure", "languagefocus", "grammar");
+        var componentIndex = FindHeaderIndex(header, "component", "skill", "competenc");
+        var studentBookIndex = FindHeaderIndex(header, "studentbook", "sb", "book");
+        var teacherBookIndex = FindHeaderIndex(header, "teacherbook", "tb");
+
+        return new LessonTableLayout(
+            periodIndex,
+            topicIndex,
+            lessonIndex,
+            contentIndex,
+            structureIndex,
+            componentIndex,
+            studentBookIndex,
+            teacherBookIndex,
+            periodIndex >= 0 && (topicIndex >= 0 || lessonIndex >= 0 || contentIndex >= 0));
+    }
+
+    private static LessonTableLayout BuildHeuristicLessonTableLayout(IReadOnlyList<string[]> rows)
+    {
+        var maxColumns = rows.Max(r => r.Length);
+        if (maxColumns == 0)
+        {
+            return LessonTableLayout.Unrecognized;
+        }
+
+        var candidateRows = rows
+            .Where(r => r.Any(x => !string.IsNullOrWhiteSpace(x)))
+            .ToList();
+
+        if (candidateRows.Count == 0)
+        {
+            return LessonTableLayout.Unrecognized;
+        }
+
+        var periodIndex = -1;
+        var bestPeriodScore = 0;
+        for (var i = 0; i < maxColumns; i++)
+        {
+            var score = candidateRows.Count(r => ParsePeriodRange(GetByIndex(r, i)).From.HasValue);
+            if (score > bestPeriodScore)
+            {
+                bestPeriodScore = score;
+                periodIndex = i;
+            }
+        }
+
+        if (periodIndex < 0 || bestPeriodScore < 2)
+        {
+            return LessonTableLayout.Unrecognized;
+        }
+
+        var topicIndex = -1;
+        var lessonIndex = -1;
+        var contentIndex = -1;
+        for (var i = 0; i < maxColumns; i++)
+        {
+            if (i == periodIndex)
+            {
+                continue;
+            }
+
+            var values = candidateRows
+                .Select(r => GetByIndex(r, i))
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .ToList();
+
+            if (values.Count == 0)
+            {
+                continue;
+            }
+
+            if (topicIndex < 0 && values.Any(v => Regex.IsMatch(v, @"\b(Unit|Revision)\b", RegexOptions.IgnoreCase)))
+            {
+                topicIndex = i;
+                continue;
+            }
+
+            if (lessonIndex < 0 && values.Count(v => Regex.IsMatch(v, @"\bLesson\b|\d+", RegexOptions.IgnoreCase)) >= Math.Max(2, values.Count / 3))
+            {
+                lessonIndex = i;
+                continue;
+            }
+
+            if (contentIndex < 0)
+            {
+                contentIndex = i;
+            }
+        }
+
+        if (topicIndex < 0)
+        {
+            topicIndex = periodIndex + 1 < maxColumns ? periodIndex + 1 : -1;
+        }
+
+        if (lessonIndex < 0)
+        {
+            lessonIndex = topicIndex + 1 < maxColumns ? topicIndex + 1 : -1;
+        }
+
+        if (contentIndex < 0)
+        {
+            contentIndex = lessonIndex + 1 < maxColumns ? lessonIndex + 1 : -1;
+        }
+
+        return new LessonTableLayout(
+            periodIndex,
+            topicIndex,
+            lessonIndex,
+            contentIndex,
+            StructureIndex: contentIndex + 1,
+            ComponentIndex: contentIndex + 2,
+            StudentBookIndex: contentIndex + 3,
+            TeacherBookIndex: contentIndex + 4,
+            IsRecognized: topicIndex >= 0 || lessonIndex >= 0 || contentIndex >= 0);
+    }
+
+    private static List<ParsedSyllabusLesson> ParseLessonRows(IEnumerable<string[]> rows, LessonTableLayout layout)
+    {
+        string? currentTopic = null;
+        var lessons = new List<ParsedSyllabusLesson>();
+
+        foreach (var row in rows)
+        {
+            if (row.All(string.IsNullOrWhiteSpace))
+            {
+                continue;
+            }
+
+            var periods = GetByIndex(row, layout.PeriodIndex, 0);
+            var topic = GetByIndex(row, layout.TopicIndex, 1);
+            var lesson = GetByIndex(row, layout.LessonIndex, 2);
+            var content = GetByIndex(row, layout.ContentIndex, 3);
+            var structures = GetByIndex(row, layout.StructureIndex, 4);
+            var components = GetByIndex(row, layout.ComponentIndex, 5);
+            var studentBook = GetByIndex(row, layout.StudentBookIndex, 6);
+            var teacherBook = GetByIndex(row, layout.TeacherBookIndex, 7);
+
+            var (periodFrom, periodTo) = ParsePeriodRange(periods);
+            if (!periodFrom.HasValue && !periodTo.HasValue)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(topic))
+            {
+                currentTopic = topic;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentTopic) && string.IsNullOrWhiteSpace(lesson) && string.IsNullOrWhiteSpace(content))
+            {
+                continue;
+            }
+
+            var lessonNumber = ParseFirstInt(lesson);
+            lessons.Add(new ParsedSyllabusLesson(
+                lessons.Count + 1,
+                periodFrom,
+                periodTo,
+                currentTopic,
+                lessonNumber,
+                content,
+                structures,
+                components,
+                studentBook,
+                teacherBook,
+                currentTopic));
+        }
+
+        return lessons;
     }
 
     private static List<ParsedSyllabusUnit> BuildUnits(List<ParsedSyllabusLesson> lessons, List<string> paragraphTexts)
@@ -458,4 +604,18 @@ internal static class CurriculumWordImportParser
     }
 
     private sealed record DocumentBlock(bool IsTable, string Text);
+
+    private readonly record struct LessonTableLayout(
+        int PeriodIndex,
+        int TopicIndex,
+        int LessonIndex,
+        int ContentIndex,
+        int StructureIndex,
+        int ComponentIndex,
+        int StudentBookIndex,
+        int TeacherBookIndex,
+        bool IsRecognized)
+    {
+        public static LessonTableLayout Unrecognized => new(-1, -1, -1, -1, -1, -1, -1, -1, false);
+    }
 }

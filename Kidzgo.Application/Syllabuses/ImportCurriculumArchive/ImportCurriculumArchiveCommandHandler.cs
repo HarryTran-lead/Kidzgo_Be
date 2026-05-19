@@ -35,6 +35,8 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         Guid? syllabusId = null;
         var importedLessonPlans = 0;
         var skipped = new List<string>();
+        Error? syllabusImportError = null;
+        var sawSyllabusCandidate = false;
 
         foreach (var entry in archive.Entries.Where(x =>
                      x.FullName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
@@ -47,6 +49,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
             if (IsSyllabusEntry(entry.FullName))
             {
+                sawSyllabusCandidate = true;
                 var syllabusResult = await sender.Send(
                     new ImportSyllabusFromWordCommand
                     {
@@ -62,7 +65,9 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
                 if (syllabusResult.IsFailure)
                 {
-                    return Result.Failure<ImportCurriculumArchiveResponse>(syllabusResult.Error);
+                    syllabusImportError = syllabusResult.Error;
+                    skipped.Add($"{entry.FullName}: {syllabusResult.Error.Description}");
+                    continue;
                 }
 
                 syllabusId = syllabusResult.Value.SyllabusId;
@@ -96,6 +101,11 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             importedLessonPlans++;
         }
 
+        if (syllabusId is null && sawSyllabusCandidate && syllabusImportError is not null)
+        {
+            return Result.Failure<ImportCurriculumArchiveResponse>(syllabusImportError);
+        }
+
         return new ImportCurriculumArchiveResponse
         {
             SyllabusId = syllabusId,
@@ -108,8 +118,13 @@ public sealed class ImportCurriculumArchiveCommandHandler(
     private static bool IsSyllabusEntry(string fullName)
     {
         var normalized = fullName.Replace('\\', '/');
+        var fileName = Path.GetFileNameWithoutExtension(normalized);
+
         return normalized.Contains("PPCT", StringComparison.OrdinalIgnoreCase) &&
-               normalized.EndsWith(".docx", StringComparison.OrdinalIgnoreCase);
+               normalized.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
+               (fileName.Contains("syllabus", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Contains("curriculum", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Contains("ppct", StringComparison.OrdinalIgnoreCase));
     }
 
     private static Domain.Programs.Module? ResolveModuleForEntry(

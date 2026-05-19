@@ -147,9 +147,16 @@ internal static class CurriculumWordImportParser
             }
 
             var header = rows[0].Select(Normalize).ToArray();
-            if (!(header.Any(x => x.Contains("period")) &&
-                  header.Any(x => x.Contains("topic")) &&
-                  header.Any(x => x.Contains("lesson"))))
+            var periodIndex = FindHeaderIndex(header, "period", "week", "session");
+            var topicIndex = FindHeaderIndex(header, "topic", "theme", "unit", "revision");
+            var lessonIndex = FindHeaderIndex(header, "lesson");
+            var contentIndex = FindHeaderIndex(header, "content", "aim", "objective", "outcome");
+            var structureIndex = FindHeaderIndex(header, "structure", "languagefocus", "grammar");
+            var componentIndex = FindHeaderIndex(header, "component", "skill", "competenc");
+            var studentBookIndex = FindHeaderIndex(header, "studentbook", "sb");
+            var teacherBookIndex = FindHeaderIndex(header, "teacherbook", "tb");
+
+            if (periodIndex < 0 || (topicIndex < 0 && lessonIndex < 0 && contentIndex < 0))
             {
                 continue;
             }
@@ -164,14 +171,14 @@ internal static class CurriculumWordImportParser
                     continue;
                 }
 
-                var periods = GetByIndex(row, 0);
-                var topic = GetByIndex(row, 1);
-                var lesson = GetByIndex(row, 2);
-                var content = GetByIndex(row, 3);
-                var structures = GetByIndex(row, 4);
-                var components = GetByIndex(row, 5);
-                var studentBook = GetByIndex(row, 6);
-                var teacherBook = GetByIndex(row, 7);
+                var periods = GetByIndex(row, periodIndex, 0);
+                var topic = GetByIndex(row, topicIndex, 1);
+                var lesson = GetByIndex(row, lessonIndex, 2);
+                var content = GetByIndex(row, contentIndex, 3);
+                var structures = GetByIndex(row, structureIndex, 4);
+                var components = GetByIndex(row, componentIndex, 5);
+                var studentBook = GetByIndex(row, studentBookIndex, 6);
+                var teacherBook = GetByIndex(row, teacherBookIndex, 7);
 
                 if (!string.IsNullOrWhiteSpace(topic))
                 {
@@ -406,6 +413,25 @@ internal static class CurriculumWordImportParser
     private static string GetByIndex(string[] row, int index)
     {
         return index >= 0 && index < row.Length ? row[index]?.Trim() ?? string.Empty : string.Empty;
+    }
+
+    private static string GetByIndex(string[] row, int index, int fallbackIndex)
+    {
+        var value = GetByIndex(row, index);
+        return string.IsNullOrWhiteSpace(value) ? GetByIndex(row, fallbackIndex) : value;
+    }
+
+    private static int FindHeaderIndex(IReadOnlyList<string> header, params string[] aliases)
+    {
+        for (var i = 0; i < header.Count; i++)
+        {
+            if (aliases.Any(alias => header[i].Contains(alias, StringComparison.OrdinalIgnoreCase)))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static string Normalize(string? value)

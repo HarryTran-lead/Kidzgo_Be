@@ -35,7 +35,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(parsed.Error);
         }
 
-        var sessionIndex = parsed.Value.LessonNumber ?? 0;
+        var sessionIndex = ResolveSessionIndex(parsed.Value, command.FileName, module.Name, module.PlannedSessionCount);
         if (sessionIndex <= 0 || sessionIndex > module.PlannedSessionCount)
         {
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
@@ -43,9 +43,6 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
 
         var template = await context.LessonPlanTemplates
-            .Include(x => x.Activities)
-            .Include(x => x.Materials)
-            .Include(x => x.HomeworkTemplates)
             .FirstOrDefaultAsync(
                 x => x.ModuleId == command.ModuleId &&
                      x.SessionIndex == sessionIndex,
@@ -77,9 +74,17 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
         else
         {
-            context.LessonPlanTemplateActivities.RemoveRange(template.Activities);
-            context.LessonPlanTemplateMaterials.RemoveRange(template.Materials);
-            context.HomeworkTemplates.RemoveRange(template.HomeworkTemplates);
+            await context.LessonPlanTemplateActivities
+                .Where(x => x.LessonPlanTemplateId == template.Id)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await context.LessonPlanTemplateMaterials
+                .Where(x => x.LessonPlanTemplateId == template.Id)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await context.HomeworkTemplates
+                .Where(x => x.LessonPlanTemplateId == template.Id)
+                .ExecuteDeleteAsync(cancellationToken);
         }
 
         template.SessionTemplateId = linkedSessionTemplateId;
@@ -101,10 +106,14 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         template.IsActive = true;
         template.IsDeleted = false;
         template.UpdatedAt = now;
+        EntityStringLengthTrimmer.TrimToModelLimits(context, template);
 
         var orderIndex = 1;
         var materials = BuildMaterialTemplates(template.Id, parsed.Value, now, ref orderIndex);
         var homeworks = BuildHomeworkTemplates(template.Id, parsed.Value, now);
+
+        EntityStringLengthTrimmer.TrimToModelLimits(context, materials);
+        EntityStringLengthTrimmer.TrimToModelLimits(context, homeworks);
 
         context.LessonPlanTemplateMaterials.AddRange(materials);
         context.HomeworkTemplates.AddRange(homeworks);
@@ -118,6 +127,41 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             SessionIndex = template.SessionIndex,
             Title = template.Title
         };
+    }
+
+    private static int ResolveSessionIndex(
+        ParsedLessonPlanDocument parsed,
+        string fileName,
+        string moduleName,
+        int plannedSessionCount)
+    {
+        if (parsed.LessonNumber.HasValue && parsed.LessonNumber.Value > 0)
+        {
+            return parsed.LessonNumber.Value;
+        }
+
+        var combinedText = string.Join(
+            " ",
+            new[]
+            {
+                parsed.Title,
+                parsed.UnitTitle,
+                parsed.ModuleHint,
+                fileName,
+                moduleName
+            }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        if (combinedText.Contains("revision", StringComparison.OrdinalIgnoreCase) && plannedSessionCount > 0)
+        {
+            return 1;
+        }
+
+        if (plannedSessionCount == 1)
+        {
+            return 1;
+        }
+
+        return 0;
     }
 
     private static List<LessonPlanTemplateMaterial> BuildMaterialTemplates(Guid templateId, ParsedLessonPlanDocument parsed, DateTime now, ref int orderIndex)

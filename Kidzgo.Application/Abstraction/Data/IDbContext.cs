@@ -107,6 +107,8 @@ public interface IDbContext
     DbSet<SyllabusLesson> SyllabusLessons { get; }
     DbSet<SyllabusResource> SyllabusResources { get; }
     DbSet<SessionTemplate> SessionTemplates { get; }
+    DbSet<CurriculumImportConfiguration> CurriculumImportConfigurations { get; }
+    DbSet<CurriculumImportModuleRule> CurriculumImportModuleRules { get; }
 
     // Media
     DbSet<MediaAsset> MediaAssets { get; }

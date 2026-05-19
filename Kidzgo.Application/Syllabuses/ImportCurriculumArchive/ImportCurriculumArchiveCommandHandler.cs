@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using MediatR;
@@ -31,50 +32,98 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             .OrderBy(x => x.Order)
             .ToListAsync(cancellationToken);
 
+        var importConfiguration = await context.CurriculumImportConfigurations
+            .AsNoTracking()
+            .Include(x => x.ModuleRules)
+            .FirstOrDefaultAsync(
+                x => x.ProgramId == command.ProgramId &&
+                     x.LevelId == command.LevelId &&
+                     x.IsActive,
+                cancellationToken);
+        if (importConfiguration is null)
+        {
+            return Result.Failure<ImportCurriculumArchiveResponse>(
+                SyllabusErrors.ImportConfigurationNotFound(command.ProgramId, command.LevelId));
+        }
+
         using var archive = new ZipArchive(command.FileStream, ZipArchiveMode.Read, leaveOpen: true);
+        var docxEntries = archive.Entries
+            .Where(x => x.FullName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
+                        !Path.GetFileName(x.FullName).StartsWith("~$"))
+            .ToList();
+
+        var syllabusEntries = docxEntries
+            .Where(x => IsSyllabusEntry(x.FullName))
+            .ToList();
+
+        var lessonPlanEntries = docxEntries
+            .Where(x => !IsSyllabusEntry(x.FullName))
+            .ToList();
+
         Guid? syllabusId = null;
         var importedLessonPlans = 0;
         var skipped = new List<string>();
         Error? syllabusImportError = null;
-        var sawSyllabusCandidate = false;
 
-        foreach (var entry in archive.Entries.Where(x =>
-                     x.FullName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
-                     !Path.GetFileName(x.FullName).StartsWith("~$")))
+        foreach (var entry in syllabusEntries)
         {
             await using var entryStream = entry.Open();
             await using var memory = new MemoryStream();
             await entryStream.CopyToAsync(memory, cancellationToken);
             memory.Position = 0;
 
-            if (IsSyllabusEntry(entry.FullName))
-            {
-                sawSyllabusCandidate = true;
-                var syllabusResult = await sender.Send(
-                    new ImportSyllabusFromWordCommand
-                    {
-                        ProgramId = command.ProgramId,
-                        LevelId = command.LevelId,
-                        Code = command.Code,
-                        Version = command.Version,
-                        OverwriteExisting = command.OverwriteExisting,
-                        FileName = Path.GetFileName(entry.FullName),
-                        FileStream = memory
-                    },
-                    cancellationToken);
-
-                if (syllabusResult.IsFailure)
+            var syllabusResult = await sender.Send(
+                new ImportSyllabusFromWordCommand
                 {
-                    syllabusImportError = syllabusResult.Error;
-                    skipped.Add($"{entry.FullName}: {syllabusResult.Error.Description}");
-                    continue;
-                }
+                    ProgramId = command.ProgramId,
+                    LevelId = command.LevelId,
+                    Code = command.Code,
+                    Version = command.Version,
+                    OverwriteExisting = command.OverwriteExisting,
+                    FileName = Path.GetFileName(entry.FullName),
+                    FileStream = memory
+                },
+                cancellationToken);
 
-                syllabusId = syllabusResult.Value.SyllabusId;
+            if (syllabusResult.IsFailure)
+            {
+                syllabusImportError = syllabusResult.Error;
+                skipped.Add($"{entry.FullName}: {syllabusResult.Error.Description}");
                 continue;
             }
 
+            syllabusId = syllabusResult.Value.SyllabusId;
+            break;
+        }
+
+        if (syllabusId is null)
+        {
+            if (syllabusImportError is not null)
+            {
+                return Result.Failure<ImportCurriculumArchiveResponse>(syllabusImportError);
+            }
+
+            return Result.Failure<ImportCurriculumArchiveResponse>(
+                SyllabusErrors.InvalidImportFile("No syllabus Word document was found in the archive."));
+        }
+
+        foreach (var entry in lessonPlanEntries)
+        {
+            await using var entryStream = entry.Open();
+            await using var memory = new MemoryStream();
+            await entryStream.CopyToAsync(memory, cancellationToken);
+            memory.Position = 0;
+
             var module = ResolveModuleForEntry(modules, entry.FullName);
+            if (module is null)
+            {
+                module = CurriculumImportRuleResolver.Resolve(
+                    modules,
+                    importConfiguration.ModuleRules.OrderBy(x => x.OrderIndex).ToList(),
+                    Path.GetDirectoryName(entry.FullName),
+                    Path.GetFileNameWithoutExtension(entry.FullName),
+                    entry.FullName);
+            }
             if (module is null)
             {
                 skipped.Add(entry.FullName);
@@ -99,11 +148,6 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             }
 
             importedLessonPlans++;
-        }
-
-        if (syllabusId is null && sawSyllabusCandidate && syllabusImportError is not null)
-        {
-            return Result.Failure<ImportCurriculumArchiveResponse>(syllabusImportError);
         }
 
         return new ImportCurriculumArchiveResponse
@@ -134,28 +178,11 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         var normalized = fullName.Replace('\\', '/');
         var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var folderName = segments.Length > 1 ? segments[^2] : normalized;
-
-        var exact = modules.FirstOrDefault(x =>
-            x.Name.Contains(folderName, StringComparison.OrdinalIgnoreCase) ||
-            x.Code.Contains(folderName, StringComparison.OrdinalIgnoreCase));
-        if (exact is not null)
-        {
-            return exact;
-        }
-
-        var match = System.Text.RegularExpressions.Regex.Match(folderName, @"(UNIT|REVISION)\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        var number = int.Parse(match.Groups[2].Value);
-        var isRevision = match.Groups[1].Value.Equals("REVISION", StringComparison.OrdinalIgnoreCase);
-
+        var fileName = Path.GetFileNameWithoutExtension(normalized);
         return modules.FirstOrDefault(x =>
-            x.Order == number ||
-            x.Code.Contains(number.ToString(), StringComparison.OrdinalIgnoreCase) ||
-            x.Name.Contains(number.ToString(), StringComparison.OrdinalIgnoreCase) ||
-            (isRevision && x.Type == Domain.Programs.ModuleType.Revision && x.Order == number));
+            x.Name.Contains(folderName, StringComparison.OrdinalIgnoreCase) ||
+            x.Code.Contains(folderName, StringComparison.OrdinalIgnoreCase) ||
+            x.Name.Contains(fileName, StringComparison.OrdinalIgnoreCase) ||
+            x.Code.Contains(fileName, StringComparison.OrdinalIgnoreCase));
     }
 }

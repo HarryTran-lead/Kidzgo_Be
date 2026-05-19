@@ -73,15 +73,19 @@ internal static class CurriculumWordImportParser
         var blocks = ExtractBlocks(body);
         var rawText = string.Join("\n", blocks.Select(x => x.Text).Where(x => !string.IsNullOrWhiteSpace(x)));
 
-        var unitLine = blocks.Select(x => x.Text).FirstOrDefault(x => Regex.IsMatch(x, @"\bUNIT\s+\d+\b", RegexOptions.IgnoreCase));
+        var unitLine = blocks.Select(x => x.Text).FirstOrDefault(x =>
+            Regex.IsMatch(x, @"\bUNIT\s+(?:\d+|STARTER)\b", RegexOptions.IgnoreCase) ||
+            Regex.IsMatch(x, @"\bREVISION\s*0*\d+\b", RegexOptions.IgnoreCase));
         var lessonLine = blocks.Select(x => x.Text).FirstOrDefault(x => Regex.IsMatch(x, @"\bLesson\s*0*\d+\b", RegexOptions.IgnoreCase));
-        var unitMatch = unitLine is null ? null : Regex.Match(unitLine, @"UNIT\s+(\d+)\s*:?\s*(.*)$", RegexOptions.IgnoreCase);
+        var unitMatch = unitLine is null
+            ? null
+            : Regex.Match(unitLine, @"(UNIT\s+(?:\d+|STARTER)|REVISION\s*0*\d+)\s*:?\s*(.*)$", RegexOptions.IgnoreCase);
         var lessonMatch = lessonLine is null ? null : Regex.Match(lessonLine, @"Lesson\s*0*(\d+)", RegexOptions.IgnoreCase);
 
         var sections = ParseSections(blocks);
         var lessonNumber = lessonMatch?.Success == true ? int.Parse(lessonMatch.Groups[1].Value) : (int?)null;
         var unitTitle = unitMatch?.Success == true
-            ? $"UNIT {unitMatch.Groups[1].Value}{(string.IsNullOrWhiteSpace(unitMatch.Groups[2].Value) ? string.Empty : $": {unitMatch.Groups[2].Value.Trim()}")}"
+            ? $"{unitMatch.Groups[1].Value.Trim()}{(string.IsNullOrWhiteSpace(unitMatch.Groups[2].Value) ? string.Empty : $": {unitMatch.Groups[2].Value.Trim()}")}"
             : null;
 
         var title = !string.IsNullOrWhiteSpace(unitTitle) && lessonNumber.HasValue

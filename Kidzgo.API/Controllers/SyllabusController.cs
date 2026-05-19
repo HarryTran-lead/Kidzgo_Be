@@ -1,10 +1,12 @@
 using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.Syllabuses.CreateSyllabus;
+using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
 using Kidzgo.Application.Syllabuses.GetSyllabuses;
 using Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
+using Kidzgo.Application.Syllabuses.UpsertCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.UpdateSyllabus;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -95,6 +97,63 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetSyllabusByIdQuery { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Get curriculum import rules for a program level before importing syllabus archives.
+    /// </summary>
+    [HttpGet("import-configuration")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetImportConfiguration(
+        [FromQuery] Guid programId,
+        [FromQuery] Guid levelId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetCurriculumImportConfigurationQuery
+        {
+            ProgramId = programId,
+            LevelId = levelId
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Create or update curriculum import rules for a program level.
+    /// </summary>
+    [HttpPut("import-configuration")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> UpsertImportConfiguration(
+        [FromQuery] Guid programId,
+        [FromQuery] Guid levelId,
+        [FromBody] UpsertCurriculumImportConfigurationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new UpsertCurriculumImportConfigurationCommand
+        {
+            ProgramId = programId,
+            LevelId = levelId,
+            RegularUnitLessonPlanCount = request.RegularUnitLessonPlanCount,
+            StarterUnitLessonPlanCount = request.StarterUnitLessonPlanCount,
+            RevisionLessonPlanCount = request.RevisionLessonPlanCount,
+            IsActive = request.IsActive,
+            Rules = request.Rules.Select(x => new UpsertCurriculumImportModuleRuleModel
+            {
+                ModuleId = x.ModuleId,
+                IncludeStarterUnit = x.IncludeStarterUnit,
+                UnitFrom = x.UnitFrom,
+                UnitTo = x.UnitTo,
+                RevisionNumber = x.RevisionNumber,
+                OrderIndex = x.OrderIndex
+            }).ToList()
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 

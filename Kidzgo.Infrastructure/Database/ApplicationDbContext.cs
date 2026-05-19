@@ -53,6 +53,7 @@ public sealed class ApplicationDbContext(
 
     // Classes
     public DbSet<Class> Classes => Set<Class>();
+    public DbSet<ClassModuleProgress> ClassModuleProgresses => Set<ClassModuleProgress>();
     public DbSet<ClassEnrollment> ClassEnrollments => Set<ClassEnrollment>();
     public DbSet<ClassScheduleSegment> ClassScheduleSegments => Set<ClassScheduleSegment>();
     public DbSet<ClassEnrollmentScheduleSegment> ClassEnrollmentScheduleSegments => Set<ClassEnrollmentScheduleSegment>();
@@ -102,6 +103,14 @@ public sealed class ApplicationDbContext(
     public DbSet<QuestionBankItem> QuestionBankItems => Set<QuestionBankItem>();
     public DbSet<LessonPlan> LessonPlans => Set<LessonPlan>();
     public DbSet<LessonPlanTemplate> LessonPlanTemplates => Set<LessonPlanTemplate>();
+    public DbSet<LessonPlanTemplateActivity> LessonPlanTemplateActivities => Set<LessonPlanTemplateActivity>();
+    public DbSet<LessonPlanTemplateMaterial> LessonPlanTemplateMaterials => Set<LessonPlanTemplateMaterial>();
+    public DbSet<HomeworkTemplate> HomeworkTemplates => Set<HomeworkTemplate>();
+    public DbSet<Syllabus> Syllabuses => Set<Syllabus>();
+    public DbSet<SyllabusUnit> SyllabusUnits => Set<SyllabusUnit>();
+    public DbSet<SyllabusLesson> SyllabusLessons => Set<SyllabusLesson>();
+    public DbSet<SyllabusResource> SyllabusResources => Set<SyllabusResource>();
+    public DbSet<SessionTemplate> SessionTemplates => Set<SessionTemplate>();
 
     // Media
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
@@ -162,6 +171,10 @@ public sealed class ApplicationDbContext(
     public DbSet<MakeupCredit> MakeupCredits => Set<MakeupCredit>();
     public DbSet<MakeupSettings> MakeupSettings => Set<MakeupSettings>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<ClassSessionLesson> ClassSessionLessons => Set<ClassSessionLesson>();
+    public DbSet<TeachingLog> TeachingLogs => Set<TeachingLog>();
+    public DbSet<TeachingLogLesson> TeachingLogLessons => Set<TeachingLogLesson>();
+    public DbSet<TeachingActivityLog> TeachingActivityLogs => Set<TeachingActivityLog>();
     public DbSet<StudentSessionAssignment> StudentSessionAssignments => Set<StudentSessionAssignment>();
     public DbSet<SlotType> SlotTypes => Set<SlotType>();
 

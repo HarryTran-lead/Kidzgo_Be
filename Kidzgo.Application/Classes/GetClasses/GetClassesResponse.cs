@@ -17,6 +17,12 @@ public sealed class ClassDto
     public string BranchName { get; init; } = null!;
     public Guid ProgramId { get; init; }
     public string ProgramName { get; init; } = null!;
+    public Guid LevelId { get; init; }
+    public string LevelName { get; init; } = null!;
+    public Guid StartModuleId { get; init; }
+    public string StartModuleName { get; init; } = null!;
+    public Guid CurrentModuleId { get; init; }
+    public string CurrentModuleName { get; init; } = null!;
     public Guid? SlotTypeId { get; init; }
     public string? SlotTypeCode { get; init; }
     public string Code { get; init; } = null!;

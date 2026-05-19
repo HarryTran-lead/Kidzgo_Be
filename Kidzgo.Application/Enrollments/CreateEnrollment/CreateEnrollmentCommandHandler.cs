@@ -113,6 +113,18 @@ public sealed class CreateEnrollmentCommandHandler(
                     EnrollmentErrors.TuitionPlanProgramMismatch);
             }
 
+            if (tuitionPlan.LevelId != classEntity.LevelId)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.TuitionPlanLevelMismatch);
+            }
+
+            if (tuitionPlan.ModuleId.HasValue && tuitionPlan.ModuleId != classEntity.StartModuleId)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.TuitionPlanModuleMismatch);
+            }
+
             if (await IsExplicitlyIncompatibleAsync(
                     tuitionPlan.LearningTicketTypeId,
                     classEntity.SlotTypeId,

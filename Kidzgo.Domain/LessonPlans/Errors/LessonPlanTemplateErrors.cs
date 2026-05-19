@@ -8,21 +8,21 @@ public static class LessonPlanTemplateErrors
         "LessonPlanTemplate.NotFound",
         $"Lesson plan template with Id = '{templateId}' was not found");
 
-    public static Error ProgramNotFound(Guid? programId) => Error.NotFound(
-        "LessonPlanTemplate.ProgramNotFound",
-        $"Program with Id = '{programId}' was not found or inactive");
-
-    public static readonly Error ProgramRequired = Error.Validation(
-        "LessonPlanTemplate.ProgramRequired",
-        "ProgramId is required");
+    public static Error ModuleNotFound(Guid? moduleId) => Error.NotFound(
+        "LessonPlanTemplate.ModuleNotFound",
+        $"Module with Id = '{moduleId}' was not found");
 
     public static readonly Error SessionIndexRequired = Error.Validation(
         "LessonPlanTemplate.SessionIndexRequired",
         "SessionIndex is required and must be greater than 0");
 
-    public static Error DuplicateSessionIndex(Guid programId, int sessionIndex) => Error.Conflict(
+    public static Error DuplicateSessionIndex(Guid moduleId, int sessionIndex) => Error.Conflict(
         "LessonPlanTemplate.DuplicateSessionIndex",
-        $"Template with SessionIndex {sessionIndex} already exists for Program {programId}");
+        $"Template with SessionIndex {sessionIndex} already exists for Module {moduleId}");
+
+    public static Error SessionIndexOutOfRange(int sessionIndex, int totalSessions) => Error.Validation(
+        "LessonPlanTemplate.SessionIndexOutOfRange",
+        $"SessionIndex {sessionIndex} must be between 1 and {totalSessions}");
 
     public static readonly Error HasActiveLessonPlans = Error.Conflict(
         "LessonPlanTemplate.HasActiveLessonPlans",
@@ -32,17 +32,17 @@ public static class LessonPlanTemplateErrors
         "LessonPlanTemplate.UnsupportedImportFileType",
         $"Unsupported syllabus import file type '{extension}'. Only .csv, .xlsx, and .xls are supported");
 
-    public static readonly Error ImportFileRequiresProgramId = Error.Validation(
-        "LessonPlanTemplate.ImportFileRequiresProgramId",
-        "ProgramId is required when importing a syllabus file");
+    public static readonly Error ImportFileRequiresModuleId = Error.Validation(
+        "LessonPlanTemplate.ImportFileRequiresModuleId",
+        "ModuleId is required when importing a syllabus file");
 
     public static Error InvalidImportFile(string message) => Error.Validation(
         "LessonPlanTemplate.InvalidImportFile",
         message);
 
-    public static Error ProgramMappingNotFound(string sheetName) => Error.NotFound(
-        "LessonPlanTemplate.ProgramMappingNotFound",
-        $"Could not map syllabus sheet '{sheetName}' to an active program");
+    public static Error ModuleMappingNotFound(string sheetName) => Error.NotFound(
+        "LessonPlanTemplate.ModuleMappingNotFound",
+        $"Could not map syllabus sheet '{sheetName}' to an active module");
 
     public static readonly Error Unauthorized = Error.Validation(
         "LessonPlanTemplate.Unauthorized",

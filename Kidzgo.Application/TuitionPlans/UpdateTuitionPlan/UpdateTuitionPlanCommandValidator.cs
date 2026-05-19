@@ -13,8 +13,11 @@ public sealed class UpdateTuitionPlanCommandValidator : AbstractValidator<Update
             .NotEmpty().WithMessage("Program ID is required");
 
         RuleFor(command => command.LevelId)
-            .NotEqual(Guid.Empty).WithMessage("Level ID must not be empty")
-            .When(command => command.LevelId.HasValue);
+            .NotEmpty().WithMessage("Level ID is required");
+
+        RuleFor(command => command.ModuleId)
+            .NotEqual(Guid.Empty).WithMessage("Module ID must not be empty")
+            .When(command => command.ModuleId.HasValue);
 
         RuleFor(command => command.Name)
             .NotEmpty().WithMessage("Name is required")
@@ -24,7 +27,7 @@ public sealed class UpdateTuitionPlanCommandValidator : AbstractValidator<Update
             .GreaterThan(0).WithMessage("Total sessions must be greater than 0");
 
         RuleFor(command => command.TuitionAmount)
-            .GreaterThanOrEqualTo(0).WithMessage("Tuition amount must be greater than or equal to 0");
+            .GreaterThan(0).WithMessage("Tuition amount must be greater than 0");
 
         RuleFor(command => command.Currency)
             .NotEmpty().WithMessage("Currency is required")

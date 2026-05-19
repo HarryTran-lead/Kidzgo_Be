@@ -24,7 +24,8 @@ public class Program : Entity
     public ICollection<Level> Levels { get; set; } = new List<Level>();
     public ICollection<Class> Classes { get; set; } = new List<Class>();
     public ICollection<TuitionPlan> TuitionPlans { get; set; } = new List<TuitionPlan>();
-    public ICollection<LessonPlanTemplate> LessonPlanTemplates { get; set; } = new List<LessonPlanTemplate>();
+    public ICollection<Syllabus> Syllabuses { get; set; } = new List<Syllabus>();
+    public ICollection<SessionTemplate> SessionTemplates { get; set; } = new List<SessionTemplate>();
     public ICollection<QuestionBankItem> QuestionBankItems { get; set; } = new List<QuestionBankItem>();
     public ICollection<PlacementTest> PrimaryPlacementTestRecommendations { get; set; } = new List<PlacementTest>();
     public ICollection<PlacementTest> SecondaryPlacementTestRecommendations { get; set; } = new List<PlacementTest>();

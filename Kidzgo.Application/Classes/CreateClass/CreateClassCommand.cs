@@ -8,6 +8,8 @@ public sealed class CreateClassCommand : ICommand<CreateClassResponse>
 {
     public Guid BranchId { get; init; }
     public Guid ProgramId { get; init; }
+    public Guid LevelId { get; init; }
+    public Guid StartModuleId { get; init; }
     public string Code { get; init; } = null!;
     public string Title { get; init; } = null!;
     public Guid? RoomId { get; init; }

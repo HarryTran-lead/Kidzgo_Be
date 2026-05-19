@@ -18,6 +18,12 @@ public class ModuleConfiguration : IEntityTypeConfiguration<Module>
             .HasMaxLength(255)
             .IsRequired();
 
+        builder.Property(x => x.Type)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(ModuleType.Core)
+            .IsRequired();
+
         builder.Property(x => x.Description);
 
         builder.HasIndex(x => new { x.LevelId, x.Code }).IsUnique();

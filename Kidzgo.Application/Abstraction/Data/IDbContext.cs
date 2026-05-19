@@ -48,6 +48,7 @@ public interface IDbContext
 
     // Classes
     DbSet<Class> Classes { get; }
+    DbSet<ClassModuleProgress> ClassModuleProgresses { get; }
     DbSet<ClassEnrollment> ClassEnrollments { get; }
     DbSet<ClassScheduleSegment> ClassScheduleSegments { get; }
     DbSet<ClassEnrollmentScheduleSegment> ClassEnrollmentScheduleSegments { get; }
@@ -98,6 +99,14 @@ public interface IDbContext
     DbSet<HomeworkSubmissionAttempt> HomeworkSubmissionAttempts { get; }
     DbSet<LessonPlan> LessonPlans { get; }
     DbSet<LessonPlanTemplate> LessonPlanTemplates { get; }
+    DbSet<LessonPlanTemplateActivity> LessonPlanTemplateActivities { get; }
+    DbSet<LessonPlanTemplateMaterial> LessonPlanTemplateMaterials { get; }
+    DbSet<HomeworkTemplate> HomeworkTemplates { get; }
+    DbSet<Syllabus> Syllabuses { get; }
+    DbSet<SyllabusUnit> SyllabusUnits { get; }
+    DbSet<SyllabusLesson> SyllabusLessons { get; }
+    DbSet<SyllabusResource> SyllabusResources { get; }
+    DbSet<SessionTemplate> SessionTemplates { get; }
 
     // Media
     DbSet<MediaAsset> MediaAssets { get; }
@@ -158,6 +167,10 @@ public interface IDbContext
     DbSet<MakeupCredit> MakeupCredits { get; }
     DbSet<MakeupSettings> MakeupSettings { get; }
     DbSet<Session> Sessions { get; }
+    DbSet<ClassSessionLesson> ClassSessionLessons { get; }
+    DbSet<TeachingLog> TeachingLogs { get; }
+    DbSet<TeachingLogLesson> TeachingLogLessons { get; }
+    DbSet<TeachingActivityLog> TeachingActivityLogs { get; }
     DbSet<StudentSessionAssignment> StudentSessionAssignments { get; }
     DbSet<SlotType> SlotTypes { get; }
 

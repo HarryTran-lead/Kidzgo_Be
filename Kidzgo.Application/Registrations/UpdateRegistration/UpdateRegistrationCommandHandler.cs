@@ -145,10 +145,16 @@ public sealed class UpdateRegistrationCommandHandler(
                     Error.Validation("DifferentProgram", "Tuition plan must belong to the same program"));
             }
 
-            if (tuitionPlan.LevelId.HasValue && tuitionPlan.LevelId != registration.LevelId)
+            if (tuitionPlan.LevelId != registration.LevelId)
             {
                 return Result.Failure<UpdateRegistrationResponse>(
-                    Error.Validation("DifferentLevel", "Tuition plan must be either program-wide or match registration level"));
+                    Error.Validation("DifferentLevel", "Tuition plan must match registration level"));
+            }
+
+            if (tuitionPlan.ModuleId.HasValue)
+            {
+                return Result.Failure<UpdateRegistrationResponse>(
+                    Error.Validation("ModuleScopedTuitionPlanRequiresClass", "Module-scoped tuition plans can only be assigned together with a matching class."));
             }
 
             registration.TuitionPlanId = command.TuitionPlanId.Value;

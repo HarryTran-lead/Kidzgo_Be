@@ -10,6 +10,9 @@ public sealed class SessionDetailDto
     public Guid Id { get; init; }
     public string? Color { get; init; }
     public Guid ClassId { get; init; }
+    public Guid? ModuleId { get; init; }
+    public Guid? LessonPlanTemplateId { get; init; }
+    public int? SessionIndexInModule { get; init; }
     public string ClassCode { get; init; } = null!;
     public string ClassTitle { get; init; } = null!;
     public Guid BranchId { get; init; }

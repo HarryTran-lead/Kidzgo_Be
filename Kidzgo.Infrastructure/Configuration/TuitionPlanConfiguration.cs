@@ -16,7 +16,10 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
         builder.Property(x => x.ProgramId)
             .IsRequired();
 
-        builder.Property(x => x.LevelId);
+        builder.Property(x => x.LevelId)
+            .IsRequired();
+
+        builder.Property(x => x.ModuleId);
 
         builder.Property(x => x.Name)
             .HasMaxLength(255)
@@ -60,6 +63,11 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
         builder.HasOne(x => x.Level)
             .WithMany(x => x.TuitionPlans)
             .HasForeignKey(x => x.LevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Module)
+            .WithMany(x => x.TuitionPlans)
+            .HasForeignKey(x => x.ModuleId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(x => x.ClassEnrollments)
@@ -71,5 +79,8 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
             .WithMany()
             .HasForeignKey(x => x.LearningTicketTypeId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(x => new { x.ProgramId, x.LevelId, x.ModuleId, x.TotalSessions, x.Name })
+            .IsUnique();
     }
 }

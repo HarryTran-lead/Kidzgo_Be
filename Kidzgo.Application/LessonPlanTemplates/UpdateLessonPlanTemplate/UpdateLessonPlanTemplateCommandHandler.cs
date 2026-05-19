@@ -2,7 +2,6 @@ using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Domain.Common;
-using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -20,71 +19,57 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
     {
         var currentUser = await context.Users
             .FirstOrDefaultAsync(u => u.Id == userContext.UserId, cancellationToken);
-
-        if (currentUser is null)
-        {
-            return Result.Failure<UpdateLessonPlanTemplateResponse>(LessonPlanTemplateErrors.Unauthorized);
-        }
-
-        if (currentUser.Role == UserRole.Teacher)
+        if (currentUser is null || currentUser.Role == UserRole.Teacher)
         {
             return Result.Failure<UpdateLessonPlanTemplateResponse>(LessonPlanTemplateErrors.Unauthorized);
         }
 
         var template = await context.LessonPlanTemplates
             .FirstOrDefaultAsync(t => t.Id == command.Id && !t.IsDeleted, cancellationToken);
-
         if (template is null)
         {
             return Result.Failure<UpdateLessonPlanTemplateResponse>(
                 LessonPlanTemplateErrors.NotFound(command.Id));
         }
 
+        var targetModuleId = command.ModuleId ?? template.ModuleId;
+        var module = await context.Modules
+            .FirstOrDefaultAsync(x => x.Id == targetModuleId, cancellationToken);
+        if (module is null)
+        {
+            return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.ModuleNotFound(targetModuleId));
+        }
+
+        var targetSessionIndex = command.SessionIndex ?? template.SessionIndex;
+        if (targetSessionIndex <= 0)
+        {
+            return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.SessionIndexRequired);
+        }
+
+        if (targetSessionIndex > module.PlannedSessionCount)
+        {
+            return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.SessionIndexOutOfRange(targetSessionIndex, module.PlannedSessionCount));
+        }
+
+        var duplicateExists = await context.LessonPlanTemplates
+            .AnyAsync(
+                t => t.ModuleId == targetModuleId &&
+                     t.SessionIndex == targetSessionIndex &&
+                     t.Id != command.Id &&
+                     !t.IsDeleted,
+                cancellationToken);
+        if (duplicateExists)
+        {
+            return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.DuplicateSessionIndex(targetModuleId, targetSessionIndex));
+        }
+
         if (command.ModuleId.HasValue)
         {
-            var moduleExists = await context.Modules
-                .Include(x => x.Level)
-                .AnyAsync(x => x.Id == command.ModuleId.Value && x.Level.ProgramId == template.ProgramId, cancellationToken);
-            if (!moduleExists)
-            {
-                return Result.Failure<UpdateLessonPlanTemplateResponse>(
-                    Error.Validation("LessonPlanTemplate.ModuleInvalid", "Module does not belong to the selected program."));
-            }
-        }
-
-        // Validate session index if provided
-        if (command.SessionIndex.HasValue)
-        {
-            if (command.SessionIndex.Value <= 0)
-            {
-                return Result.Failure<UpdateLessonPlanTemplateResponse>(
-                    LessonPlanTemplateErrors.SessionIndexRequired);
-            }
-
-            // Check for duplicate session index in the same program
-            var duplicateExists = await context.LessonPlanTemplates
-                .AnyAsync(t => t.ProgramId == template.ProgramId && 
-                              t.SessionIndex == command.SessionIndex.Value && 
-                              t.Id != command.Id && 
-                              !t.IsDeleted, 
-                       cancellationToken);
-
-            if (duplicateExists)
-            {
-                return Result.Failure<UpdateLessonPlanTemplateResponse>(
-                    LessonPlanTemplateErrors.DuplicateSessionIndex(template.ProgramId, command.SessionIndex.Value));
-            }
-        }
-
-        // Update fields
-        if (command.ModuleId.HasValue)
-        {
-            template.ModuleId = command.ModuleId;
-        }
-
-        if (command.Level != null)
-        {
-            template.Level = command.Level;
+            template.ModuleId = command.ModuleId.Value;
         }
 
         if (command.Title != null)
@@ -112,6 +97,51 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
             template.SyllabusContent = command.SyllabusContent;
         }
 
+        if (command.Objectives != null)
+        {
+            template.Objectives = command.Objectives;
+        }
+
+        if (command.LanguageContent != null)
+        {
+            template.LanguageContent = command.LanguageContent;
+        }
+
+        if (command.Vocabulary != null)
+        {
+            template.Vocabulary = command.Vocabulary;
+        }
+
+        if (command.Grammar != null)
+        {
+            template.Grammar = command.Grammar;
+        }
+
+        if (command.TeachingMethodology != null)
+        {
+            template.TeachingMethodology = command.TeachingMethodology;
+        }
+
+        if (command.TeacherMaterials != null)
+        {
+            template.TeacherMaterials = command.TeacherMaterials;
+        }
+
+        if (command.StudentMaterials != null)
+        {
+            template.StudentMaterials = command.StudentMaterials;
+        }
+
+        if (command.Procedure != null)
+        {
+            template.Procedure = command.Procedure;
+        }
+
+        if (command.Evaluation != null)
+        {
+            template.Evaluation = command.Evaluation;
+        }
+
         if (command.SourceFileName != null)
         {
             template.SourceFileName = command.SourceFileName;
@@ -127,23 +157,32 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
             template.IsActive = command.IsActive.Value;
         }
 
+        template.UpdatedAt = VietnamTime.UtcNow();
+
         await context.SaveChangesAsync(cancellationToken);
 
         return new UpdateLessonPlanTemplateResponse
         {
             Id = template.Id,
-            ProgramId = template.ProgramId,
             ModuleId = template.ModuleId,
             Title = template.Title,
-            Level = template.Level,
             SessionIndex = template.SessionIndex,
             SessionOrder = template.SessionOrder,
             SyllabusMetadata = template.SyllabusMetadata,
             SyllabusContent = template.SyllabusContent,
+            Objectives = template.Objectives,
+            LanguageContent = template.LanguageContent,
+            Vocabulary = template.Vocabulary,
+            Grammar = template.Grammar,
+            TeachingMethodology = template.TeachingMethodology,
+            TeacherMaterials = template.TeacherMaterials,
+            StudentMaterials = template.StudentMaterials,
+            Procedure = template.Procedure,
+            Evaluation = template.Evaluation,
             SourceFileName = template.SourceFileName,
             Attachment = template.AttachmentUrl,
-            IsActive = template.IsActive
+            IsActive = template.IsActive,
+            UpdatedAt = template.UpdatedAt
         };
     }
 }
-

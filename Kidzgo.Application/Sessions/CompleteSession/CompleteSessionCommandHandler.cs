@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Services;
 using Kidzgo.Application.Time;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
@@ -9,7 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Sessions.CompleteSession;
 
 public sealed class CompleteSessionCommandHandler(
-    IDbContext context
+    IDbContext context,
+    ClassProgressionService classProgressionService
 ) : ICommandHandler<CompleteSessionCommand>
 {
     public async Task<Result> Handle(CompleteSessionCommand command, CancellationToken cancellationToken)
@@ -27,6 +29,11 @@ public sealed class CompleteSessionCommandHandler(
             return Result.Failure(SessionErrors.Cancelled);
         }
 
+        if (session.Status == SessionStatus.Completed)
+        {
+            return Result.Failure(SessionErrors.InvalidStatus);
+        }
+
         var actualUtc = command.ActualDatetime switch
         {
             null => VietnamTime.UtcNow(),
@@ -37,6 +44,7 @@ public sealed class CompleteSessionCommandHandler(
         session.ActualDatetime = actualUtc;
         session.UpdatedAt = VietnamTime.UtcNow();
 
+        await classProgressionService.AdvanceAsync(session.ClassId, session.ModuleId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

@@ -22,20 +22,33 @@ public sealed class CreateTuitionPlanCommandHandler(
             return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.ProgramNotFound);
         }
 
-        if (command.LevelId.HasValue)
+        var level = await context.Levels
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == command.LevelId, cancellationToken);
+        if (level is null)
         {
-            var levelExistsInProgram = await context.Levels.AnyAsync(
-                x => x.Id == command.LevelId.Value &&
-                     x.ProgramId == command.ProgramId &&
-                     x.IsActive,
-                cancellationToken);
+            return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.LevelNotFound);
+        }
 
-            if (!levelExistsInProgram)
+        if (level.ProgramId != command.ProgramId)
+        {
+            return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.LevelProgramMismatch);
+        }
+
+        Domain.Programs.Module? module = null;
+        if (command.ModuleId.HasValue)
+        {
+            module = await context.Modules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == command.ModuleId.Value, cancellationToken);
+            if (module is null)
             {
-                return Result.Failure<CreateTuitionPlanResponse>(
-                    Error.Validation(
-                        "TuitionPlan.LevelNotFoundInProgram",
-                        $"Level '{command.LevelId.Value}' was not found, inactive, or does not belong to program '{command.ProgramId}'."));
+                return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.ModuleNotFound);
+            }
+
+            if (module.LevelId != command.LevelId)
+            {
+                return Result.Failure<CreateTuitionPlanResponse>(TuitionPlanErrors.ModuleLevelMismatch);
             }
         }
 
@@ -65,6 +78,7 @@ public sealed class CreateTuitionPlanCommandHandler(
             Id = Guid.NewGuid(),
             ProgramId = command.ProgramId,
             LevelId = command.LevelId,
+            ModuleId = command.ModuleId,
             Name = command.Name,
             TotalSessions = command.TotalSessions,
             TuitionAmount = command.TuitionAmount,
@@ -84,6 +98,7 @@ public sealed class CreateTuitionPlanCommandHandler(
         var createdTuitionPlan = await context.TuitionPlans
             .Include(t => t.Program)
             .Include(t => t.Level)
+            .Include(t => t.Module)
             .Include(t => t.LearningTicketType)
             .FirstOrDefaultAsync(t => t.Id == tuitionPlan.Id, cancellationToken);
 
@@ -92,7 +107,9 @@ public sealed class CreateTuitionPlanCommandHandler(
             Id = createdTuitionPlan!.Id,
             ProgramId = createdTuitionPlan.ProgramId,
             LevelId = createdTuitionPlan.LevelId,
-            LevelName = createdTuitionPlan.Level?.Name,
+            LevelName = createdTuitionPlan.Level.Name,
+            ModuleId = createdTuitionPlan.ModuleId,
+            ModuleName = createdTuitionPlan.Module?.Name,
             LearningTicketTypeId = createdTuitionPlan.LearningTicketTypeId,
             LearningTicketTypeCode = createdTuitionPlan.LearningTicketType?.Code,
             ProgramName = createdTuitionPlan.Program.Name,

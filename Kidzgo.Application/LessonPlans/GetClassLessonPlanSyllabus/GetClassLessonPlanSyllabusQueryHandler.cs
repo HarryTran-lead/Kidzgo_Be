@@ -57,6 +57,9 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             .Select(s => new
             {
                 s.Id,
+                s.ModuleId,
+                s.LessonPlanTemplateId,
+                s.SessionIndexInModule,
                 s.PlannedDatetime,
                 s.PlannedTeacherId,
                 PlannedTeacherName = s.PlannedTeacher != null ? s.PlannedTeacher.Name : null,
@@ -69,14 +72,17 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             .Where(lp => lp.ClassId == classEntity.Id && !lp.IsDeleted)
             .ToListAsync(cancellationToken);
 
-        var templates = await context.LessonPlanTemplates
-            .Where(t => t.ProgramId == classEntity.ProgramId && t.IsActive && !t.IsDeleted)
-            .OrderBy(t => t.SessionIndex)
-            .ToListAsync(cancellationToken);
-
         var lessonPlanBySessionId = lessonPlans.ToDictionary(lp => lp.SessionId);
+        var moduleIds = sessions
+            .Where(x => x.ModuleId.HasValue)
+            .Select(x => x.ModuleId!.Value)
+            .Distinct()
+            .ToList();
+        var templates = await context.LessonPlanTemplates
+            .Where(t => moduleIds.Contains(t.ModuleId) && t.IsActive && !t.IsDeleted)
+            .ToListAsync(cancellationToken);
         var templateById = templates.ToDictionary(t => t.Id);
-        var templateBySessionIndex = templates.ToDictionary(t => t.SessionIndex);
+        var templateByModuleAndIndex = templates.ToDictionary(t => (t.ModuleId, t.SessionIndex));
         var metadata = templates
             .Select(t => t.SyllabusMetadata)
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -90,12 +96,23 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             lessonPlanBySessionId.TryGetValue(session.Id, out var lessonPlan);
 
             Kidzgo.Domain.LessonPlans.LessonPlanTemplate? template = null;
-            if (lessonPlan?.TemplateId.HasValue == true)
+            if (session.LessonPlanTemplateId.HasValue &&
+                templateById.TryGetValue(session.LessonPlanTemplateId.Value, out var sessionTemplate))
+            {
+                template = sessionTemplate;
+            }
+
+            if (template is null && lessonPlan?.TemplateId.HasValue == true)
             {
                 templateById.TryGetValue(lessonPlan.TemplateId.Value, out template);
             }
 
-            template ??= templateBySessionIndex.GetValueOrDefault(sessionIndex);
+            if (template is null &&
+                session.ModuleId.HasValue &&
+                session.SessionIndexInModule.HasValue)
+            {
+                template = templateByModuleAndIndex.GetValueOrDefault((session.ModuleId.Value, session.SessionIndexInModule.Value));
+            }
 
             var canEdit = currentUser.Role != UserRole.Teacher ||
                           session.PlannedTeacherId == currentUser.Id ||
@@ -105,6 +122,8 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             {
                 SessionId = session.Id,
                 SessionIndex = sessionIndex,
+                ModuleId = session.ModuleId,
+                SessionIndexInModule = session.SessionIndexInModule,
                 SessionDate = VietnamTime.ToVietnamDateTime(session.PlannedDatetime),
                 PlannedTeacherId = session.PlannedTeacherId,
                 PlannedTeacherName = session.PlannedTeacherName,

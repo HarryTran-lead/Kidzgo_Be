@@ -18,5 +18,6 @@ public class Level : Entity
     public Program Program { get; set; } = null!;
     public ICollection<TuitionPlan> TuitionPlans { get; set; } = new List<TuitionPlan>();
     public ICollection<Module> Modules { get; set; } = new List<Module>();
-    public ICollection<LessonPlanTemplate> LessonPlanTemplates { get; set; } = new List<LessonPlanTemplate>();
+    public ICollection<Syllabus> Syllabuses { get; set; } = new List<Syllabus>();
+    public ICollection<SessionTemplate> SessionTemplates { get; set; } = new List<SessionTemplate>();
 }

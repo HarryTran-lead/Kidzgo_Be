@@ -19,6 +19,10 @@ public class Class : Entity
     public Guid Id { get; set; }
     public Guid BranchId { get; set; }
     public Guid ProgramId { get; set; }
+    public Guid LevelId { get; set; }
+    public Guid? SyllabusId { get; set; }
+    public Guid StartModuleId { get; set; }
+    public Guid CurrentModuleId { get; set; }
     public string Code { get; set; } = null!;
     public string Title { get; set; } = null!;
     public Guid? RoomId { get; set; }
@@ -37,11 +41,16 @@ public class Class : Entity
     // Navigation properties
     public Branch Branch { get; set; } = null!;
     public Program Program { get; set; } = null!;
+    public Level Level { get; set; } = null!;
+    public Syllabus? Syllabus { get; set; }
+    public Module StartModule { get; set; } = null!;
+    public Module CurrentModule { get; set; } = null!;
     public Classroom? Room { get; set; }
     public User? MainTeacher { get; set; }
     public User? AssistantTeacher { get; set; }
     public SlotType? SlotType { get; set; }
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
+    public ICollection<ClassModuleProgress> ModuleProgresses { get; set; } = new List<ClassModuleProgress>();
     public ICollection<ClassScheduleSegment> ScheduleSegments { get; set; } = new List<ClassScheduleSegment>();
     public ICollection<Session> Sessions { get; set; } = new List<Session>();
     public ICollection<LessonPlan> LessonPlans { get; set; } = new List<LessonPlan>();

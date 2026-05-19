@@ -16,6 +16,8 @@ public sealed class ClassLessonPlanSyllabusSessionDto
 {
     public Guid SessionId { get; init; }
     public int SessionIndex { get; init; }
+    public Guid? ModuleId { get; init; }
+    public int? SessionIndexInModule { get; init; }
     public DateTime SessionDate { get; init; }
     public Guid? PlannedTeacherId { get; init; }
     public string? PlannedTeacherName { get; init; }

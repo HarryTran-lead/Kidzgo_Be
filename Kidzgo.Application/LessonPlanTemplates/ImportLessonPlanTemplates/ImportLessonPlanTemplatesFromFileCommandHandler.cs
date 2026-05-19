@@ -35,23 +35,22 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                 LessonPlanTemplateErrors.UnsupportedImportFileType(extension));
         }
 
-        if (!command.ProgramId.HasValue)
+        if (!command.ModuleId.HasValue)
         {
             return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
-                LessonPlanTemplateErrors.ImportFileRequiresProgramId);
+                LessonPlanTemplateErrors.ImportFileRequiresModuleId);
         }
 
-        var requestedProgram = await context.Programs
-            .Where(p => p.Id == command.ProgramId.Value &&
-                        p.IsActive &&
-                        !p.IsDeleted)
-            .Select(p => new ProgramLookup(p.Id, p.Name, p.Code))
+        var requestedModule = await context.Modules
+            .Where(m => m.Id == command.ModuleId.Value &&
+                        m.IsActive)
+            .Select(m => new ModuleLookup(m.Id, m.Name, m.LevelId, m.PlannedSessionCount))
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (requestedProgram is null)
+        if (requestedModule is null)
         {
             return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
-                LessonPlanTemplateErrors.ProgramNotFound(command.ProgramId));
+                LessonPlanTemplateErrors.ModuleNotFound(command.ModuleId));
         }
 
         var rawSheets = ReadSheets(command.FileStream, command.FileName);
@@ -60,7 +59,7 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
             return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(rawSheets.Error);
         }
 
-        var parsedSheets = new List<ResolvedSyllabusSheet>();
+        var parsedSheets = new List<ParsedSyllabusSheet>();
         foreach (var rawSheet in rawSheets.Sheets!)
         {
             if (rawSheet.Rows.Count == 0 || rawSheet.Rows.All(IsEmptyRow))
@@ -74,7 +73,7 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                 return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(parsedSheet.Error);
             }
 
-            parsedSheets.Add(new ResolvedSyllabusSheet(requestedProgram, parsedSheet.Value!));
+            parsedSheets.Add(parsedSheet.Value!);
         }
 
         if (parsedSheets.Count == 0)
@@ -84,32 +83,38 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
         }
 
         var currentUserId = userContext.UserId;
-        var importedPrograms = new Dictionary<Guid, ImportedLessonPlanTemplateProgramDto>();
+        var metadataJson = JsonSerializer.Serialize(
+            parsedSheets.SelectMany(x => x.Metadata.Lines).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList(),
+            JsonOptions);
+
         var importedCount = 0;
 
-        foreach (var programSheet in parsedSheets)
+        foreach (var sheet in parsedSheets)
         {
-            var importedForProgram = 0;
-            var metadataJson = JsonSerializer.Serialize(programSheet.Sheet.Metadata, JsonOptions);
-
-            foreach (var session in programSheet.Sheet.Sessions)
+            foreach (var session in sheet.Sessions)
             {
+                if (session.SessionIndex < 1 || session.SessionIndex > requestedModule.TotalSessions)
+                {
+                    return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
+                        LessonPlanTemplateErrors.SessionIndexOutOfRange(session.SessionIndex, requestedModule.TotalSessions));
+                }
+
                 var template = await context.LessonPlanTemplates
                     .FirstOrDefaultAsync(
-                        t => t.ProgramId == programSheet.Program.Id &&
+                        t => t.ModuleId == requestedModule.Id &&
                              t.SessionIndex == session.SessionIndex,
                         cancellationToken);
 
-                var title = BuildTemplateTitle(programSheet.Program.Name, session);
+                var title = BuildTemplateTitle(requestedModule.Name, session);
                 var contentJson = JsonSerializer.Serialize(session, JsonOptions);
+                var now = VietnamTime.UtcNow();
 
                 if (template is null)
                 {
                     template = new LessonPlanTemplate
                     {
                         Id = Guid.NewGuid(),
-                        ProgramId = programSheet.Program.Id,
-                        Level = command.Level,
+                        ModuleId = requestedModule.Id,
                         Title = title,
                         SessionIndex = session.SessionIndex,
                         SyllabusMetadata = metadataJson,
@@ -118,11 +123,11 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                         IsActive = true,
                         IsDeleted = false,
                         CreatedBy = currentUserId,
-                        CreatedAt = VietnamTime.UtcNow()
+                        CreatedAt = now,
+                        UpdatedAt = now
                     };
 
                     context.LessonPlanTemplates.Add(template);
-                    importedForProgram++;
                     importedCount++;
                     continue;
                 }
@@ -132,33 +137,14 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                     continue;
                 }
 
-                template.Level = command.Level ?? template.Level;
                 template.Title = title;
                 template.SyllabusMetadata = metadataJson;
                 template.SyllabusContent = contentJson;
                 template.SourceFileName = command.FileName;
                 template.IsActive = true;
                 template.IsDeleted = false;
-
-                importedForProgram++;
+                template.UpdatedAt = now;
                 importedCount++;
-            }
-
-            if (importedPrograms.TryGetValue(programSheet.Program.Id, out var importedProgram))
-            {
-                importedPrograms[programSheet.Program.Id] = importedProgram with
-                {
-                    ImportedSessions = importedProgram.ImportedSessions + importedForProgram
-                };
-            }
-            else
-            {
-                importedPrograms[programSheet.Program.Id] = new ImportedLessonPlanTemplateProgramDto
-                {
-                    ProgramId = programSheet.Program.Id,
-                    ProgramName = programSheet.Program.Name,
-                    ImportedSessions = importedForProgram
-                };
             }
         }
 
@@ -167,15 +153,23 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
         return new ImportLessonPlanTemplatesFromFileResponse
         {
             ImportedCount = importedCount,
-            Programs = importedPrograms.Values.ToList()
+            Modules =
+            [
+                new ImportedLessonPlanTemplateModuleDto
+                {
+                    ModuleId = requestedModule.Id,
+                    ModuleName = requestedModule.Name,
+                    ImportedSessions = importedCount
+                }
+            ]
         };
     }
 
-    private static string BuildTemplateTitle(string programName, ParsedSyllabusSession session)
+    private static string BuildTemplateTitle(string moduleName, ParsedSyllabusSession session)
     {
         return !string.IsNullOrWhiteSpace(session.Title)
             ? session.Title!
-            : $"{programName} - Session {session.SessionIndex}";
+            : $"{moduleName} - Session {session.SessionIndex}";
     }
 
     private static SheetReadResult ReadSheets(Stream stream, string fileName)
@@ -211,10 +205,8 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
             rows.Add(fields);
         }
 
-        return SheetReadResult.Success(new List<RawSyllabusSheet>
-        {
-            new(Path.GetFileNameWithoutExtension(fileName), rows)
-        });
+        return SheetReadResult.Success(
+            [new RawSyllabusSheet(Path.GetFileNameWithoutExtension(fileName), rows)]);
     }
 
     private static SheetReadResult ReadExcel(Stream stream)
@@ -498,8 +490,8 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
 
     private sealed class SessionBuilder
     {
-        private readonly List<ParsedSyllabusActivity> _activities = new();
-        private readonly List<string> _notes = new();
+        private readonly List<ParsedSyllabusActivity> _activities = [];
+        private readonly List<string> _notes = [];
 
         public SessionBuilder(int sessionIndex)
         {
@@ -590,7 +582,7 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
         }
     }
 
-    private sealed record ProgramLookup(Guid Id, string Name, string Code);
+    private sealed record ModuleLookup(Guid Id, string Name, Guid LevelId, int TotalSessions);
     private sealed record RawSyllabusSheet(string Name, List<string[]> Rows);
     private sealed record ParsedSyllabusSheet(string SheetName, ParsedSyllabusMetadata Metadata, List<ParsedSyllabusSession> Sessions);
     private sealed record ParsedSyllabusMetadata(string? Title, List<string> Lines);
@@ -609,7 +601,6 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
         string? RequiredMaterials,
         string? HomeworkRequiredMaterials,
         string? Extra);
-    private sealed record ResolvedSyllabusSheet(ProgramLookup Program, ParsedSyllabusSheet Sheet);
 
     private sealed class SheetReadResult
     {

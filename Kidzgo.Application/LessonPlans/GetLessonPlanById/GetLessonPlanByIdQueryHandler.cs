@@ -22,6 +22,8 @@ public sealed class GetLessonPlanByIdQueryHandler(
             .Include(lp => lp.Class)
             .Include(lp => lp.Session)
             .Include(lp => lp.Template)
+                .ThenInclude(t => t!.Module)
+                    .ThenInclude(m => m.Level)
             .Include(lp => lp.SubmittedByUser)
             .FirstOrDefaultAsync(lp => lp.Id == query.Id && !lp.IsDeleted, cancellationToken);
 
@@ -60,7 +62,7 @@ public sealed class GetLessonPlanByIdQueryHandler(
                 ? null
                 : VietnamTime.ToVietnamDateTime(lessonPlan.Session.PlannedDatetime),
             TemplateId = lessonPlan.TemplateId,
-            TemplateLevel = lessonPlan.Template?.Level,
+            TemplateLevel = lessonPlan.Template?.Module?.Level?.Name,
             TemplateSessionIndex = lessonPlan.Template?.SessionIndex,
             PlannedContent = lessonPlan.PlannedContent,
             ActualContent = lessonPlan.ActualContent,

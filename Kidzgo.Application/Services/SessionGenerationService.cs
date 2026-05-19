@@ -19,17 +19,20 @@ public sealed class SessionGenerationService
     private readonly ISchedulePatternParser _patternParser;
     private readonly StudentSessionAssignmentService _studentSessionAssignmentService;
     private readonly SessionConflictChecker _conflictChecker;
+    private readonly ClassSessionPlanningService _classSessionPlanningService;
 
     public SessionGenerationService(
         IDbContext context,
         ISchedulePatternParser patternParser,
         StudentSessionAssignmentService studentSessionAssignmentService,
-        SessionConflictChecker conflictChecker)
+        SessionConflictChecker conflictChecker,
+        ClassSessionPlanningService classSessionPlanningService)
     {
         _context = context;
         _patternParser = patternParser;
         _studentSessionAssignmentService = studentSessionAssignmentService;
         _conflictChecker = conflictChecker;
+        _classSessionPlanningService = classSessionPlanningService;
     }
 
     public async Task<Result<int>> GenerateSessionsFromPatternAsync(
@@ -264,6 +267,7 @@ public sealed class SessionGenerationService
 
         try
         {
+            await _classSessionPlanningService.AssignMetadataAsync(classEntity.Id, sessionsToCreate, cancellationToken);
             _context.Sessions.AddRange(sessionsToCreate);
             foreach (var session in sessionsToCreate)
             {

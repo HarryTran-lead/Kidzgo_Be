@@ -46,6 +46,18 @@ public sealed class AssignTuitionPlanCommandHandler(
                 EnrollmentErrors.TuitionPlanProgramMismatch);
         }
 
+        if (tuitionPlan.LevelId != enrollment.Class.LevelId)
+        {
+            return Result.Failure<AssignTuitionPlanResponse>(
+                EnrollmentErrors.TuitionPlanLevelMismatch);
+        }
+
+        if (tuitionPlan.ModuleId.HasValue && tuitionPlan.ModuleId != enrollment.Class.StartModuleId)
+        {
+            return Result.Failure<AssignTuitionPlanResponse>(
+                EnrollmentErrors.TuitionPlanModuleMismatch);
+        }
+
         enrollment.TuitionPlanId = command.TuitionPlanId;
         enrollment.UpdatedAt = VietnamTime.UtcNow();
         await context.SaveChangesAsync(cancellationToken);

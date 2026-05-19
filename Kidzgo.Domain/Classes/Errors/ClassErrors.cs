@@ -16,6 +16,22 @@ public static class ClassErrors
         "Class.ProgramNotFound",
         "Program not found, deleted, or inactive");
 
+    public static readonly Error LevelNotFound = Error.NotFound(
+        "Class.LevelNotFound",
+        "Level not found");
+
+    public static readonly Error LevelProgramMismatch = Error.Validation(
+        "Class.LevelProgramMismatch",
+        "Level does not belong to the selected program");
+
+    public static readonly Error StartModuleNotFound = Error.NotFound(
+        "Class.StartModuleNotFound",
+        "Start module not found");
+
+    public static readonly Error StartModuleLevelMismatch = Error.Validation(
+        "Class.StartModuleLevelMismatch",
+        "Start module does not belong to the selected level");
+
     public static readonly Error ProgramNotAvailableInBranch = Error.Validation(
         "Class.ProgramNotAvailableInBranch",
         "Program is not assigned to the selected branch");
@@ -79,6 +95,10 @@ public static class ClassErrors
     public static readonly Error CannotCloseWithFutureSessions = Error.Conflict(
         "Class.CannotCloseWithFutureSessions",
         "Cannot close, suspend, complete, or cancel class with future sessions");
+
+    public static readonly Error StartModuleImmutableAfterSessions = Error.Conflict(
+        "Class.StartModuleImmutableAfterSessions",
+        "Cannot change start module after class already has sessions");
 
     public static readonly Error StatusUnchanged = Error.Validation(
         "Class.StatusUnchanged",

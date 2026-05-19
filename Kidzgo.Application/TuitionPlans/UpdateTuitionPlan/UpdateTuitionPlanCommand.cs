@@ -6,7 +6,8 @@ public sealed class UpdateTuitionPlanCommand : ICommand<UpdateTuitionPlanRespons
 {
     public Guid Id { get; init; }
     public Guid ProgramId { get; init; }
-    public Guid? LevelId { get; init; }
+    public Guid LevelId { get; init; }
+    public Guid? ModuleId { get; init; }
     public Guid? LearningTicketTypeId { get; init; }
     public string Name { get; init; } = null!;
     public int TotalSessions { get; init; }

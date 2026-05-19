@@ -12,6 +12,12 @@ public sealed class CreateClassCommandValidator : AbstractValidator<CreateClassC
         RuleFor(command => command.ProgramId)
             .NotEmpty().WithMessage("Program ID is required");
 
+        RuleFor(command => command.LevelId)
+            .NotEmpty().WithMessage("Level ID is required");
+
+        RuleFor(command => command.StartModuleId)
+            .NotEmpty().WithMessage("Start module ID is required");
+
         RuleFor(command => command.Code)
             .NotEmpty().WithMessage("Class code is required")
             .MaximumLength(50).WithMessage("Class code must not exceed 50 characters");

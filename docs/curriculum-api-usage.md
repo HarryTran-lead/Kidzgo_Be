@@ -1,41 +1,28 @@
 # Curriculum API Usage
 
-## Scope
+Updated date: 2026-05-20
 
-File nay hien bao gom toan bo nhom API da thay doi trong phase curriculum o thread nay:
+## 1. Scope
 
-- `Syllabus` CRUD
-- `Syllabus` import Word
-- `Syllabus` import zip archive
-- `LessonPlanTemplate` CRUD
-- `LessonPlanTemplate` list/detail
-- `LessonPlanTemplate` import bang cu `csv/xls/xlsx`
-- `LessonPlanTemplate` import Word don le theo lesson
+Tai lieu nay mo ta dung contract hien tai cua backend cho nhom curriculum:
 
-File nay chua mo ta cac nhom API khac ngoai scope curriculum hien tai nhu:
+- `Syllabus`
+- `LessonPlanTemplate`
+- `LessonPlan`
 
-- `TuitionPlan`
-- `Class`
-- `Module`
-- `TeachingLog`
-- `Session`
+Tai lieu nay khong cover cac nhom API khac nhu `Program`, `Level`, `Module`, `Class`, `Session`.
 
-## Overview
+## 2. Auth And Response
 
-Flow hien tai tach 3 phan:
+Tat ca endpoint trong file nay deu can `Authorization: Bearer <token>`.
 
-- `Syllabus`: curriculum structure cua `Program + Level + Version`
-- `LessonPlanTemplate`: lesson plan chuan theo tung lesson trong module
-- `Import`: import file Word don le hoac zip tong
+Role theo backend:
 
-Tat ca API duoi day yeu cau `Authorization: Bearer <token>`.
+- `Syllabus`: `Admin`, `ManagementStaff`
+- `LessonPlanTemplate`: `Admin`, `ManagementStaff`
+- `LessonPlan`: `Teacher`, `Admin`, `ManagementStaff`
 
-Role duoc phep:
-
-- `ManagementStaff`
-- `Admin`
-
-Response success chuan:
+Success envelope:
 
 ```json
 {
@@ -44,7 +31,7 @@ Response success chuan:
 }
 ```
 
-Response loi business chuan:
+Error business envelope:
 
 ```json
 {
@@ -61,21 +48,42 @@ Response loi business chuan:
 }
 ```
 
-## Syllabus APIs
+Auth errors:
 
-### 1. Create Syllabus
+- `401`: token thieu, sai, het han
+- `403`: da authenticate nhung khong du role/quyen
+
+## 3. Paging Shape
+
+Backend dung wrapper `Page<T>` voi shape:
+
+```json
+{
+  "items": [],
+  "pageNumber": 1,
+  "totalPages": 1,
+  "totalCount": 0,
+  "hasPreviousPage": false,
+  "hasNextPage": false
+}
+```
+
+## 4. Syllabus APIs
+
+Base path: `/api/syllabuses`
+
+### 4.1 Create syllabus
 
 - Method: `POST`
-- URL: `/api/syllabuses`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `application/json`
 
 Request body:
 
 ```json
 {
-  "programId": "11111111-1111-1111-1111-111111111111",
-  "levelId": "22222222-2222-2222-2222-222222222222",
+  "programId": "guid",
+  "levelId": "guid",
   "code": "GET_READY_STARTER",
   "version": "v1",
   "title": "The Syllabus of Get Ready for Starters",
@@ -83,7 +91,7 @@ Request body:
   "effectiveFrom": "2026-05-19T00:00:00+07:00",
   "effectiveTo": null,
   "pacingSchemeJson": null,
-  "overview": "Curriculum overview...",
+  "overview": "Curriculum overview",
   "overallObjectives": null,
   "specificObjectives": null,
   "ethicsAndAttitudes": null,
@@ -98,20 +106,17 @@ Request body:
 }
 ```
 
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "33333333-3333-3333-3333-333333333333",
-    "programId": "11111111-1111-1111-1111-111111111111",
-    "levelId": "22222222-2222-2222-2222-222222222222",
-    "code": "GET_READY_STARTER",
-    "version": "v1",
-    "title": "The Syllabus of Get Ready for Starters",
-    "isActive": true
-  }
+  "id": "guid",
+  "programId": "guid",
+  "levelId": "guid",
+  "code": "GET_READY_STARTER",
+  "version": "v1",
+  "title": "The Syllabus of Get Ready for Starters",
+  "isActive": true
 }
 ```
 
@@ -121,11 +126,10 @@ Common errors:
 - `Syllabus.LevelDoesNotBelongToProgram`
 - `Syllabus.DuplicateVersion`
 
-### 2. List Syllabuses
+### 4.2 List syllabuses
 
 - Method: `GET`
-- URL: `/api/syllabuses`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 
 Query params:
 
@@ -133,90 +137,129 @@ Query params:
 - `levelId?: Guid`
 - `searchTerm?: string`
 - `isActive?: boolean`
-- `includeDeleted?: boolean`
-- `pageNumber?: int`
-- `pageSize?: int`
+- `includeDeleted?: boolean = false`
+- `pageNumber?: int = 1`
+- `pageSize?: int = 10`
 
-Example:
-
-```text
-GET /api/syllabuses?programId=11111111-1111-1111-1111-111111111111&levelId=22222222-2222-2222-2222-222222222222&pageNumber=1&pageSize=10
-```
-
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "syllabuses": {
-      "items": [
-        {
-          "id": "33333333-3333-3333-3333-333333333333",
-          "programId": "11111111-1111-1111-1111-111111111111",
-          "programName": "Get Ready",
-          "levelId": "22222222-2222-2222-2222-222222222222",
-          "levelName": "Starter",
-          "code": "GET_READY_STARTER",
-          "version": "v1",
-          "title": "The Syllabus of Get Ready for Starters",
-          "isActive": true,
-          "unitCount": 15,
-          "sessionTemplateCount": 72,
-          "createdAt": "2026-05-19T03:00:00Z"
-        }
-      ],
-      "pageNumber": 1,
-      "totalPages": 1,
-      "totalCount": 1,
-      "hasPreviousPage": false,
-      "hasNextPage": false
-    }
+  "syllabuses": {
+    "items": [
+      {
+        "id": "guid",
+        "programId": "guid",
+        "programName": "Get Ready",
+        "levelId": "guid",
+        "levelName": "Starter",
+        "code": "GET_READY_STARTER",
+        "version": "v1",
+        "title": "The Syllabus of Get Ready for Starters",
+        "isActive": true,
+        "unitCount": 15,
+        "sessionTemplateCount": 72,
+        "createdAt": "2026-05-19T03:00:00Z"
+      }
+    ],
+    "pageNumber": 1,
+    "totalPages": 1,
+    "totalCount": 1,
+    "hasPreviousPage": false,
+    "hasNextPage": false
   }
 }
 ```
 
-### 3. Get Syllabus Detail
+### 4.3 Get syllabus detail
 
 - Method: `GET`
 - URL: `/api/syllabuses/{id}`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 
-Success response shape:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "33333333-3333-3333-3333-333333333333",
-    "programId": "11111111-1111-1111-1111-111111111111",
-    "programName": "Get Ready",
-    "levelId": "22222222-2222-2222-2222-222222222222",
-    "levelName": "Starter",
-    "code": "GET_READY_STARTER",
-    "version": "v1",
-    "title": "The Syllabus of Get Ready for Starters",
-    "edition": "Second edition",
-    "effectiveFrom": "2026-05-19T00:00:00+07:00",
-    "effectiveTo": null,
-    "pacingSchemeJson": null,
-    "overview": "Curriculum overview...",
-    "overallObjectives": null,
-    "specificObjectives": null,
-    "ethicsAndAttitudes": null,
-    "bookOverview": null,
-    "totalPeriods": 72,
-    "minutesPerPeriod": 90,
-    "totalLessons": 72,
-    "sourceFileName": "The Syllabus of Get Ready for Starters full (1).docx",
-    "attachmentUrl": null,
-    "rawContentJson": "{...}",
-    "isActive": true,
-    "units": [],
-    "lessons": [],
-    "resources": [],
-    "sessionTemplates": []
-  }
+  "id": "guid",
+  "programId": "guid",
+  "programName": "Get Ready",
+  "levelId": "guid",
+  "levelName": "Starter",
+  "code": "GET_READY_STARTER",
+  "version": "v1",
+  "title": "The Syllabus of Get Ready for Starters",
+  "edition": "Second edition",
+  "effectiveFrom": "2026-05-19T00:00:00+07:00",
+  "effectiveTo": null,
+  "pacingSchemeJson": null,
+  "overview": "Curriculum overview",
+  "overallObjectives": null,
+  "specificObjectives": null,
+  "ethicsAndAttitudes": null,
+  "bookOverview": null,
+  "totalPeriods": 72,
+  "minutesPerPeriod": 90,
+  "totalLessons": 72,
+  "sourceFileName": "ppct.docx",
+  "attachmentUrl": null,
+  "rawContentJson": "{...}",
+  "isActive": true,
+  "units": [
+    {
+      "id": "guid",
+      "moduleId": "guid",
+      "moduleName": "Unit 1",
+      "name": "UNIT 1: HELLO",
+      "allocatedPeriods": 6,
+      "lessonCount": 3,
+      "orderIndex": 1,
+      "notes": null
+    }
+  ],
+  "lessons": [
+    {
+      "id": "guid",
+      "moduleId": "guid",
+      "moduleName": "Unit 1",
+      "periodFrom": 1,
+      "periodTo": 2,
+      "topic": "UNIT 1: HELLO",
+      "lessonNumber": 1,
+      "contentSummary": "Content",
+      "structureSummary": "Structure",
+      "studentBookPages": "4-5",
+      "teacherBookPages": "10-11",
+      "orderIndex": 1
+    }
+  ],
+  "resources": [
+    {
+      "id": "guid",
+      "documentName": "Teacher Book",
+      "abbreviation": "TB",
+      "intendedUsers": "Teacher",
+      "notes": null,
+      "orderIndex": 1
+    }
+  ],
+  "sessionTemplates": [
+    {
+      "id": "guid",
+      "moduleId": "guid",
+      "moduleName": "Unit 1",
+      "lessonPlanTemplateId": "guid",
+      "sessionIndex": 1,
+      "sessionIndexInModule": 1,
+      "lessonNumber": 1,
+      "title": "UNIT 1: HELLO",
+      "topic": "UNIT 1: HELLO",
+      "objectiveSummary": "Content",
+      "vocabularySummary": "hello, bye",
+      "grammarSummary": "This is ...",
+      "orderIndex": 1
+    }
+  ]
 }
 ```
 
@@ -224,27 +267,48 @@ Common errors:
 
 - `Syllabus.NotFound`
 
-### 4. Update Syllabus
+### 4.4 Update syllabus
 
 - Method: `PUT`
 - URL: `/api/syllabuses/{id}`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `application/json`
 
-Request body: giong create, tru `programId` va `levelId`.
-
-Success response:
+Request body:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "33333333-3333-3333-3333-333333333333",
-    "code": "GET_READY_STARTER",
-    "version": "v2",
-    "title": "The Syllabus of Get Ready for Starters",
-    "isActive": true
-  }
+  "code": "GET_READY_STARTER",
+  "version": "v2",
+  "title": "The Syllabus of Get Ready for Starters",
+  "edition": "Second edition",
+  "effectiveFrom": "2026-05-19T00:00:00+07:00",
+  "effectiveTo": null,
+  "pacingSchemeJson": null,
+  "overview": "Updated overview",
+  "overallObjectives": null,
+  "specificObjectives": null,
+  "ethicsAndAttitudes": null,
+  "bookOverview": null,
+  "totalPeriods": 72,
+  "minutesPerPeriod": 90,
+  "totalLessons": 72,
+  "sourceFileName": null,
+  "attachmentUrl": null,
+  "rawContentJson": null,
+  "isActive": true
+}
+```
+
+Success data:
+
+```json
+{
+  "id": "guid",
+  "code": "GET_READY_STARTER",
+  "version": "v2",
+  "title": "The Syllabus of Get Ready for Starters",
+  "isActive": true
 }
 ```
 
@@ -253,11 +317,11 @@ Common errors:
 - `Syllabus.NotFound`
 - `Syllabus.DuplicateVersion`
 
-### 5. Import One Syllabus Word File
+### 4.5 Import one syllabus Word file
 
 - Method: `POST`
 - URL: `/api/syllabuses/import-word`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `multipart/form-data`
 
 Query params:
@@ -272,22 +336,15 @@ Form-data:
 
 - `file: .docx`
 
-Expected file:
-
-- file syllabus tu folder `PPCT ...`
-
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "syllabusId": "33333333-3333-3333-3333-333333333333",
-    "importedUnits": 15,
-    "importedLessons": 72,
-    "importedResources": 4,
-    "importedSessionTemplates": 72
-  }
+  "syllabusId": "guid",
+  "importedUnits": 15,
+  "importedLessons": 72,
+  "importedResources": 4,
+  "importedSessionTemplates": 72
 }
 ```
 
@@ -298,12 +355,18 @@ Common errors:
 - `Syllabus.DuplicateVersion`
 - `Syllabus.UnsupportedImportFileType`
 - `Syllabus.InvalidImportFile`
+- inline `400` body `{ "error": "No file provided" }` neu khong gui file
 
-### 6. Import One Curriculum Zip Archive
+Notes:
+
+- Importer se fail neu parse ra `0` lesson.
+- `TotalPeriods` duoc tinh tu lesson periods da parse.
+
+### 4.6 Import one curriculum zip archive
 
 - Method: `POST`
 - URL: `/api/syllabuses/import-archive`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `multipart/form-data`
 
 Query params:
@@ -320,32 +383,23 @@ Form-data:
 
 Expected zip structure:
 
-- root zip contains folder `PPCT ...`
-- root zip contains folders `UNIT 1`, `UNIT 2`, ...
-- optional `REVISION`
+- co file syllabus `.docx` nam trong folder co chua `PPCT`
+- co cac folder `UNIT 1`, `UNIT 2`, ...
+- co the co `REVISION`
 
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "syllabusId": "33333333-3333-3333-3333-333333333333",
-    "importedLessonPlans": 45,
-    "skippedFiles": 2,
-    "skippedEntries": [
-      "UNIT 8/lesson draft.docx",
-      "REVISION/Revision 03.docx: SessionIndex 25 must be between 1 and 24"
-    ]
-  }
+  "syllabusId": "guid",
+  "importedLessonPlans": 45,
+  "skippedFiles": 2,
+  "skippedEntries": [
+    "UNIT 8/lesson draft.docx",
+    "REVISION/Revision 03.docx: SessionIndex 25 must be between 1 and 24"
+  ]
 }
 ```
-
-Notes:
-
-- importer se co import file syllabus trong folder `PPCT`
-- importer se co map tung file lesson docx sang `Module` theo ten folder `UNIT n` hoac `REVISION`
-- file khong map duoc module se vao `skippedEntries`
 
 Common errors:
 
@@ -353,33 +407,41 @@ Common errors:
 - `Syllabus.LevelNotFound`
 - `Syllabus.LevelDoesNotBelongToProgram`
 - `Syllabus.InvalidImportFile`
+- inline `400` body `{ "error": "No file provided" }` neu khong gui file
 
-## LessonPlanTemplate APIs
+Notes:
 
-### 7. Create LessonPlanTemplate
+- Importer se tim syllabus file bang rule `path contains "PPCT" && endsWith(".docx")`.
+- Cac file lesson docx se duoc map sang `Module` dua tren ten folder `UNIT n` / `REVISION`.
+- File khong map duoc module se khong fail ca request, ma vao `skippedEntries`.
+
+## 5. LessonPlanTemplate APIs
+
+Base path: `/api/lesson-plan-templates`
+
+### 5.1 Create lesson plan template
 
 - Method: `POST`
-- URL: `/api/lesson-plan-templates`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `application/json`
 
 Request body:
 
 ```json
 {
-  "moduleId": "66666666-6666-6666-6666-666666666666",
+  "moduleId": "guid",
   "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
   "sessionIndex": 1,
   "sessionOrder": 1,
   "syllabusMetadata": "UNIT 1",
   "syllabusContent": "Raw syllabus content",
-  "objectives": "By the end of the lesson, students will be able to...",
-  "languageContent": "Language content text",
+  "objectives": "By the end of the lesson...",
+  "languageContent": "Language content",
   "vocabulary": "cat, dog, bird",
   "grammar": "This is a ...",
   "teachingMethodology": "Communicative approach",
-  "teacherMaterials": "Flashcards, projector",
-  "studentMaterials": "Workbook, pencil",
+  "teacherMaterials": "Flashcards",
+  "studentMaterials": "Workbook",
   "procedure": "Warm-up, practice, production",
   "evaluation": "Observe and check answers",
   "sourceFileName": "Unit 1 lesson 1.docx",
@@ -387,34 +449,31 @@ Request body:
 }
 ```
 
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "44444444-4444-4444-4444-444444444444",
-    "moduleId": "66666666-6666-6666-6666-666666666666",
-    "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
-    "sessionIndex": 1,
-    "sessionOrder": 1,
-    "syllabusMetadata": "UNIT 1",
-    "syllabusContent": "Raw syllabus content",
-    "objectives": "By the end of the lesson, students will be able to...",
-    "languageContent": "Language content text",
-    "vocabulary": "cat, dog, bird",
-    "grammar": "This is a ...",
-    "teachingMethodology": "Communicative approach",
-    "teacherMaterials": "Flashcards, projector",
-    "studentMaterials": "Workbook, pencil",
-    "procedure": "Warm-up, practice, production",
-    "evaluation": "Observe and check answers",
-    "sourceFileName": "Unit 1 lesson 1.docx",
-    "attachment": null,
-    "isActive": true,
-    "createdAt": "2026-05-19T03:00:00Z",
-    "updatedAt": "2026-05-19T03:00:00Z"
-  }
+  "id": "guid",
+  "moduleId": "guid",
+  "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
+  "sessionIndex": 1,
+  "sessionOrder": 1,
+  "syllabusMetadata": "UNIT 1",
+  "syllabusContent": "Raw syllabus content",
+  "objectives": "By the end of the lesson...",
+  "languageContent": "Language content",
+  "vocabulary": "cat, dog, bird",
+  "grammar": "This is a ...",
+  "teachingMethodology": "Communicative approach",
+  "teacherMaterials": "Flashcards",
+  "studentMaterials": "Workbook",
+  "procedure": "Warm-up, practice, production",
+  "evaluation": "Observe and check answers",
+  "sourceFileName": "Unit 1 lesson 1.docx",
+  "attachment": null,
+  "isActive": true,
+  "createdAt": "2026-05-19T03:00:00Z",
+  "updatedAt": "2026-05-19T03:00:00Z"
 }
 ```
 
@@ -425,121 +484,46 @@ Common errors:
 - `LessonPlanTemplate.SessionIndexOutOfRange`
 - `LessonPlanTemplate.DuplicateSessionIndex`
 
-### 8. List LessonPlanTemplates
-
-- Method: `GET`
-- URL: `/api/lesson-plan-templates`
-- Role: `ManagementStaff`, `Admin`
-
-Query params:
-
-- `moduleId?: Guid`
-- `title?: string`
-- `isActive?: boolean`
-- `includeDeleted?: boolean`
-- `pageNumber?: int`
-- `pageSize?: int`
-
-Example:
-
-```text
-GET /api/lesson-plan-templates?moduleId=66666666-6666-6666-6666-666666666666&pageNumber=1&pageSize=10
-```
-
-Success response:
-
-```json
-{
-  "isSuccess": true,
-  "data": {
-    "templates": {
-      "items": [
-        {
-          "id": "44444444-4444-4444-4444-444444444444",
-          "moduleId": "66666666-6666-6666-6666-666666666666",
-          "moduleCode": "UNIT_1",
-          "moduleName": "Unit 1",
-          "levelId": "22222222-2222-2222-2222-222222222222",
-          "levelName": "Starter",
-          "programId": "11111111-1111-1111-1111-111111111111",
-          "programName": "Get Ready",
-          "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
-          "sessionIndex": 1,
-          "sessionOrder": 1,
-          "syllabusMetadata": "UNIT 1",
-          "syllabusContent": "Raw syllabus content",
-          "objectives": "By the end of the lesson, students will be able to...",
-          "languageContent": "Language content text",
-          "vocabulary": "cat, dog, bird",
-          "grammar": "This is a ...",
-          "teachingMethodology": "Communicative approach",
-          "teacherMaterials": "Flashcards, projector",
-          "studentMaterials": "Workbook, pencil",
-          "procedure": "Warm-up, practice, production",
-          "evaluation": "Observe and check answers",
-          "sourceFileName": "Unit 1 lesson 1.docx",
-          "attachment": null,
-          "isActive": true,
-          "createdBy": null,
-          "createdByName": null,
-          "createdAt": "2026-05-19T03:00:00Z",
-          "updatedAt": "2026-05-19T03:00:00Z",
-          "usedCount": 0
-        }
-      ],
-      "pageNumber": 1,
-      "totalPages": 1,
-      "totalCount": 1,
-      "hasPreviousPage": false,
-      "hasNextPage": false
-    }
-  }
-}
-```
-
-### 9. Get LessonPlanTemplate Detail
+### 5.2 Get lesson plan template detail
 
 - Method: `GET`
 - URL: `/api/lesson-plan-templates/{id}`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "44444444-4444-4444-4444-444444444444",
-    "moduleId": "66666666-6666-6666-6666-666666666666",
-    "moduleCode": "UNIT_1",
-    "moduleName": "Unit 1",
-    "levelId": "22222222-2222-2222-2222-222222222222",
-    "levelName": "Starter",
-    "programId": "11111111-1111-1111-1111-111111111111",
-    "programName": "Get Ready",
-    "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
-    "sessionIndex": 1,
-    "sessionOrder": 1,
-    "syllabusMetadata": "UNIT 1",
-    "syllabusContent": "Raw syllabus content",
-    "objectives": "By the end of the lesson, students will be able to...",
-    "languageContent": "Language content text",
-    "vocabulary": "cat, dog, bird",
-    "grammar": "This is a ...",
-    "teachingMethodology": "Communicative approach",
-    "teacherMaterials": "Flashcards, projector",
-    "studentMaterials": "Workbook, pencil",
-    "procedure": "Warm-up, practice, production",
-    "evaluation": "Observe and check answers",
-    "sourceFileName": "Unit 1 lesson 1.docx",
-    "attachment": null,
-    "isActive": true,
-    "createdBy": null,
-    "createdByName": null,
-    "createdAt": "2026-05-19T03:00:00Z",
-    "updatedAt": "2026-05-19T03:00:00Z",
-    "usedCount": 0
-  }
+  "id": "guid",
+  "moduleId": "guid",
+  "moduleCode": "UNIT_1",
+  "moduleName": "Unit 1",
+  "levelId": "guid",
+  "levelName": "Starter",
+  "programId": "guid",
+  "programName": "Get Ready",
+  "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
+  "sessionIndex": 1,
+  "sessionOrder": 1,
+  "syllabusMetadata": "UNIT 1",
+  "syllabusContent": "Raw syllabus content",
+  "objectives": "By the end of the lesson...",
+  "languageContent": "Language content",
+  "vocabulary": "cat, dog, bird",
+  "grammar": "This is a ...",
+  "teachingMethodology": "Communicative approach",
+  "teacherMaterials": "Flashcards",
+  "studentMaterials": "Workbook",
+  "procedure": "Warm-up, practice, production",
+  "evaluation": "Observe and check answers",
+  "sourceFileName": "Unit 1 lesson 1.docx",
+  "attachment": null,
+  "isActive": true,
+  "createdBy": null,
+  "createdByName": null,
+  "createdAt": "2026-05-19T03:00:00Z",
+  "updatedAt": "2026-05-19T03:00:00Z",
+  "usedCount": 0
 }
 ```
 
@@ -547,18 +531,80 @@ Common errors:
 
 - `LessonPlanTemplate.NotFound`
 
-### 10. Update LessonPlanTemplate
+### 5.3 List lesson plan templates
+
+- Method: `GET`
+- Role: `Admin`, `ManagementStaff`
+
+Query params:
+
+- `moduleId?: Guid`
+- `title?: string`
+- `isActive?: boolean`
+- `includeDeleted?: boolean = false`
+- `pageNumber?: int = 1`
+- `pageSize?: int = 10`
+
+Success data:
+
+```json
+{
+  "templates": {
+    "items": [
+      {
+        "id": "guid",
+        "moduleId": "guid",
+        "moduleCode": "UNIT_1",
+        "moduleName": "Unit 1",
+        "levelId": "guid",
+        "levelName": "Starter",
+        "programId": "guid",
+        "programName": "Get Ready",
+        "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
+        "sessionIndex": 1,
+        "sessionOrder": 1,
+        "syllabusMetadata": "UNIT 1",
+        "syllabusContent": "Raw syllabus content",
+        "objectives": "By the end of the lesson...",
+        "languageContent": "Language content",
+        "vocabulary": "cat, dog, bird",
+        "grammar": "This is a ...",
+        "teachingMethodology": "Communicative approach",
+        "teacherMaterials": "Flashcards",
+        "studentMaterials": "Workbook",
+        "procedure": "Warm-up, practice, production",
+        "evaluation": "Observe and check answers",
+        "sourceFileName": "Unit 1 lesson 1.docx",
+        "attachment": null,
+        "isActive": true,
+        "createdBy": null,
+        "createdByName": null,
+        "createdAt": "2026-05-19T03:00:00Z",
+        "updatedAt": "2026-05-19T03:00:00Z",
+        "usedCount": 0
+      }
+    ],
+    "pageNumber": 1,
+    "totalPages": 1,
+    "totalCount": 1,
+    "hasPreviousPage": false,
+    "hasNextPage": false
+  }
+}
+```
+
+### 5.4 Update lesson plan template
 
 - Method: `PUT`
 - URL: `/api/lesson-plan-templates/{id}`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `application/json`
 
 Request body:
 
 ```json
 {
-  "moduleId": "66666666-6666-6666-6666-666666666666",
+  "moduleId": "guid",
   "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
   "sessionIndex": 1,
   "sessionOrder": 1,
@@ -569,8 +615,8 @@ Request body:
   "vocabulary": "cat, dog, bird",
   "grammar": "This is a ...",
   "teachingMethodology": "Communicative approach",
-  "teacherMaterials": "Flashcards, projector",
-  "studentMaterials": "Workbook, pencil",
+  "teacherMaterials": "Flashcards",
+  "studentMaterials": "Workbook",
   "procedure": "Warm-up, practice, production",
   "evaluation": "Observe and check answers",
   "sourceFileName": "Unit 1 lesson 1.docx",
@@ -579,33 +625,30 @@ Request body:
 }
 ```
 
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "44444444-4444-4444-4444-444444444444",
-    "moduleId": "66666666-6666-6666-6666-666666666666",
-    "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
-    "sessionIndex": 1,
-    "sessionOrder": 1,
-    "syllabusMetadata": "UNIT 1",
-    "syllabusContent": "Raw syllabus content",
-    "objectives": "Updated objectives",
-    "languageContent": "Updated language content",
-    "vocabulary": "cat, dog, bird",
-    "grammar": "This is a ...",
-    "teachingMethodology": "Communicative approach",
-    "teacherMaterials": "Flashcards, projector",
-    "studentMaterials": "Workbook, pencil",
-    "procedure": "Warm-up, practice, production",
-    "evaluation": "Observe and check answers",
-    "sourceFileName": "Unit 1 lesson 1.docx",
-    "attachment": null,
-    "isActive": true,
-    "updatedAt": "2026-05-19T03:10:00Z"
-  }
+  "id": "guid",
+  "moduleId": "guid",
+  "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
+  "sessionIndex": 1,
+  "sessionOrder": 1,
+  "syllabusMetadata": "UNIT 1",
+  "syllabusContent": "Raw syllabus content",
+  "objectives": "Updated objectives",
+  "languageContent": "Updated language content",
+  "vocabulary": "cat, dog, bird",
+  "grammar": "This is a ...",
+  "teachingMethodology": "Communicative approach",
+  "teacherMaterials": "Flashcards",
+  "studentMaterials": "Workbook",
+  "procedure": "Warm-up, practice, production",
+  "evaluation": "Observe and check answers",
+  "sourceFileName": "Unit 1 lesson 1.docx",
+  "attachment": null,
+  "isActive": true,
+  "updatedAt": "2026-05-19T03:10:00Z"
 }
 ```
 
@@ -616,37 +659,34 @@ Common errors:
 - `LessonPlanTemplate.SessionIndexOutOfRange`
 - `LessonPlanTemplate.DuplicateSessionIndex`
 
-### 11. Import LessonPlanTemplates From Table File
+### 5.5 Import lesson plan templates from table file
 
 - Method: `POST`
 - URL: `/api/lesson-plan-templates/import`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `multipart/form-data`
 
 Query params:
 
-- `moduleId: Guid`
+- `moduleId?: Guid`
 - `overwriteExisting?: boolean = true`
 
 Form-data:
 
 - `file: .csv | .xls | .xlsx`
 
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "importedCount": 24,
-    "modules": [
-      {
-        "moduleId": "66666666-6666-6666-6666-666666666666",
-        "moduleName": "Unit 1",
-        "importedSessions": 24
-      }
-    ]
-  }
+  "importedCount": 24,
+  "modules": [
+    {
+      "moduleId": "guid",
+      "moduleName": "Unit 1",
+      "importedSessions": 24
+    }
+  ]
 }
 ```
 
@@ -657,12 +697,14 @@ Common errors:
 - `LessonPlanTemplate.ModuleNotFound`
 - `LessonPlanTemplate.InvalidImportFile`
 - `LessonPlanTemplate.SessionIndexOutOfRange`
+- `LessonPlanTemplate.ModuleMappingNotFound`
+- inline `400` body `{ "error": "No file provided" }` neu khong gui file
 
-### 12. Import One Lesson Plan Word File
+### 5.6 Import one lesson plan Word file
 
 - Method: `POST`
 - URL: `/api/lesson-plan-templates/import-word`
-- Role: `ManagementStaff`, `Admin`
+- Role: `Admin`, `ManagementStaff`
 - Content-Type: `multipart/form-data`
 
 Query params:
@@ -674,34 +716,14 @@ Form-data:
 
 - `file: .docx`
 
-Expected file:
-
-- mot lesson docx tu folder `UNIT n` hoac `REVISION`
-
-Importer currently maps:
-
-- `Objectives`
-- `Language content`
-- `Vocabulary`
-- `Grammar`
-- `Teaching methodology`
-- `Materials for teacher`
-- `Materials for students`
-- `Procedure`
-- `Evaluation`
-- `Homework`
-
-Success response:
+Success data:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "lessonPlanTemplateId": "44444444-4444-4444-4444-444444444444",
-    "sessionTemplateId": "55555555-5555-5555-5555-555555555555",
-    "sessionIndex": 1,
-    "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1"
-  }
+  "lessonPlanTemplateId": "guid",
+  "sessionTemplateId": "guid",
+  "sessionIndex": 1,
+  "title": "UNIT 1: I LOVE ANIMALS! - Lesson 1"
 }
 ```
 
@@ -712,11 +734,175 @@ Common errors:
 - `LessonPlanTemplate.DuplicateSessionIndex`
 - `Syllabus.UnsupportedImportFileType`
 - `Syllabus.InvalidImportFile`
+- inline `400` body `{ "error": "No file provided" }` neu khong gui file
 
-## Frontend Notes
+Notes:
 
-- Cac endpoint import deu dung `multipart/form-data`, key file luon la `file`
-- Query params `programId`, `levelId`, `moduleId` la bat buoc o import endpoints tuong ung
-- FE nen hien thi `title`, `detail`, va mang `errors` tu response loi
-- Voi import archive, FE nen hien thi rieng `skippedEntries` de user biet file nao khong import duoc
-- File nay hien da bao phu toan bo API changed cua scope curriculum/lesson-plan trong phase nay
+- `sessionTemplateId` la `Guid?`, co the `null`.
+- Importer parse tu headings trong Word nhu `Objectives`, `Language content`, `Vocabulary`, `Grammar`, `Procedure`, `Evaluation`, `Homework`.
+
+## 6. LessonPlan APIs
+
+Base path: `/api/lesson-plans`
+
+### 6.1 Create lesson plan
+
+- Method: `POST`
+- Role: `Teacher`, `Admin`, `ManagementStaff`
+- Content-Type: `application/json`
+
+Request body:
+
+```json
+{
+  "classId": "guid",
+  "sessionId": "guid",
+  "templateId": "guid",
+  "plannedContent": "Planned content",
+  "actualContent": "Actual content",
+  "actualHomework": "Homework",
+  "teacherNotes": "Teacher notes",
+  "completionPercent": 80,
+  "carryForwardContent": "Need continue next session"
+}
+```
+
+Success data:
+
+```json
+{
+  "id": "guid",
+  "classId": "guid",
+  "sessionId": "guid",
+  "templateId": "guid",
+  "plannedContent": "Planned content",
+  "actualContent": "Actual content",
+  "actualHomework": "Homework",
+  "teacherNotes": "Teacher notes",
+  "completionPercent": 80,
+  "carryForwardContent": "Need continue next session",
+  "submittedBy": null,
+  "submittedAt": null,
+  "createdAt": "2026-05-19T03:00:00Z"
+}
+```
+
+### 6.2 Get lesson plan detail
+
+- Method: `GET`
+- URL: `/api/lesson-plans/{id}`
+- Role: `Teacher`, `Admin`, `ManagementStaff`
+
+Success data:
+
+```json
+{
+  "id": "guid",
+  "classId": "guid",
+  "classCode": "CLS001",
+  "sessionId": "guid",
+  "sessionTitle": "Session 20/05/2026 19:00",
+  "sessionDate": "2026-05-20T19:00:00",
+  "templateId": "guid",
+  "templateLevel": "Starter",
+  "templateSessionIndex": 1,
+  "plannedContent": "Planned content",
+  "actualContent": "Actual content",
+  "actualHomework": "Homework",
+  "teacherNotes": "Teacher notes",
+  "completionPercent": 80,
+  "carryForwardContent": "Need continue next session",
+  "submittedBy": "guid",
+  "submittedByName": "Teacher A",
+  "submittedAt": "2026-05-20T21:00:00",
+  "createdAt": "2026-05-19T03:00:00Z"
+}
+```
+
+### 6.3 Get class lesson plan syllabus
+
+- Method: `GET`
+- URL: `/api/lesson-plans/classes/{classId}/syllabus`
+- Role: `Teacher`, `Admin`, `ManagementStaff`
+
+Success data:
+
+```json
+{
+  "classId": "guid",
+  "classCode": "CLS001",
+  "classTitle": "Get Ready Starter A",
+  "programId": "guid",
+  "programName": "Get Ready",
+  "syllabusMetadata": "{...}",
+  "sessions": [
+    {
+      "sessionId": "guid",
+      "sessionIndex": 1,
+      "moduleId": "guid",
+      "sessionIndexInModule": 1,
+      "sessionDate": "2026-05-20T19:00:00",
+      "plannedTeacherId": "guid",
+      "plannedTeacherName": "Teacher A",
+      "actualTeacherId": "guid",
+      "actualTeacherName": "Teacher A",
+      "lessonPlanId": "guid",
+      "templateId": "guid",
+      "templateTitle": "UNIT 1: I LOVE ANIMALS! - Lesson 1",
+      "templateSyllabusContent": "Raw syllabus content",
+      "plannedContent": "Planned content",
+      "actualContent": "Actual content",
+      "actualHomework": "Homework",
+      "teacherNotes": "Teacher notes",
+      "canEdit": true
+    }
+  ]
+}
+```
+
+### 6.4 Update lesson plan
+
+- Method: `PUT`
+- URL: `/api/lesson-plans/{id}`
+- Role: `Teacher`, `Admin`, `ManagementStaff`
+- Content-Type: `application/json`
+
+Request body:
+
+```json
+{
+  "templateId": "guid",
+  "plannedContent": "Updated planned content",
+  "actualContent": "Updated actual content",
+  "actualHomework": "Updated homework",
+  "teacherNotes": "Updated notes",
+  "completionPercent": 90,
+  "carryForwardContent": "Need continue next session"
+}
+```
+
+Success data:
+
+```json
+{
+  "id": "guid",
+  "sessionId": "guid",
+  "templateId": "guid",
+  "plannedContent": "Updated planned content",
+  "actualContent": "Updated actual content",
+  "actualHomework": "Updated homework",
+  "teacherNotes": "Updated notes",
+  "completionPercent": 90,
+  "carryForwardContent": "Need continue next session"
+}
+```
+
+## 7. Frontend Notes
+
+- Tat ca endpoint import deu dung `multipart/form-data`.
+- Key file luon la `file`.
+- Khong manually set `Content-Type: multipart/form-data`; de browser tu gan `boundary`.
+- `Syllabus` va `LessonPlanTemplate` chi cho `Admin`, `ManagementStaff`.
+- `LessonPlan` cho `Teacher`, `Admin`, `ManagementStaff`.
+- FE nen hien thi day du `title`, `detail`, `errors[]` tu response loi.
+- Voi `import-archive`, FE nen hien thi `skippedEntries` rieng cho user.

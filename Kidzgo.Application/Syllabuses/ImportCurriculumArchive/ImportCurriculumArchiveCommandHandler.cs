@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
@@ -54,14 +55,18 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
         var syllabusEntries = docxEntries
             .Where(x => IsSyllabusEntry(x.FullName))
+            .OrderByDescending(x => GetSyllabusEntryPriority(x.FullName))
             .ToList();
 
         var lessonPlanEntries = docxEntries
             .Where(x => !IsSyllabusEntry(x.FullName))
             .ToList();
 
+        ApplyArchiveLessonPlanCounts(importConfiguration, lessonPlanEntries);
+
         Guid? syllabusId = null;
         var importedLessonPlans = 0;
+        var importedEntries = new List<ImportedCurriculumLessonPlanDto>();
         var skipped = new List<string>();
         Error? syllabusImportError = null;
 
@@ -130,11 +135,24 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 continue;
             }
 
+            var sessionIndexOverride = ResolveSessionIndex(
+                importConfiguration,
+                module.Id,
+                Path.GetFileNameWithoutExtension(entry.FullName),
+                entry.FullName,
+                Path.GetDirectoryName(entry.FullName));
+            if (!sessionIndexOverride.HasValue)
+            {
+                skipped.Add($"{entry.FullName}: Could not resolve session index from import configuration");
+                continue;
+            }
+
             memory.Position = 0;
             var lessonResult = await sender.Send(
                 new ImportLessonPlanTemplateFromWordCommand
                 {
                     ModuleId = module.Id,
+                    SessionIndexOverride = sessionIndexOverride,
                     OverwriteExisting = command.OverwriteExisting,
                     FileName = Path.GetFileName(entry.FullName),
                     FileStream = memory
@@ -148,6 +166,16 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             }
 
             importedLessonPlans++;
+            importedEntries.Add(new ImportedCurriculumLessonPlanDto
+            {
+                EntryName = entry.FullName,
+                ModuleId = module.Id,
+                LessonPlanTemplateId = lessonResult.Value.LessonPlanTemplateId,
+                SessionTemplateId = lessonResult.Value.SessionTemplateId,
+                SessionIndex = lessonResult.Value.SessionIndex,
+                Created = lessonResult.Value.Created,
+                Title = lessonResult.Value.Title
+            });
         }
 
         return new ImportCurriculumArchiveResponse
@@ -155,6 +183,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             SyllabusId = syllabusId,
             ImportedLessonPlans = importedLessonPlans,
             SkippedFiles = skipped.Count,
+            ImportedEntries = importedEntries,
             SkippedEntries = skipped
         };
     }
@@ -171,6 +200,34 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 fileName.Contains("ppct", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static int GetSyllabusEntryPriority(string fullName)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(fullName);
+        var priority = 0;
+
+        if (fileName.Contains("full", StringComparison.OrdinalIgnoreCase))
+        {
+            priority += 100;
+        }
+
+        if (fileName.Contains("the syllabus", StringComparison.OrdinalIgnoreCase))
+        {
+            priority += 50;
+        }
+
+        if (fileName.Contains("course syllabus", StringComparison.OrdinalIgnoreCase))
+        {
+            priority += 10;
+        }
+
+        if (fileName.Contains("syllabus", StringComparison.OrdinalIgnoreCase))
+        {
+            priority += 5;
+        }
+
+        return priority;
+    }
+
     private static Domain.Programs.Module? ResolveModuleForEntry(
         IReadOnlyList<Domain.Programs.Module> modules,
         string fullName)
@@ -184,5 +241,92 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             x.Code.Contains(folderName, StringComparison.OrdinalIgnoreCase) ||
             x.Name.Contains(fileName, StringComparison.OrdinalIgnoreCase) ||
             x.Code.Contains(fileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int? ResolveSessionIndex(
+        Domain.LessonPlans.CurriculumImportConfiguration configuration,
+        Guid moduleId,
+        params string?[] hints)
+    {
+        var rule = configuration.ModuleRules.FirstOrDefault(x => x.ModuleId == moduleId);
+        return rule is null
+            ? null
+            : CurriculumImportRuleResolver.ResolveSessionIndex(configuration, rule, hints);
+    }
+
+    private static void ApplyArchiveLessonPlanCounts(
+        Domain.LessonPlans.CurriculumImportConfiguration configuration,
+        IEnumerable<ZipArchiveEntry> lessonPlanEntries)
+    {
+        var starterLessonCount = 0;
+        var regularUnitLessonCount = 0;
+        var revisionLessonCount = 0;
+        var revisionFileCounts = new Dictionary<int, int>();
+
+        foreach (var entry in lessonPlanEntries)
+        {
+            var text = NormalizeArchivePath(entry.FullName);
+            var lessonIndex = ExtractLessonIndex(text) ?? 1;
+
+            if (Regex.IsMatch(text, @"\bUNIT\s*STARTER\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                starterLessonCount = Math.Max(starterLessonCount, lessonIndex);
+                continue;
+            }
+
+            if (Regex.IsMatch(text, @"\bUNIT\s*0*\d+\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                regularUnitLessonCount = Math.Max(regularUnitLessonCount, lessonIndex);
+                continue;
+            }
+
+            var revisionMatch = Regex.Match(
+                text,
+                @"\bREVISION\s*0*(\d+)\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (revisionMatch.Success && int.TryParse(revisionMatch.Groups[1].Value, out var revisionNumber))
+            {
+                revisionFileCounts[revisionNumber] = Math.Max(
+                    revisionFileCounts.GetValueOrDefault(revisionNumber),
+                    lessonIndex);
+            }
+        }
+
+        if (starterLessonCount > configuration.StarterUnitLessonPlanCount)
+        {
+            configuration.StarterUnitLessonPlanCount = starterLessonCount;
+        }
+
+        if (regularUnitLessonCount > configuration.RegularUnitLessonPlanCount)
+        {
+            configuration.RegularUnitLessonPlanCount = regularUnitLessonCount;
+        }
+
+        if (revisionFileCounts.Count > 0)
+        {
+            revisionLessonCount = revisionFileCounts.Values.Max();
+        }
+
+        if (revisionLessonCount > configuration.RevisionLessonPlanCount)
+        {
+            configuration.RevisionLessonPlanCount = revisionLessonCount;
+        }
+    }
+
+    private static int? ExtractLessonIndex(string text)
+    {
+        var match = Regex.Match(
+            text,
+            @"\bLESSON\s*0*(\d+)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return match.Success && int.TryParse(match.Groups[1].Value, out var lessonIndex)
+            ? lessonIndex
+            : null;
+    }
+
+    private static string NormalizeArchivePath(string value)
+    {
+        return Regex.Replace(value.Replace('\\', '/'), @"\s+", " ").Trim();
     }
 }

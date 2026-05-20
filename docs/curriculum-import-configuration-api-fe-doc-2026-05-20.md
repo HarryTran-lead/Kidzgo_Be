@@ -15,6 +15,8 @@ Tai lieu nay chi cover nhom API moi lien quan den:
 - `GET /api/syllabuses/import-configuration`
 - `PUT /api/syllabuses/import-configuration`
 - luong goi `POST /api/syllabuses/import-archive` sau khi da cau hinh
+- luong goi `POST /api/syllabuses/import-lesson-plan-words` de import nhieu file Word lesson plan khong can zip
+- luong goi `GET /api/syllabuses/{syllabusId}/unit-lesson-plans` de xem lesson plan da import theo tung Unit/Revision
 
 ## 2. Auth And Response
 
@@ -338,6 +340,7 @@ Frontend flow de xuat:
 6. FE show:
    - `syllabusId`
    - `importedLessonPlans`
+   - `importedEntries`
    - `skippedFiles`
    - `skippedEntries`
 
@@ -358,10 +361,220 @@ Neu chua config ma import ngay, backend se tra:
 }
 ```
 
-## 9. FE Recommendations
+Response sau khi import archive co them `importedEntries` de debug mapping:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "syllabusId": "78448399-1933-49f1-a3fd-492a922d674f",
+    "importedLessonPlans": 50,
+    "skippedFiles": 0,
+    "importedEntries": [
+      {
+        "entryName": "LESSON PLAN GET READY STARTER 2ED/UNIT 2/Unit 2 at home lesson 1 done.docx",
+        "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
+        "lessonPlanTemplateId": "f4758abc-a965-4205-8f8f-d3b776463b55",
+        "sessionTemplateId": "bd548eca-a5ea-4f7b-a583-9172f1115dc6",
+        "sessionIndex": 5,
+        "created": true,
+        "title": "UNIT 2: AT HOME - Lesson 1"
+      }
+    ],
+    "skippedEntries": []
+  }
+}
+```
+
+Field `created`:
+
+- `true`: backend tao moi `LessonPlanTemplate`
+- `false`: backend ghi de template da ton tai cung `ModuleId + SessionIndex`
+
+Neu sau khi import zip ma `importedEntries.sessionIndex` chi quanh `1..3`, API dang chay code cu hoac FE dang goi endpoint import Word don theo `moduleId`, khong phai endpoint archive/config-aware.
+
+## 9. Import Lesson Plan Word Files Without Zip
+
+### POST `/api/syllabuses/import-lesson-plan-words`
+
+Dung khi admin muon import thu cong nhieu file Word lesson plan theo list, khong import ca zip.
+
+Endpoint nay khong import syllabus Word. Neu can import syllabus Word rieng, dung endpoint cu:
+
+- `POST /api/syllabuses/import-word`
+
+Query params:
+
+- `programId: Guid`
+- `levelId: Guid`
+- `overwriteExisting: boolean`, default `true`
+- `moduleId: Guid`, optional
+
+Form-data:
+
+- `files: File[]`
+
+Recommended FE flow:
+
+1. Admin chon `Program + Level`.
+2. FE dam bao da co import configuration cho `Program + Level`.
+3. Admin chon nhieu file `.docx` lesson plan.
+4. FE submit tat ca file bang form key `files`.
+5. Backend tu doc ten file de map `Unit/Revision/Lesson` vao module va session index.
+
+Mapping mode:
+
+- Neu khong gui `moduleId`, backend bat buoc co active import configuration va tu map theo rule.
+- Neu gui `moduleId`, backend import tat ca file vao module do va session index lay theo `Lesson n` trong file Word. Mode nay dung khi admin muon override module thu cong.
+
+Ten file can co pattern de backend map dung:
+
+- `Unit starter ... lesson 1.docx`
+- `Unit 4 Food lesson 2.docx`
+- `Unit 10 Your day lesson 3.docx`
+- `Revision 1.docx`
+- `Revision 2 lesson 1.docx`
+
+Response example:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "importedLessonPlans": 3,
+    "skippedFiles": 1,
+    "importedEntries": [
+      {
+        "fileName": "Unit 4 Food lesson 1 done.docx",
+        "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
+        "lessonPlanTemplateId": "f4758abc-a965-4205-8f8f-d3b776463b55",
+        "sessionTemplateId": "bd548eca-a5ea-4f7b-a583-9172f1115dc6",
+        "sessionIndex": 11,
+        "title": "UNIT 4: Food - Lesson 1"
+      }
+    ],
+    "skippedEntries": [
+      "Bad file.pdf: Unsupported file type '.pdf'. Only .docx is supported"
+    ]
+  }
+}
+```
+
+Important behavior:
+
+- Backend tinh `sessionIndex` tuyet doi trong module theo config.
+- Vi du module gom `Unit Starter`, `Unit 1..5`, `Revision 1`; config `starter=1`, `regular=3`, `revision=1`.
+- `Unit 1 lesson 1` -> session `2`.
+- `Unit 1 lesson 3` -> session `4`.
+- `Unit 2 lesson 1` -> session `5`.
+- `Revision 1` -> session sau cac unit trong rule.
+- Neu backend khong resolve duoc `sessionIndex`, file se vao `skippedEntries`, khong fallback ve `Lesson 1` de tranh overwrite nham.
+
+Curl example:
+
+```bash
+curl -X POST \
+  "https://localhost:7235/api/syllabuses/import-lesson-plan-words?programId=48eba459-7a08-4461-b1f9-acec097c6185&levelId=fab421d5-89e0-43e7-b058-ab37f9d48a87&overwriteExisting=true" \
+  -H "Authorization: Bearer <token>" \
+  -F "files=@Unit 4 Food lesson 1 done.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document" \
+  -F "files=@Unit 4 Food lesson 2 done.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+```
+
+## 10. Get Imported Unit Lesson Plans
+
+### GET `/api/syllabuses/{syllabusId}/unit-lesson-plans`
+
+Dung de FE hien thi danh sach lesson plan Word da import, group san theo `Unit` hoac `Revision`.
+
+Path params:
+
+- `syllabusId: Guid`
+
+Response example:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "syllabusId": "78448399-1933-49f1-a3fd-492a922d674f",
+    "programId": "48eba459-7a08-4461-b1f9-acec097c6185",
+    "programName": "Kids English",
+    "levelId": "fab421d5-89e0-43e7-b058-ab37f9d48a87",
+    "levelName": "Starters",
+    "totalGroups": 19,
+    "totalLessonPlans": 50,
+    "groups": [
+      {
+        "groupKey": "unit-1",
+        "groupType": "Unit",
+        "unitNumber": 1,
+        "revisionNumber": null,
+        "displayName": "Unit 1",
+        "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
+        "moduleCode": "STATERS_STATE01",
+        "moduleName": "Stater01",
+        "moduleOrder": 1,
+        "lessonPlanCount": 3,
+        "lessonPlans": [
+          {
+            "lessonPlanTemplateId": "2aa7f41d-7ef0-4eb9-b655-90abec1f8d33",
+            "sessionTemplateId": "fbd0ff0d-8667-4e56-8bc4-a7b7c7d3d9cf",
+            "title": "UNIT 1: I LOVE ANIMALS - Lesson 1",
+            "lessonNumber": 1,
+            "sessionIndex": 3,
+            "sessionOrder": 3,
+            "sessionIndexInModule": 3,
+            "sessionTitle": "Unit 1 - Lesson 1",
+            "sessionTopic": "I love animals",
+            "sourceFileName": "Unit 1 I love animals lesson 1 done.docx",
+            "isActive": true,
+            "createdAt": "2026-05-20T02:30:00Z",
+            "updatedAt": "2026-05-20T02:30:00Z"
+          }
+        ]
+      },
+      {
+        "groupKey": "revision-1",
+        "groupType": "Revision",
+        "unitNumber": null,
+        "revisionNumber": 1,
+        "displayName": "Revision 1",
+        "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
+        "moduleCode": "STATERS_STATE01",
+        "moduleName": "Stater01",
+        "moduleOrder": 1,
+        "lessonPlanCount": 1,
+        "lessonPlans": []
+      }
+    ]
+  }
+}
+```
+
+Field meanings:
+
+- `groups`: danh sach `Unit Starter`, `Unit 1..n`, `Revision 1..n` da co lesson plan.
+- `lessonPlans`: cac file Word lesson plan trong group do, da sort theo `lessonNumber`.
+- `lessonNumber`: parse tu filename/title pattern `lesson 1`, `lesson 2`, `lesson 3`; co the `null` voi file revision khong co chu `lesson`.
+- `sessionIndex`: index tuyet doi trong module, dung de map voi schedule/session template.
+- `sessionIndexInModule`: index cua `SessionTemplate` trong module.
+- `totalLessonPlans`: tong so `LessonPlanTemplates` co link voi syllabus nay qua `SessionTemplateId`.
+
+Important behavior:
+
+- API nay chi lay lesson plan da link voi syllabus qua `SessionTemplateId`.
+- Sau khi import zip code moi, moi lesson plan import thanh cong se co `sessionTemplateId`.
+- Neu API tra it hon so file import, can import lai zip voi `overwriteExisting=true` sau khi restart API, vi data cu co the da bi overwrite ve 1 lesson/unit.
+
+Common errors:
+
+- `Syllabus.NotFound`
+
+## 11. FE Recommendations
 
 - FE nen co man hinh config rieng cho `Program + Level`.
 - FE nen disable nut import zip neu config chua duoc luu.
+- FE nen disable nut import lesson plan Word list neu config chua duoc luu, tru khi FE gui ro `moduleId`.
 - FE nen hien `expectedLessonPlanCount` de admin tu check rule co hop ly khong.
 - FE nen validate overlap range ngay tren form truoc khi submit.
 - FE nen luu `moduleId` theo dropdown chon tu danh sach module, khong cho user go text tu do.

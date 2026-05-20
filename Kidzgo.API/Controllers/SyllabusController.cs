@@ -4,7 +4,9 @@ using Kidzgo.Application.Syllabuses.CreateSyllabus;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
 using Kidzgo.Application.Syllabuses.GetSyllabuses;
+using Kidzgo.Application.Syllabuses.GetSyllabusUnitLessonPlans;
 using Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
+using Kidzgo.Application.Syllabuses.ImportLessonPlanWords;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
 using Kidzgo.Application.Syllabuses.UpsertCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.UpdateSyllabus;
@@ -97,6 +99,19 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetSyllabusByIdQuery { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// View imported lesson plan Word files grouped by Unit or Revision for a syllabus.
+    /// </summary>
+    [HttpGet("{id:guid}/unit-lesson-plans")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetUnitLessonPlans(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSyllabusUnitLessonPlansQuery { SyllabusId = id }, cancellationToken);
         return result.MatchOk();
     }
 
@@ -274,6 +289,53 @@ public class SyllabusController(ISender mediator) : ControllerBase
             OverwriteExisting = overwriteExisting,
             FileName = file.FileName,
             FileStream = file.OpenReadStream()
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Import multiple lesson plan Word files without a zip archive.
+    /// </summary>
+    /// <remarks>
+    /// When moduleId is omitted, backend maps each file to a module and absolute session index using the active curriculum import configuration.
+    /// If moduleId is provided, all files are imported into that module and session index falls back to the lesson number in each Word file.
+    /// </remarks>
+    [HttpPost("import-lesson-plan-words")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [RequestSizeLimit(536_870_912)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> ImportLessonPlanWords(
+        [FromQuery] Guid programId,
+        [FromQuery] Guid levelId,
+        [FromQuery] Guid? moduleId,
+        [FromForm] List<IFormFile> files,
+        [FromQuery] bool overwriteExisting = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (files is null || files.Count == 0 || files.All(x => x.Length == 0))
+        {
+            return Results.BadRequest(new { error = "No files provided" });
+        }
+
+        var result = await mediator.Send(new ImportLessonPlanWordsCommand
+        {
+            ProgramId = programId,
+            LevelId = levelId,
+            ModuleId = moduleId,
+            OverwriteExisting = overwriteExisting,
+            Files = files
+                .Where(x => x.Length > 0)
+                .Select(x => new ImportLessonPlanWordFile
+                {
+                    FileName = x.FileName,
+                    FileStream = x.OpenReadStream()
+                })
+                .ToList()
         }, cancellationToken);
 
         return result.MatchOk();

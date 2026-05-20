@@ -110,7 +110,9 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
                 Id = s.Id,
                 ModuleId = s.ModuleId,
                 ModuleName = s.Module != null ? s.Module.Name : null,
-                LessonPlanTemplateId = s.LessonPlanTemplateId,
+                LessonPlanTemplateId = s.LessonPlanTemplateId ?? (s.LessonPlanTemplate != null ? s.LessonPlanTemplate.Id : null),
+                LessonPlanTemplateTitle = s.LessonPlanTemplate != null ? s.LessonPlanTemplate.Title : null,
+                LessonPlanTemplateSourceFileName = s.LessonPlanTemplate != null ? s.LessonPlanTemplate.SourceFileName : null,
                 SessionIndex = s.SessionIndex,
                 SessionIndexInModule = s.SessionIndexInModule,
                 LessonNumber = s.LessonNumber,
@@ -120,6 +122,22 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
                 VocabularySummary = s.VocabularySummary,
                 GrammarSummary = s.GrammarSummary,
                 OrderIndex = s.OrderIndex
+            })
+            .ToListAsync(cancellationToken);
+
+        var lessonPlanTemplateSummaries = await context.Modules
+            .AsNoTracking()
+            .Where(m => m.LevelId == syllabus.LevelId && m.IsActive)
+            .OrderBy(m => m.Order)
+            .Select(m => new SyllabusModuleLessonPlanSummaryDto
+            {
+                ModuleId = m.Id,
+                ModuleCode = m.Code,
+                ModuleName = m.Name,
+                ModuleOrder = m.Order,
+                PlannedSessionCount = m.PlannedSessionCount,
+                SyllabusSessionTemplateCount = m.SessionTemplates.Count(s => s.SyllabusId == query.Id && s.IsActive),
+                ImportedLessonPlanTemplateCount = m.LessonPlanTemplates.Count(t => t.IsActive && !t.IsDeleted)
             })
             .ToListAsync(cancellationToken);
 
@@ -152,7 +170,9 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
             Units = units,
             Lessons = lessons,
             Resources = resources,
-            SessionTemplates = sessionTemplates
+            SessionTemplates = sessionTemplates,
+            ImportedLessonPlanTemplateCount = lessonPlanTemplateSummaries.Sum(x => x.ImportedLessonPlanTemplateCount),
+            LessonPlanTemplateSummaries = lessonPlanTemplateSummaries
         };
     }
 }

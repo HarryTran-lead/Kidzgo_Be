@@ -42,7 +42,7 @@ internal static class CurriculumWordImportParser
         var tables = body.Elements<Table>().ToList();
         var resources = ParseResources(tables);
         var lessons = ParseLessons(tables);
-        var units = BuildUnits(lessons, paragraphTexts);
+        var units = BuildUnits(lessons, tables);
 
         return Result.Success(new ParsedSyllabusDocument(
             title.Trim(),
@@ -362,39 +362,152 @@ internal static class CurriculumWordImportParser
         return lessons;
     }
 
-    private static List<ParsedSyllabusUnit> BuildUnits(List<ParsedSyllabusLesson> lessons, List<string> paragraphTexts)
+    private static List<ParsedSyllabusUnit> BuildUnits(List<ParsedSyllabusLesson> lessons, List<Table> tables)
     {
-        var candidates = lessons
-            .Select(x => x.Topic)
-            .Concat(paragraphTexts.Where(x => Regex.IsMatch(x, @"\b(Unit|Revision)\b", RegexOptions.IgnoreCase)))
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!.Trim())
+        var definitions = ParseUnitDefinitions(tables);
+        var lessonGroups = lessons
+            .Select(lesson => new
+            {
+                Lesson = lesson,
+                Key = ExtractUnitKey(lesson.ModuleHint ?? lesson.Topic)
+            })
+            .Where(x => x.Key is not null)
+            .GroupBy(x => x.Key!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.Lesson).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var orderedKeys = definitions
+            .OrderBy(x => x.OrderIndex)
+            .Select(x => x.Key)
+            .Concat(lessonGroups.Keys.Where(key => definitions.All(x => !x.Key.Equals(key, StringComparison.OrdinalIgnoreCase))))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var units = new List<ParsedSyllabusUnit>();
-        foreach (var candidate in candidates)
+        foreach (var key in orderedKeys)
         {
-            if (!Regex.IsMatch(candidate, @"\b(Unit|Revision)\b", RegexOptions.IgnoreCase))
+            lessonGroups.TryGetValue(key, out var groupedLessons);
+            var definition = definitions.FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            var representativeLesson = groupedLessons?
+                .OrderBy(x => x.OrderIndex)
+                .FirstOrDefault();
+
+            var periodCountFromLessons = groupedLessons?
+                .Sum(x => ((x.PeriodTo ?? x.PeriodFrom ?? 0) - (x.PeriodFrom ?? x.PeriodTo ?? 0)) + 1);
+
+            var name = representativeLesson?.Topic;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                name = definition?.DisplayName ?? BuildDisplayNameFromKey(key);
+            }
+
+            var moduleHint = definition?.ModuleHint ?? representativeLesson?.ModuleHint ?? representativeLesson?.Topic ?? name;
+            var lessonCount = groupedLessons?.Count;
+            var allocatedPeriods = definition?.AllocatedPeriods ?? (periodCountFromLessons > 0 ? periodCountFromLessons : null);
+
+            units.Add(new ParsedSyllabusUnit(
+                name!,
+                units.Count + 1,
+                allocatedPeriods,
+                lessonCount > 0 ? lessonCount : null,
+                null,
+                moduleHint));
+        }
+
+        return units;
+    }
+
+    private static List<UnitDefinition> ParseUnitDefinitions(IEnumerable<Table> tables)
+    {
+        var definitions = new List<UnitDefinition>();
+        var orderIndex = 1;
+
+        foreach (var table in tables)
+        {
+            var rows = ReadTable(table);
+            if (rows.Count < 2)
             {
                 continue;
             }
 
-            var lessonCount = lessons.Count(x => string.Equals(x.Topic?.Trim(), candidate, StringComparison.OrdinalIgnoreCase));
-            var periodCount = lessons
-                .Where(x => string.Equals(x.Topic?.Trim(), candidate, StringComparison.OrdinalIgnoreCase))
-                .Sum(x => ((x.PeriodTo ?? x.PeriodFrom ?? 0) - (x.PeriodFrom ?? x.PeriodTo ?? 0)) + 1);
+            if (!string.Equals(Normalize(GetByIndex(rows[0], 0)), "unit", StringComparison.Ordinal) ||
+                !string.Equals(Normalize(GetByIndex(rows[1], 0)), "periods", StringComparison.Ordinal))
+            {
+                continue;
+            }
 
-            units.Add(new ParsedSyllabusUnit(
-                candidate,
-                units.Count + 1,
-                periodCount <= 0 ? null : periodCount,
-                lessonCount <= 0 ? null : lessonCount,
-                null,
-                candidate));
+            var columnCount = Math.Min(rows[0].Length, rows[1].Length);
+            for (var columnIndex = 1; columnIndex < columnCount; columnIndex++)
+            {
+                var label = GetByIndex(rows[0], columnIndex);
+                var key = ExtractUnitKey(label);
+                if (key is null || definitions.Any(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                definitions.Add(new UnitDefinition(
+                    key,
+                    label,
+                    ParseFirstInt(GetByIndex(rows[1], columnIndex)),
+                    orderIndex++,
+                    label));
+            }
         }
 
-        return units;
+        return definitions;
+    }
+
+    private static string? ExtractUnitKey(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var revisionMatch = Regex.Match(text, @"\bREVISION\s*0*(\d+)\b", RegexOptions.IgnoreCase);
+        if (revisionMatch.Success)
+        {
+            return $"REVISION:{int.Parse(revisionMatch.Groups[1].Value)}";
+        }
+
+        var unitMatch = Regex.Match(text, @"\bUNIT\s*0*(\d+)\b", RegexOptions.IgnoreCase);
+        if (unitMatch.Success)
+        {
+            return $"UNIT:{int.Parse(unitMatch.Groups[1].Value)}";
+        }
+
+        if (text.Contains("starter", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("unit hello", StringComparison.OrdinalIgnoreCase) ||
+            (text.Contains("hello", StringComparison.OrdinalIgnoreCase) &&
+             text.Contains("unit", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "STARTER";
+        }
+
+        return null;
+    }
+
+    private static string BuildDisplayNameFromKey(string key)
+    {
+        if (string.Equals(key, "STARTER", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Unit Starter";
+        }
+
+        if (key.StartsWith("UNIT:", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Unit {key["UNIT:".Length..]}";
+        }
+
+        if (key.StartsWith("REVISION:", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Revision {key["REVISION:".Length..]}";
+        }
+
+        return key;
     }
 
     private static List<DocumentBlock> ExtractBlocks(Body body)
@@ -608,6 +721,13 @@ internal static class CurriculumWordImportParser
     }
 
     private sealed record DocumentBlock(bool IsTable, string Text);
+
+    private sealed record UnitDefinition(
+        string Key,
+        string DisplayName,
+        int? AllocatedPeriods,
+        int OrderIndex,
+        string? ModuleHint);
 
     private readonly record struct LessonTableLayout(
         int PeriodIndex,

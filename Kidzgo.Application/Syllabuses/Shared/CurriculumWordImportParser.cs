@@ -164,6 +164,12 @@ internal static class CurriculumWordImportParser
 
     private static List<ParsedSyllabusLesson> TryParseLessonsFromTable(IReadOnlyList<string[]> rows)
     {
+        var courseSyllabusLessons = TryParseCourseSyllabusRows(rows);
+        if (courseSyllabusLessons.Count > 0)
+        {
+            return courseSyllabusLessons;
+        }
+
         var headerSearchLimit = Math.Min(5, rows.Count - 1);
         for (var headerRowIndex = 0; headerRowIndex < headerSearchLimit; headerRowIndex++)
         {
@@ -183,6 +189,82 @@ internal static class CurriculumWordImportParser
 
         var heuristicLayout = BuildHeuristicLessonTableLayout(rows);
         return heuristicLayout.IsRecognized ? ParseLessonRows(rows, heuristicLayout) : [];
+    }
+
+    private static List<ParsedSyllabusLesson> TryParseCourseSyllabusRows(IReadOnlyList<string[]> rows)
+    {
+        if (rows.Count < 2)
+        {
+            return [];
+        }
+
+        var header = rows[0].Select(Normalize).ToArray();
+        var dayIndex = FindHeaderIndex(header, "day");
+        var lessonIndex = FindHeaderIndex(header, "lesson");
+        var vocabularyIndex = FindHeaderIndex(header, "vocabulary");
+        var languageIndex = FindHeaderIndex(header, "languageinuse");
+        var grammarIndex = FindHeaderIndex(header, "grammar");
+        var activitiesIndex = FindHeaderIndex(header, "languageactivities");
+
+        if (dayIndex < 0 ||
+            lessonIndex < 0 ||
+            vocabularyIndex < 0 ||
+            languageIndex < 0 ||
+            activitiesIndex < 0)
+        {
+            return [];
+        }
+
+        var lessons = new List<ParsedSyllabusLesson>();
+        foreach (var row in rows.Skip(1))
+        {
+            var day = GetByIndex(row, dayIndex);
+            if (string.IsNullOrWhiteSpace(day))
+            {
+                continue;
+            }
+
+            var topic = ExtractTopicFromCourseDay(day);
+            if (topic is null)
+            {
+                continue;
+            }
+
+            var orderIndex = ParseFirstInt(day) ?? lessons.Count + 1;
+            var lessonNumber = ParseFirstInt(GetByIndex(row, lessonIndex));
+            var content = GetByIndex(row, languageIndex);
+            var vocabulary = GetByIndex(row, vocabularyIndex);
+            var grammar = GetByIndex(row, grammarIndex);
+            var activities = GetByIndex(row, activitiesIndex);
+
+            lessons.Add(new ParsedSyllabusLesson(
+                lessons.Count + 1,
+                orderIndex,
+                orderIndex,
+                topic,
+                lessonNumber,
+                content,
+                grammar,
+                string.IsNullOrWhiteSpace(vocabulary) ? activities : vocabulary,
+                null,
+                null,
+                topic));
+        }
+
+        return lessons;
+    }
+
+    private static string? ExtractTopicFromCourseDay(string value)
+    {
+        var topic = Regex.Replace(value, @"^\s*\d+\s*[\.)-]?\s*", string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            return null;
+        }
+
+        return Regex.IsMatch(topic, @"\b(Unit|Revision|Hello)\b", RegexOptions.IgnoreCase)
+            ? topic
+            : null;
     }
 
     private static LessonTableLayout BuildLessonTableLayout(IReadOnlyList<string> header)

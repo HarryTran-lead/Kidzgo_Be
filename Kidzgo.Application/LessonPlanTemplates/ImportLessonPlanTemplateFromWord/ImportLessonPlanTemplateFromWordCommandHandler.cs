@@ -35,7 +35,9 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(parsed.Error);
         }
 
-        var sessionIndex = ResolveSessionIndex(parsed.Value, command.FileName, module.Name, module.PlannedSessionCount);
+        var sessionIndex = command.SessionIndexOverride.GetValueOrDefault() > 0
+            ? command.SessionIndexOverride!.Value
+            : ResolveSessionIndex(parsed.Value, command.FileName, module.Name, module.PlannedSessionCount);
         if (sessionIndex <= 0 || sessionIndex > module.PlannedSessionCount)
         {
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
@@ -61,6 +63,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             .FirstOrDefaultAsync(cancellationToken);
 
         var now = VietnamTime.UtcNow();
+        var created = template is null;
         if (template is null)
         {
             template = new LessonPlanTemplate
@@ -125,6 +128,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             LessonPlanTemplateId = template.Id,
             SessionTemplateId = linkedSessionTemplateId,
             SessionIndex = template.SessionIndex,
+            Created = created,
             Title = template.Title
         };
     }

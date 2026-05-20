@@ -26,9 +26,7 @@ internal static class CurriculumImportRuleResolver
             return null;
         }
 
-        var matchedRule = lookupTexts
-            .Select(text => ResolveRule(rules, text))
-            .FirstOrDefault(x => x is not null);
+        var matchedRule = ResolveRule(rules, hints);
         if (matchedRule is not null)
         {
             return modules.FirstOrDefault(x => x.Id == matchedRule.ModuleId);
@@ -40,7 +38,89 @@ internal static class CurriculumImportRuleResolver
                 module.Code.Contains(text, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private static CurriculumImportModuleRule? ResolveRule(
+    public static CurriculumImportModuleRule? ResolveRule(
+        IReadOnlyCollection<CurriculumImportModuleRule> rules,
+        params string?[] hints)
+    {
+        var lookupTexts = hints
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(static x => Normalize(x!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return lookupTexts
+            .Select(text => ResolveRuleFromText(rules, text))
+            .FirstOrDefault(x => x is not null);
+    }
+
+    public static int? ResolveSessionIndex(
+        CurriculumImportConfiguration configuration,
+        CurriculumImportModuleRule rule,
+        params string?[] hints)
+    {
+        var lookupTexts = hints
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(static x => Normalize(x!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var text in lookupTexts)
+        {
+            var unitMatch = Regex.Match(
+                text,
+                @"\bUNIT\s*(STARTER|0*\d+)\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (unitMatch.Success)
+            {
+                var lessonIndex = ExtractLessonIndex(text) ?? 1;
+                if (unitMatch.Groups[1].Value.Equals("STARTER", StringComparison.OrdinalIgnoreCase))
+                {
+                    return rule.IncludeStarterUnit ? lessonIndex : null;
+                }
+
+                if (!int.TryParse(unitMatch.Groups[1].Value, out var unitNumber) ||
+                    !rule.UnitFrom.HasValue ||
+                    !rule.UnitTo.HasValue ||
+                    unitNumber < rule.UnitFrom.Value ||
+                    unitNumber > rule.UnitTo.Value)
+                {
+                    continue;
+                }
+
+                var offset = rule.IncludeStarterUnit ? configuration.StarterUnitLessonPlanCount : 0;
+                offset += (unitNumber - rule.UnitFrom.Value) * configuration.RegularUnitLessonPlanCount;
+
+                return offset + lessonIndex;
+            }
+
+            var revisionMatch = Regex.Match(
+                text,
+                @"\bREVISION\s*0*(\d+)\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (revisionMatch.Success)
+            {
+                if (!int.TryParse(revisionMatch.Groups[1].Value, out var revisionNumber) ||
+                    rule.RevisionNumber != revisionNumber)
+                {
+                    continue;
+                }
+
+                var lessonIndex = ExtractLessonIndex(text) ?? 1;
+                var offset = rule.IncludeStarterUnit ? configuration.StarterUnitLessonPlanCount : 0;
+                if (rule.UnitFrom.HasValue && rule.UnitTo.HasValue)
+                {
+                    offset += (rule.UnitTo.Value - rule.UnitFrom.Value + 1) *
+                              configuration.RegularUnitLessonPlanCount;
+                }
+
+                return offset + lessonIndex;
+            }
+        }
+
+        return null;
+    }
+
+    private static CurriculumImportModuleRule? ResolveRuleFromText(
         IReadOnlyCollection<CurriculumImportModuleRule> rules,
         string text)
     {
@@ -82,6 +162,18 @@ internal static class CurriculumImportRuleResolver
                 x.UnitTo.HasValue &&
                 x.UnitFrom.Value <= number &&
                 number <= x.UnitTo.Value);
+    }
+
+    private static int? ExtractLessonIndex(string text)
+    {
+        var match = Regex.Match(
+            text,
+            @"\bLESSON\s*0*(\d+)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return match.Success && int.TryParse(match.Groups[1].Value, out var lessonIndex)
+            ? lessonIndex
+            : null;
     }
 
     private static string Normalize(string value)

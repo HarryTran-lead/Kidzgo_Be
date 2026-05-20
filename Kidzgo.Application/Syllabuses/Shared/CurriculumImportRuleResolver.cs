@@ -62,6 +62,7 @@ internal static class CurriculumImportRuleResolver
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(static x => Normalize(x!))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(static x => ExtractLessonIndex(x).HasValue)
             .ToList();
 
         foreach (var text in lookupTexts)
@@ -75,7 +76,14 @@ internal static class CurriculumImportRuleResolver
                 var lessonIndex = ExtractLessonIndex(text) ?? 1;
                 if (unitMatch.Groups[1].Value.Equals("STARTER", StringComparison.OrdinalIgnoreCase))
                 {
-                    return rule.IncludeStarterUnit ? lessonIndex : null;
+                    if (!rule.IncludeStarterUnit ||
+                        lessonIndex < 1 ||
+                        lessonIndex > configuration.StarterUnitLessonPlanCount)
+                    {
+                        return null;
+                    }
+
+                    return lessonIndex;
                 }
 
                 if (!int.TryParse(unitMatch.Groups[1].Value, out var unitNumber) ||
@@ -85,6 +93,11 @@ internal static class CurriculumImportRuleResolver
                     unitNumber > rule.UnitTo.Value)
                 {
                     continue;
+                }
+
+                if (lessonIndex < 1 || lessonIndex > configuration.RegularUnitLessonPlanCount)
+                {
+                    return null;
                 }
 
                 var offset = rule.IncludeStarterUnit ? configuration.StarterUnitLessonPlanCount : 0;
@@ -106,6 +119,11 @@ internal static class CurriculumImportRuleResolver
                 }
 
                 var lessonIndex = ExtractLessonIndex(text) ?? 1;
+                if (lessonIndex < 1 || lessonIndex > configuration.RevisionLessonPlanCount)
+                {
+                    return null;
+                }
+
                 var offset = rule.IncludeStarterUnit ? configuration.StarterUnitLessonPlanCount : 0;
                 if (rule.UnitFrom.HasValue && rule.UnitTo.HasValue)
                 {

@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
@@ -60,6 +61,8 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         var lessonPlanEntries = docxEntries
             .Where(x => !IsSyllabusEntry(x.FullName))
             .ToList();
+
+        ApplyArchiveLessonPlanCounts(importConfiguration, lessonPlanEntries);
 
         Guid? syllabusId = null;
         var importedLessonPlans = 0;
@@ -135,9 +138,9 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             var sessionIndexOverride = ResolveSessionIndex(
                 importConfiguration,
                 module.Id,
-                Path.GetDirectoryName(entry.FullName),
                 Path.GetFileNameWithoutExtension(entry.FullName),
-                entry.FullName);
+                entry.FullName,
+                Path.GetDirectoryName(entry.FullName));
             if (!sessionIndexOverride.HasValue)
             {
                 skipped.Add($"{entry.FullName}: Could not resolve session index from import configuration");
@@ -249,5 +252,81 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         return rule is null
             ? null
             : CurriculumImportRuleResolver.ResolveSessionIndex(configuration, rule, hints);
+    }
+
+    private static void ApplyArchiveLessonPlanCounts(
+        Domain.LessonPlans.CurriculumImportConfiguration configuration,
+        IEnumerable<ZipArchiveEntry> lessonPlanEntries)
+    {
+        var starterLessonCount = 0;
+        var regularUnitLessonCount = 0;
+        var revisionLessonCount = 0;
+        var revisionFileCounts = new Dictionary<int, int>();
+
+        foreach (var entry in lessonPlanEntries)
+        {
+            var text = NormalizeArchivePath(entry.FullName);
+            var lessonIndex = ExtractLessonIndex(text) ?? 1;
+
+            if (Regex.IsMatch(text, @"\bUNIT\s*STARTER\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                starterLessonCount = Math.Max(starterLessonCount, lessonIndex);
+                continue;
+            }
+
+            if (Regex.IsMatch(text, @"\bUNIT\s*0*\d+\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                regularUnitLessonCount = Math.Max(regularUnitLessonCount, lessonIndex);
+                continue;
+            }
+
+            var revisionMatch = Regex.Match(
+                text,
+                @"\bREVISION\s*0*(\d+)\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (revisionMatch.Success && int.TryParse(revisionMatch.Groups[1].Value, out var revisionNumber))
+            {
+                revisionFileCounts[revisionNumber] = Math.Max(
+                    revisionFileCounts.GetValueOrDefault(revisionNumber),
+                    lessonIndex);
+            }
+        }
+
+        if (starterLessonCount > configuration.StarterUnitLessonPlanCount)
+        {
+            configuration.StarterUnitLessonPlanCount = starterLessonCount;
+        }
+
+        if (regularUnitLessonCount > configuration.RegularUnitLessonPlanCount)
+        {
+            configuration.RegularUnitLessonPlanCount = regularUnitLessonCount;
+        }
+
+        if (revisionFileCounts.Count > 0)
+        {
+            revisionLessonCount = revisionFileCounts.Values.Max();
+        }
+
+        if (revisionLessonCount > configuration.RevisionLessonPlanCount)
+        {
+            configuration.RevisionLessonPlanCount = revisionLessonCount;
+        }
+    }
+
+    private static int? ExtractLessonIndex(string text)
+    {
+        var match = Regex.Match(
+            text,
+            @"\bLESSON\s*0*(\d+)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return match.Success && int.TryParse(match.Groups[1].Value, out var lessonIndex)
+            ? lessonIndex
+            : null;
+    }
+
+    private static string NormalizeArchivePath(string value)
+    {
+        return Regex.Replace(value.Replace('\\', '/'), @"\s+", " ").Trim();
     }
 }

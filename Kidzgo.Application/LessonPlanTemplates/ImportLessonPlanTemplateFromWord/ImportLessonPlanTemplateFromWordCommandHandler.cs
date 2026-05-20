@@ -56,11 +56,11 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
                 LessonPlanTemplateErrors.DuplicateSessionIndex(command.ModuleId, sessionIndex));
         }
 
-        var linkedSessionTemplateId = await context.SessionTemplates
+        var linkedSessionTemplate = await context.SessionTemplates
             .Where(x => x.ModuleId == command.ModuleId && x.SessionIndexInModule == sessionIndex && x.IsActive)
             .OrderBy(x => x.OrderIndex)
-            .Select(x => (Guid?)x.Id)
             .FirstOrDefaultAsync(cancellationToken);
+        var linkedSessionTemplateId = linkedSessionTemplate?.Id;
 
         var now = VietnamTime.UtcNow();
         var created = template is null;
@@ -120,6 +120,12 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
 
         context.LessonPlanTemplateMaterials.AddRange(materials);
         context.HomeworkTemplates.AddRange(homeworks);
+
+        if (linkedSessionTemplate is not null)
+        {
+            linkedSessionTemplate.LessonPlanTemplateId = template.Id;
+            linkedSessionTemplate.UpdatedAt = now;
+        }
 
         await context.SaveChangesAsync(cancellationToken);
 

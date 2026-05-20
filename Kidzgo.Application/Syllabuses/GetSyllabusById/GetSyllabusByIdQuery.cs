@@ -37,6 +37,8 @@ public sealed class GetSyllabusByIdResponse
     public IReadOnlyList<SyllabusLessonDetailDto> Lessons { get; init; } = [];
     public IReadOnlyList<SyllabusResourceDetailDto> Resources { get; init; } = [];
     public IReadOnlyList<SyllabusSessionTemplateDetailDto> SessionTemplates { get; init; } = [];
+    public int ImportedLessonPlanTemplateCount { get; init; }
+    public IReadOnlyList<SyllabusModuleLessonPlanSummaryDto> LessonPlanTemplateSummaries { get; init; } = [];
 }
 
 public sealed class SyllabusUnitDetailDto
@@ -83,6 +85,8 @@ public sealed class SyllabusSessionTemplateDetailDto
     public Guid? ModuleId { get; init; }
     public string? ModuleName { get; init; }
     public Guid? LessonPlanTemplateId { get; init; }
+    public string? LessonPlanTemplateTitle { get; init; }
+    public string? LessonPlanTemplateSourceFileName { get; init; }
     public int SessionIndex { get; init; }
     public int? SessionIndexInModule { get; init; }
     public int? LessonNumber { get; init; }
@@ -92,4 +96,15 @@ public sealed class SyllabusSessionTemplateDetailDto
     public string? VocabularySummary { get; init; }
     public string? GrammarSummary { get; init; }
     public int OrderIndex { get; init; }
+}
+
+public sealed class SyllabusModuleLessonPlanSummaryDto
+{
+    public Guid ModuleId { get; init; }
+    public string ModuleCode { get; init; } = null!;
+    public string ModuleName { get; init; } = null!;
+    public int ModuleOrder { get; init; }
+    public int PlannedSessionCount { get; init; }
+    public int SyllabusSessionTemplateCount { get; init; }
+    public int ImportedLessonPlanTemplateCount { get; init; }
 }

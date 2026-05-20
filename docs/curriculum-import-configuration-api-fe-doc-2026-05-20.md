@@ -16,6 +16,7 @@ Tai lieu nay chi cover nhom API moi lien quan den:
 - `PUT /api/syllabuses/import-configuration`
 - luong goi `POST /api/syllabuses/import-archive` sau khi da cau hinh
 - luong goi `POST /api/syllabuses/import-lesson-plan-words` de import nhieu file Word lesson plan khong can zip
+- luong goi `GET /api/syllabuses/{syllabusId}/unit-lesson-plans` de xem lesson plan da import theo tung Unit/Revision
 
 ## 2. Auth And Response
 
@@ -479,7 +480,97 @@ curl -X POST \
   -F "files=@Unit 4 Food lesson 2 done.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ```
 
-## 10. FE Recommendations
+## 10. Get Imported Unit Lesson Plans
+
+### GET `/api/syllabuses/{syllabusId}/unit-lesson-plans`
+
+Dung de FE hien thi danh sach lesson plan Word da import, group san theo `Unit` hoac `Revision`.
+
+Path params:
+
+- `syllabusId: Guid`
+
+Response example:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "syllabusId": "78448399-1933-49f1-a3fd-492a922d674f",
+    "programId": "48eba459-7a08-4461-b1f9-acec097c6185",
+    "programName": "Kids English",
+    "levelId": "fab421d5-89e0-43e7-b058-ab37f9d48a87",
+    "levelName": "Starters",
+    "totalGroups": 19,
+    "totalLessonPlans": 50,
+    "groups": [
+      {
+        "groupKey": "unit-1",
+        "groupType": "Unit",
+        "unitNumber": 1,
+        "revisionNumber": null,
+        "displayName": "Unit 1",
+        "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
+        "moduleCode": "STATERS_STATE01",
+        "moduleName": "Stater01",
+        "moduleOrder": 1,
+        "lessonPlanCount": 3,
+        "lessonPlans": [
+          {
+            "lessonPlanTemplateId": "2aa7f41d-7ef0-4eb9-b655-90abec1f8d33",
+            "sessionTemplateId": "fbd0ff0d-8667-4e56-8bc4-a7b7c7d3d9cf",
+            "title": "UNIT 1: I LOVE ANIMALS - Lesson 1",
+            "lessonNumber": 1,
+            "sessionIndex": 3,
+            "sessionOrder": 3,
+            "sessionIndexInModule": 3,
+            "sessionTitle": "Unit 1 - Lesson 1",
+            "sessionTopic": "I love animals",
+            "sourceFileName": "Unit 1 I love animals lesson 1 done.docx",
+            "isActive": true,
+            "createdAt": "2026-05-20T02:30:00Z",
+            "updatedAt": "2026-05-20T02:30:00Z"
+          }
+        ]
+      },
+      {
+        "groupKey": "revision-1",
+        "groupType": "Revision",
+        "unitNumber": null,
+        "revisionNumber": 1,
+        "displayName": "Revision 1",
+        "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
+        "moduleCode": "STATERS_STATE01",
+        "moduleName": "Stater01",
+        "moduleOrder": 1,
+        "lessonPlanCount": 1,
+        "lessonPlans": []
+      }
+    ]
+  }
+}
+```
+
+Field meanings:
+
+- `groups`: danh sach `Unit Starter`, `Unit 1..n`, `Revision 1..n` da co lesson plan.
+- `lessonPlans`: cac file Word lesson plan trong group do, da sort theo `lessonNumber`.
+- `lessonNumber`: parse tu filename/title pattern `lesson 1`, `lesson 2`, `lesson 3`; co the `null` voi file revision khong co chu `lesson`.
+- `sessionIndex`: index tuyet doi trong module, dung de map voi schedule/session template.
+- `sessionIndexInModule`: index cua `SessionTemplate` trong module.
+- `totalLessonPlans`: tong so `LessonPlanTemplates` co link voi syllabus nay qua `SessionTemplateId`.
+
+Important behavior:
+
+- API nay chi lay lesson plan da link voi syllabus qua `SessionTemplateId`.
+- Sau khi import zip code moi, moi lesson plan import thanh cong se co `sessionTemplateId`.
+- Neu API tra it hon so file import, can import lai zip voi `overwriteExisting=true` sau khi restart API, vi data cu co the da bi overwrite ve 1 lesson/unit.
+
+Common errors:
+
+- `Syllabus.NotFound`
+
+## 11. FE Recommendations
 
 - FE nen co man hinh config rieng cho `Program + Level`.
 - FE nen disable nut import zip neu config chua duoc luu.

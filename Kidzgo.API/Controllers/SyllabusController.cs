@@ -4,6 +4,7 @@ using Kidzgo.Application.Syllabuses.CreateSyllabus;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
 using Kidzgo.Application.Syllabuses.GetSyllabuses;
+using Kidzgo.Application.Syllabuses.GetSyllabusUnitLessonPlans;
 using Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
 using Kidzgo.Application.Syllabuses.ImportLessonPlanWords;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
@@ -98,6 +99,19 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetSyllabusByIdQuery { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// View imported lesson plan Word files grouped by Unit or Revision for a syllabus.
+    /// </summary>
+    [HttpGet("{id:guid}/unit-lesson-plans")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetUnitLessonPlans(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSyllabusUnitLessonPlansQuery { SyllabusId = id }, cancellationToken);
         return result.MatchOk();
     }
 

@@ -5,6 +5,7 @@ using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplateById;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplates;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplates;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
+using Kidzgo.Application.LessonPlanTemplates.MoveLessonPlanTemplateUnit;
 using Kidzgo.Application.LessonPlanTemplates.UpdateLessonPlanTemplate;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -188,6 +189,23 @@ public class LessonPlanTemplateController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpPatch("{id:guid}/unit")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> MoveLessonPlanTemplateUnit(
+        Guid id,
+        [FromBody] MoveLessonPlanTemplateUnitRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new MoveLessonPlanTemplateUnitCommand
+        {
+            Id = id,
+            LessonPlanUnitId = request.LessonPlanUnitId,
+            OrderIndexInUnit = request.OrderIndexInUnit
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 }

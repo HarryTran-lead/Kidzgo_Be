@@ -14,6 +14,9 @@ public sealed class LessonPlanTemplateDto
     public Guid ModuleId { get; init; }
     public string ModuleCode { get; init; } = null!;
     public string ModuleName { get; init; } = null!;
+    public Guid? LessonPlanUnitId { get; init; }
+    public string? LessonPlanUnitName { get; init; }
+    public int OrderIndexInUnit { get; init; }
     public Guid LevelId { get; init; }
     public string LevelName { get; init; } = null!;
     public Guid ProgramId { get; init; }

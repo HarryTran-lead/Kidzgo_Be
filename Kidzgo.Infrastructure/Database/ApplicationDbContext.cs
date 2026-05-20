@@ -102,6 +102,7 @@ public sealed class ApplicationDbContext(
     public DbSet<HomeworkQuestion> HomeworkQuestions => Set<HomeworkQuestion>();
     public DbSet<QuestionBankItem> QuestionBankItems => Set<QuestionBankItem>();
     public DbSet<LessonPlan> LessonPlans => Set<LessonPlan>();
+    public DbSet<LessonPlanUnit> LessonPlanUnits => Set<LessonPlanUnit>();
     public DbSet<LessonPlanTemplate> LessonPlanTemplates => Set<LessonPlanTemplate>();
     public DbSet<LessonPlanTemplateActivity> LessonPlanTemplateActivities => Set<LessonPlanTemplateActivity>();
     public DbSet<LessonPlanTemplateMaterial> LessonPlanTemplateMaterials => Set<LessonPlanTemplateMaterial>();

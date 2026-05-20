@@ -18,6 +18,7 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
             .Include(t => t.Module)
                 .ThenInclude(t => t.Level)
                     .ThenInclude(t => t.Program)
+            .Include(t => t.LessonPlanUnit)
             .Include(t => t.CreatedByUser)
             .FirstOrDefaultAsync(t => t.Id == query.Id && !t.IsDeleted, cancellationToken);
 
@@ -36,6 +37,9 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
             ModuleId = template.ModuleId,
             ModuleCode = template.Module.Code,
             ModuleName = template.Module.Name,
+            LessonPlanUnitId = template.LessonPlanUnitId,
+            LessonPlanUnitName = template.LessonPlanUnit?.Name,
+            OrderIndexInUnit = template.OrderIndexInUnit,
             LevelId = template.Module.LevelId,
             LevelName = template.Module.Level.Name,
             ProgramId = template.Module.Level.ProgramId,

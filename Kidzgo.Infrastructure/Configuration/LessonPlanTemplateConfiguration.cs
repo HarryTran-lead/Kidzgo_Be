@@ -16,6 +16,8 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
         builder.Property(x => x.ModuleId)
             .IsRequired();
 
+        builder.Property(x => x.LessonPlanUnitId);
+
         builder.Property(x => x.SessionTemplateId);
 
         builder.Property(x => x.Title)
@@ -27,6 +29,10 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
 
         builder.Property(x => x.SessionOrder)
             .IsRequired();
+
+        builder.Property(x => x.OrderIndexInUnit)
+            .IsRequired()
+            .HasDefaultValue(0);
 
         builder.Property(x => x.SyllabusMetadata);
 
@@ -84,6 +90,11 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
             .HasForeignKey(x => x.ModuleId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.LessonPlanUnit)
+            .WithMany(x => x.LessonPlanTemplates)
+            .HasForeignKey(x => x.LessonPlanUnitId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne(x => x.SessionTemplate)
             .WithOne(x => x.LessonPlanTemplate)
             .HasForeignKey<LessonPlanTemplate>(x => x.SessionTemplateId)
@@ -106,6 +117,10 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
 
         builder.HasIndex(x => new { x.ModuleId, x.SessionIndex })
             .IsUnique();
+
+        builder.HasIndex(x => x.LessonPlanUnitId);
+
+        builder.HasIndex(x => new { x.LessonPlanUnitId, x.OrderIndexInUnit });
 
         builder.HasIndex(x => x.SessionTemplateId)
             .IsUnique()

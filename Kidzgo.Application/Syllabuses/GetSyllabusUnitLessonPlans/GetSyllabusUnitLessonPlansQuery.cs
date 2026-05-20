@@ -14,29 +14,38 @@ public sealed class GetSyllabusUnitLessonPlansResponse
     public string ProgramName { get; init; } = null!;
     public Guid LevelId { get; init; }
     public string LevelName { get; init; } = null!;
+    public int TotalModules { get; init; }
+    public int TotalUnits { get; init; }
     public int TotalGroups { get; init; }
     public int TotalLessonPlans { get; init; }
-    public IReadOnlyList<SyllabusUnitLessonPlanGroupDto> Groups { get; init; } = [];
+    public IReadOnlyList<SyllabusModuleUnitLessonPlanGroupDto> Groups { get; init; } = [];
+    public IReadOnlyList<SyllabusUnitLessonPlanDto> OrphanLessons { get; init; } = [];
 }
 
-public sealed class SyllabusUnitLessonPlanGroupDto
+public sealed class SyllabusModuleUnitLessonPlanGroupDto
 {
-    public string GroupKey { get; init; } = null!;
-    public string GroupType { get; init; } = null!;
-    public int? UnitNumber { get; init; }
-    public int? RevisionNumber { get; init; }
-    public string DisplayName { get; init; } = null!;
     public Guid ModuleId { get; init; }
     public string ModuleCode { get; init; } = null!;
     public string ModuleName { get; init; } = null!;
     public int ModuleOrder { get; init; }
+    public int UnitCount { get; init; }
     public int LessonPlanCount { get; init; }
-    public IReadOnlyList<SyllabusUnitLessonPlanDto> LessonPlans { get; init; } = [];
+    public IReadOnlyList<SyllabusLessonPlanUnitDto> Units { get; init; } = [];
+}
+
+public sealed class SyllabusLessonPlanUnitDto
+{
+    public Guid UnitId { get; init; }
+    public string UnitName { get; init; } = null!;
+    public int OrderIndex { get; init; }
+    public int LessonPlanCount { get; init; }
+    public IReadOnlyList<SyllabusUnitLessonPlanDto> Lessons { get; init; } = [];
 }
 
 public sealed class SyllabusUnitLessonPlanDto
 {
     public Guid LessonPlanTemplateId { get; init; }
+    public Guid? LessonPlanUnitId { get; init; }
     public Guid? SessionTemplateId { get; init; }
     public string? Title { get; init; }
     public int? LessonNumber { get; init; }
@@ -46,6 +55,7 @@ public sealed class SyllabusUnitLessonPlanDto
     public string? SessionTitle { get; init; }
     public string? SessionTopic { get; init; }
     public string? SourceFileName { get; init; }
+    public int OrderIndexInUnit { get; init; }
     public bool IsActive { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }

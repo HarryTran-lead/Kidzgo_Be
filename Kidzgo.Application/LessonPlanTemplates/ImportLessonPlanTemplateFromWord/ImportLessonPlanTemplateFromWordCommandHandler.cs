@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
@@ -63,6 +64,21 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         var linkedSessionTemplateId = linkedSessionTemplate?.Id;
 
         var now = VietnamTime.UtcNow();
+        var unitName = LessonPlanUnitNameNormalizer.ExtractUnitName(
+            parsed.Value.Title,
+            parsed.Value.UnitTitle,
+            command.FileName);
+        LessonPlanUnit? lessonPlanUnit = null;
+        if (!string.IsNullOrWhiteSpace(unitName))
+        {
+            lessonPlanUnit = await LessonPlanUnitResolver.FindOrCreateAsync(
+                context,
+                command.ModuleId,
+                unitName,
+                now,
+                cancellationToken);
+        }
+
         var created = template is null;
         if (template is null)
         {
@@ -91,9 +107,24 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
 
         template.SessionTemplateId = linkedSessionTemplateId;
+        template.LessonPlanUnitId = lessonPlanUnit?.Id;
         template.Title = parsed.Value.Title;
         template.SessionIndex = sessionIndex;
         template.SessionOrder = sessionIndex;
+        if (lessonPlanUnit is null)
+        {
+            template.OrderIndexInUnit = 0;
+        }
+        else
+        {
+            var lessonNumber = LessonPlanUnitNameNormalizer.ExtractLessonNumber(
+                parsed.Value.Title,
+                command.FileName,
+                parsed.Value.UnitTitle) ?? parsed.Value.LessonNumber;
+            template.OrderIndexInUnit = lessonNumber.HasValue
+                ? Math.Max(lessonNumber.Value - 1, 0)
+                : await LessonPlanUnitResolver.GetNextOrderInUnitAsync(context, lessonPlanUnit.Id, cancellationToken);
+        }
         template.SyllabusMetadata = parsed.Value.UnitTitle;
         template.SyllabusContent = parsed.Value.RawText;
         template.Objectives = parsed.Value.Objectives;

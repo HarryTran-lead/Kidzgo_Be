@@ -1,6 +1,7 @@
 using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.LessonPlanTemplates.CreateLessonPlanTemplate;
+using Kidzgo.Application.LessonPlanTemplates.DeleteLessonPlanTemplate;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplateById;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplates;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplates;
@@ -34,6 +35,8 @@ public class LessonPlanTemplateController : ControllerBase
         var command = new CreateLessonPlanTemplateCommand
         {
             ModuleId = request.ModuleId,
+            LessonPlanUnitId = request.LessonPlanUnitId,
+            OrderIndexInUnit = request.OrderIndexInUnit,
             Title = request.Title,
             SessionIndex = request.SessionIndex,
             SessionOrder = request.SessionOrder,
@@ -138,6 +141,8 @@ public class LessonPlanTemplateController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> ImportLessonPlanTemplateFromWord(
         [FromQuery] Guid moduleId,
+        [FromQuery] Guid? lessonPlanUnitId,
+        [FromQuery] int? sessionIndexOverride,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)
@@ -150,6 +155,8 @@ public class LessonPlanTemplateController : ControllerBase
         var result = await _mediator.Send(new ImportLessonPlanTemplateFromWordCommand
         {
             ModuleId = moduleId,
+            LessonPlanUnitId = lessonPlanUnitId,
+            SessionIndexOverride = sessionIndexOverride,
             OverwriteExisting = overwriteExisting,
             FileName = file.FileName,
             FileStream = file.OpenReadStream()
@@ -169,6 +176,8 @@ public class LessonPlanTemplateController : ControllerBase
         {
             Id = id,
             ModuleId = request.ModuleId,
+            LessonPlanUnitId = request.LessonPlanUnitId,
+            OrderIndexInUnit = request.OrderIndexInUnit,
             Title = request.Title,
             SessionIndex = request.SessionIndex,
             SessionOrder = request.SessionOrder,
@@ -189,6 +198,16 @@ public class LessonPlanTemplateController : ControllerBase
         };
 
         var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> DeleteLessonPlanTemplate(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DeleteLessonPlanTemplateCommand { Id = id }, cancellationToken);
         return result.MatchOk();
     }
 

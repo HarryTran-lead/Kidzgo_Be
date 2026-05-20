@@ -3,6 +3,7 @@ using Kidzgo.API.Requests;
 using Kidzgo.Application.AcademicProgression.Levels.CreateLevel;
 using Kidzgo.Application.AcademicProgression.Levels.GetLevels;
 using Kidzgo.Application.AcademicProgression.Levels.UpdateLevel;
+using Kidzgo.Application.LessonPlanTemplates.ReorderLessonPlanTemplateSessionOrders;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -65,6 +66,27 @@ public class LevelController : ControllerBase
             Order = request.Order,
             Description = request.Description,
             IsActive = request.IsActive
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPatch("{id:guid}/lesson-plan-templates/session-orders")]
+    public async Task<IResult> ReorderLessonPlanTemplateSessionOrders(
+        Guid id,
+        [FromBody] IReadOnlyList<ReorderLessonPlanTemplateSessionOrderRequest> request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new ReorderLessonPlanTemplateSessionOrdersCommand
+        {
+            LevelId = id,
+            Items = request
+                .Select(x => new ReorderLessonPlanTemplateSessionOrderItem
+                {
+                    Id = x.Id,
+                    SessionOrder = x.SessionOrder
+                })
+                .ToList()
         }, cancellationToken);
 
         return result.MatchOk();

@@ -5,6 +5,8 @@ namespace Kidzgo.Application.LessonPlanTemplates.CreateLessonPlanTemplate;
 public sealed class CreateLessonPlanTemplateCommand : ICommand<CreateLessonPlanTemplateResponse>
 {
     public Guid ModuleId { get; init; }
+    public Guid? LessonPlanUnitId { get; init; }
+    public int? OrderIndexInUnit { get; init; }
     public string? Title { get; init; }
     public int SessionIndex { get; init; }
     public int? SessionOrder { get; init; }

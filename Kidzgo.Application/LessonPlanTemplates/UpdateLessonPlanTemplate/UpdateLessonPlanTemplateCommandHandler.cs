@@ -67,6 +67,41 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
                 LessonPlanTemplateErrors.DuplicateSessionIndex(targetModuleId, targetSessionIndex));
         }
 
+        var shouldClearUnitForModuleMove = command.ModuleId.HasValue && !command.LessonPlanUnitId.HasValue;
+        if (command.LessonPlanUnitId.HasValue)
+        {
+            var unit = await context.LessonPlanUnits
+                .FirstOrDefaultAsync(
+                    x => x.Id == command.LessonPlanUnitId.Value && x.IsActive,
+                    cancellationToken);
+
+            if (unit is null)
+            {
+                return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                    LessonPlanUnitErrors.NotFound(command.LessonPlanUnitId.Value));
+            }
+
+            if (unit.ModuleId != targetModuleId)
+            {
+                return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                    LessonPlanUnitErrors.LessonMustStayInSameModule);
+            }
+
+            template.LessonPlanUnitId = unit.Id;
+            template.OrderIndexInUnit = command.OrderIndexInUnit.HasValue
+                ? Math.Max(command.OrderIndexInUnit.Value, 0)
+                : template.OrderIndexInUnit;
+        }
+        else if (shouldClearUnitForModuleMove)
+        {
+            template.LessonPlanUnitId = null;
+            template.OrderIndexInUnit = 0;
+        }
+        else if (command.OrderIndexInUnit.HasValue && template.LessonPlanUnitId.HasValue)
+        {
+            template.OrderIndexInUnit = Math.Max(command.OrderIndexInUnit.Value, 0);
+        }
+
         if (command.ModuleId.HasValue)
         {
             template.ModuleId = command.ModuleId.Value;
@@ -165,6 +200,8 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         {
             Id = template.Id,
             ModuleId = template.ModuleId,
+            LessonPlanUnitId = template.LessonPlanUnitId,
+            OrderIndexInUnit = template.OrderIndexInUnit,
             Title = template.Title,
             SessionIndex = template.SessionIndex,
             SessionOrder = template.SessionOrder,

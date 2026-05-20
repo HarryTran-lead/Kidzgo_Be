@@ -6,6 +6,8 @@ public sealed class UpdateLessonPlanTemplateCommand : ICommand<UpdateLessonPlanT
 {
     public Guid Id { get; init; }
     public Guid? ModuleId { get; init; }
+    public Guid? LessonPlanUnitId { get; init; }
+    public int? OrderIndexInUnit { get; init; }
     public string? Title { get; init; }
     public int? SessionIndex { get; init; }
     public int? SessionOrder { get; init; }

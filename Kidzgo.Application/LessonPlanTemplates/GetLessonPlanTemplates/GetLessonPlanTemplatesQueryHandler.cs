@@ -47,6 +47,7 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
         var templates = await templateQuery
             .OrderBy(t => t.Module.Level.Order)
             .ThenBy(t => t.Module.Order)
+            .ThenBy(t => t.SessionOrder)
             .ThenBy(t => t.SessionIndex)
             .ApplyPagination(query.PageNumber, query.PageSize)
             .Select(t => new LessonPlanTemplateDto

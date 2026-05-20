@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
@@ -51,11 +52,40 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
 
         var currentUserId = userContext.UserId;
         var now = VietnamTime.UtcNow();
+        LessonPlanUnit? lessonPlanUnit = null;
+        if (command.LessonPlanUnitId.HasValue)
+        {
+            lessonPlanUnit = await context.LessonPlanUnits
+                .FirstOrDefaultAsync(
+                    x => x.Id == command.LessonPlanUnitId.Value && x.IsActive,
+                    cancellationToken);
+
+            if (lessonPlanUnit is null)
+            {
+                return Result.Failure<CreateLessonPlanTemplateResponse>(
+                    LessonPlanUnitErrors.NotFound(command.LessonPlanUnitId.Value));
+            }
+
+            if (lessonPlanUnit.ModuleId != command.ModuleId)
+            {
+                return Result.Failure<CreateLessonPlanTemplateResponse>(
+                    LessonPlanUnitErrors.LessonMustStayInSameModule);
+            }
+        }
 
         var template = new LessonPlanTemplate
         {
             Id = Guid.NewGuid(),
             ModuleId = command.ModuleId,
+            LessonPlanUnitId = lessonPlanUnit?.Id,
+            OrderIndexInUnit = lessonPlanUnit is null
+                ? 0
+                : command.OrderIndexInUnit.HasValue
+                    ? Math.Max(command.OrderIndexInUnit.Value, 0)
+                    : await LessonPlanUnitResolver.GetNextOrderInUnitAsync(
+                        context,
+                        lessonPlanUnit.Id,
+                        cancellationToken),
             Title = command.Title,
             SessionIndex = command.SessionIndex,
             SessionOrder = command.SessionOrder ?? command.SessionIndex,
@@ -86,6 +116,8 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         {
             Id = template.Id,
             ModuleId = template.ModuleId,
+            LessonPlanUnitId = template.LessonPlanUnitId,
+            OrderIndexInUnit = template.OrderIndexInUnit,
             Title = template.Title,
             SessionIndex = template.SessionIndex,
             SessionOrder = template.SessionOrder,

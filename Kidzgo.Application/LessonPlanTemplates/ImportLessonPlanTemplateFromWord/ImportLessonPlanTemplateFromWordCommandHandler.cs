@@ -19,15 +19,43 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         ImportLessonPlanTemplateFromWordCommand command,
         CancellationToken cancellationToken)
     {
+        LessonPlanUnit? requestedUnit = null;
+        if (command.LessonPlanUnitId.HasValue)
+        {
+            requestedUnit = await context.LessonPlanUnits
+                .FirstOrDefaultAsync(
+                    x => x.Id == command.LessonPlanUnitId.Value && x.IsActive,
+                    cancellationToken);
+
+            if (requestedUnit is null)
+            {
+                return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
+                    LessonPlanUnitErrors.NotFound(command.LessonPlanUnitId.Value));
+            }
+
+            if (command.ModuleId.HasValue && requestedUnit.ModuleId != command.ModuleId.Value)
+            {
+                return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
+                    LessonPlanUnitErrors.LessonMustStayInSameModule);
+            }
+        }
+
+        var moduleId = command.ModuleId ?? requestedUnit?.ModuleId;
+        if (!moduleId.HasValue)
+        {
+            return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
+                LessonPlanTemplateErrors.ModuleNotFound(command.ModuleId));
+        }
+
         var module = await context.Modules
-            .Where(x => x.Id == command.ModuleId && x.IsActive)
+            .Where(x => x.Id == moduleId.Value && x.IsActive)
             .Select(x => new { x.Id, x.Name, x.LevelId, x.PlannedSessionCount })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (module is null)
         {
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
-                LessonPlanTemplateErrors.ModuleNotFound(command.ModuleId));
+                LessonPlanTemplateErrors.ModuleNotFound(moduleId));
         }
 
         var parsed = CurriculumWordImportParser.ParseLessonPlanDocx(command.FileStream, command.FileName);
@@ -38,7 +66,9 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
 
         var sessionIndex = command.SessionIndexOverride.GetValueOrDefault() > 0
             ? command.SessionIndexOverride!.Value
-            : ResolveSessionIndex(parsed.Value, command.FileName, module.Name, module.PlannedSessionCount);
+            : requestedUnit is not null
+                ? await ResolveNextSessionIndexInModuleAsync(module.Id, module.PlannedSessionCount, cancellationToken)
+                : ResolveSessionIndex(parsed.Value, command.FileName, module.Name, module.PlannedSessionCount);
         if (sessionIndex <= 0 || sessionIndex > module.PlannedSessionCount)
         {
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
@@ -47,36 +77,39 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
 
         var template = await context.LessonPlanTemplates
             .FirstOrDefaultAsync(
-                x => x.ModuleId == command.ModuleId &&
+                x => x.ModuleId == module.Id &&
                      x.SessionIndex == sessionIndex,
                 cancellationToken);
 
         if (template is not null && !command.OverwriteExisting)
         {
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
-                LessonPlanTemplateErrors.DuplicateSessionIndex(command.ModuleId, sessionIndex));
+                LessonPlanTemplateErrors.DuplicateSessionIndex(module.Id, sessionIndex));
         }
 
         var linkedSessionTemplate = await context.SessionTemplates
-            .Where(x => x.ModuleId == command.ModuleId && x.SessionIndexInModule == sessionIndex && x.IsActive)
+            .Where(x => x.ModuleId == module.Id && x.SessionIndexInModule == sessionIndex && x.IsActive)
             .OrderBy(x => x.OrderIndex)
             .FirstOrDefaultAsync(cancellationToken);
         var linkedSessionTemplateId = linkedSessionTemplate?.Id;
 
         var now = VietnamTime.UtcNow();
-        var unitName = LessonPlanUnitNameNormalizer.ExtractUnitName(
-            parsed.Value.Title,
-            parsed.Value.UnitTitle,
-            command.FileName);
-        LessonPlanUnit? lessonPlanUnit = null;
-        if (!string.IsNullOrWhiteSpace(unitName))
+        var lessonPlanUnit = requestedUnit;
+        if (lessonPlanUnit is null)
         {
-            lessonPlanUnit = await LessonPlanUnitResolver.FindOrCreateAsync(
-                context,
-                command.ModuleId,
-                unitName,
-                now,
-                cancellationToken);
+            var unitName = LessonPlanUnitNameNormalizer.ExtractUnitName(
+                parsed.Value.Title,
+                parsed.Value.UnitTitle,
+                command.FileName);
+            if (!string.IsNullOrWhiteSpace(unitName))
+            {
+                lessonPlanUnit = await LessonPlanUnitResolver.FindOrCreateAsync(
+                    context,
+                    module.Id,
+                    unitName,
+                    now,
+                    cancellationToken);
+            }
         }
 
         var created = template is null;
@@ -85,7 +118,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             template = new LessonPlanTemplate
             {
                 Id = Guid.NewGuid(),
-                ModuleId = command.ModuleId,
+                ModuleId = module.Id,
                 CreatedBy = userContext.UserId,
                 CreatedAt = now
             };
@@ -163,11 +196,36 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         return new ImportLessonPlanTemplateFromWordResponse
         {
             LessonPlanTemplateId = template.Id,
+            LessonPlanUnitId = template.LessonPlanUnitId,
             SessionTemplateId = linkedSessionTemplateId,
             SessionIndex = template.SessionIndex,
+            SessionOrder = template.SessionOrder,
+            OrderIndexInUnit = template.OrderIndexInUnit,
             Created = created,
             Title = template.Title
         };
+    }
+
+    private async Task<int> ResolveNextSessionIndexInModuleAsync(
+        Guid moduleId,
+        int plannedSessionCount,
+        CancellationToken cancellationToken)
+    {
+        var usedSessionIndexes = await context.LessonPlanTemplates
+            .AsNoTracking()
+            .Where(x => x.ModuleId == moduleId && !x.IsDeleted)
+            .Select(x => x.SessionIndex)
+            .ToListAsync(cancellationToken);
+
+        for (var index = 1; index <= plannedSessionCount; index++)
+        {
+            if (!usedSessionIndexes.Contains(index))
+            {
+                return index;
+            }
+        }
+
+        return plannedSessionCount + 1;
     }
 
     private static int ResolveSessionIndex(

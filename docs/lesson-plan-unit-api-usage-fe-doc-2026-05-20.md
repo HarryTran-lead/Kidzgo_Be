@@ -549,3 +549,773 @@ Neu FE thay `orphanLessons` co data:
 - Do lesson chua match duoc unit.
 - Cho admin chon unit va goi `PATCH /api/lesson-plan-templates/{id}/unit`.
 
+---
+
+## 14. CRUD LessonPlan Va LessonPlanTemplate
+
+Section nay bo sung cac API trong Swagger group `LessonPlan` va `LessonPlanTemplate`.
+
+Role:
+
+- `LessonPlan`: `Teacher`, `ManagementStaff`, `Admin`
+- `LessonPlanTemplate`: `ManagementStaff`, `Admin`
+
+Tat ca request can header:
+
+```http
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+### 14.1 `POST /api/lesson-plans`
+
+Tao lesson plan thuc te cho 1 buoi hoc cua lop.
+
+```http
+POST /api/lesson-plans
+```
+
+Request:
+
+```json
+{
+  "classId": "uuid-class",
+  "sessionId": "uuid-session",
+  "templateId": "uuid-template-or-null",
+  "plannedContent": "Noi dung du kien",
+  "actualContent": "Noi dung da day",
+  "actualHomework": "Bai tap ve nha",
+  "teacherNotes": "Ghi chu giao vien",
+  "completionPercent": 80,
+  "carryForwardContent": "Noi dung can chuyen sang buoi sau"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-lesson-plan",
+    "classId": "uuid-class",
+    "sessionId": "uuid-session",
+    "templateId": "uuid-template",
+    "plannedContent": "Noi dung du kien",
+    "actualContent": "Noi dung da day",
+    "actualHomework": "Bai tap ve nha",
+    "teacherNotes": "Ghi chu giao vien",
+    "completionPercent": 80,
+    "carryForwardContent": "Noi dung can chuyen sang buoi sau",
+    "submittedBy": "uuid-user",
+    "submittedAt": "2026-05-21T10:00:00Z",
+    "createdAt": "2026-05-21T10:00:00Z"
+  }
+}
+```
+
+Luu y:
+
+- `templateId` co the null neu buoi hoc chua gan template.
+- `completionPercent` duoc BE clamp trong khoang `0..100`.
+
+### 14.2 `GET /api/lesson-plans/{id}`
+
+Lay chi tiet lesson plan.
+
+```http
+GET /api/lesson-plans/uuid-lesson-plan
+```
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-lesson-plan",
+    "classId": "uuid-class",
+    "classCode": "S1",
+    "sessionId": "uuid-session",
+    "sessionTitle": "Buoi 1",
+    "sessionDate": "2026-05-21T00:00:00Z",
+    "templateId": "uuid-template",
+    "templateLevel": "Starters",
+    "templateSessionIndex": 1,
+    "plannedContent": "Noi dung du kien",
+    "actualContent": "Noi dung da day",
+    "actualHomework": "Bai tap ve nha",
+    "teacherNotes": "Ghi chu giao vien",
+    "completionPercent": 80,
+    "carryForwardContent": "Noi dung can chuyen sang buoi sau",
+    "submittedBy": "uuid-user",
+    "submittedByName": "Teacher Name",
+    "submittedAt": "2026-05-21T10:00:00Z",
+    "createdAt": "2026-05-21T10:00:00Z"
+  }
+}
+```
+
+### 14.3 `PUT /api/lesson-plans/{id}`
+
+Cap nhat lesson plan. BE chi update field nao FE gui khac `null`.
+
+```http
+PUT /api/lesson-plans/uuid-lesson-plan
+```
+
+Request:
+
+```json
+{
+  "templateId": "uuid-template",
+  "plannedContent": "Noi dung du kien moi",
+  "actualContent": "Noi dung da day moi",
+  "actualHomework": "Bai tap moi",
+  "teacherNotes": "Ghi chu moi",
+  "completionPercent": 100,
+  "carryForwardContent": ""
+}
+```
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-lesson-plan",
+    "sessionId": "uuid-session",
+    "templateId": "uuid-template",
+    "plannedContent": "Noi dung du kien moi",
+    "actualContent": "Noi dung da day moi",
+    "actualHomework": "Bai tap moi",
+    "teacherNotes": "Ghi chu moi",
+    "completionPercent": 100,
+    "carryForwardContent": ""
+  }
+}
+```
+
+Luu y:
+
+- Muon clear text field thi gui chuoi rong `""`.
+- Gui `null` se khong doi gia tri hien tai.
+
+### 14.4 `GET /api/lesson-plans/classes/{classId}/syllabus`
+
+API nay dung cho man hinh lesson plan theo lop: FE lay danh sach sessions, template dang gan, noi dung lesson plan va quyen edit.
+
+```http
+GET /api/lesson-plans/classes/uuid-class/syllabus
+```
+
+Response rut gon:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "classId": "uuid-class",
+    "classCode": "S1",
+    "classTitle": "Starters 1",
+    "programId": "uuid-program",
+    "programName": "Kids English",
+    "syllabusMetadata": "Starters syllabus metadata",
+    "sessions": [
+      {
+        "sessionId": "uuid-session",
+        "sessionIndex": 1,
+        "moduleId": "uuid-module",
+        "sessionIndexInModule": 1,
+        "sessionDate": "2026-05-21T00:00:00Z",
+        "plannedTeacherId": "uuid-teacher",
+        "plannedTeacherName": "Teacher Name",
+        "actualTeacherId": null,
+        "actualTeacherName": null,
+        "lessonPlanId": "uuid-lesson-plan",
+        "templateId": "uuid-template",
+        "templateTitle": "UNIT STARTER: HELLO! - Lesson 1",
+        "templateSyllabusContent": "Template content",
+        "plannedContent": "Noi dung du kien",
+        "actualContent": "Noi dung da day",
+        "actualHomework": "Bai tap",
+        "teacherNotes": "Ghi chu",
+        "canEdit": true
+      }
+    ]
+  }
+}
+```
+
+FE nen dung `canEdit` de bat/tat nut sua lesson plan theo tung session.
+
+---
+
+## 15. CRUD LessonPlanTemplate
+
+`LessonPlanTemplate` la template giao an theo module/unit/session. Import zip/import word se tao cac template nay.
+
+### 15.1 `POST /api/lesson-plan-templates`
+
+Tao template thu cong.
+
+```http
+POST /api/lesson-plan-templates
+```
+
+Request:
+
+```json
+{
+  "moduleId": "uuid-module",
+  "title": "UNIT 1: I LOVE ANIMALS - Lesson 1",
+  "sessionIndex": 1,
+  "sessionOrder": 1,
+  "syllabusMetadata": "UNIT 1: I LOVE ANIMALS",
+  "syllabusContent": "Noi dung giao an",
+  "objectives": "Muc tieu",
+  "languageContent": "Language content",
+  "vocabulary": "cat, dog",
+  "grammar": "This is...",
+  "teachingMethodology": "PPP",
+  "teacherMaterials": "Teacher book",
+  "studentMaterials": "Student book",
+  "procedure": "Warm-up, practice, production",
+  "evaluation": "Observation",
+  "sourceFileName": "Unit 1 lesson 1.docx",
+  "attachment": "https://cdn.example.com/file.docx"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-template",
+    "moduleId": "uuid-module",
+    "title": "UNIT 1: I LOVE ANIMALS - Lesson 1",
+    "sessionIndex": 1,
+    "sessionOrder": 1,
+    "syllabusMetadata": "UNIT 1: I LOVE ANIMALS",
+    "syllabusContent": "Noi dung giao an",
+    "objectives": "Muc tieu",
+    "languageContent": "Language content",
+    "vocabulary": "cat, dog",
+    "grammar": "This is...",
+    "teachingMethodology": "PPP",
+    "teacherMaterials": "Teacher book",
+    "studentMaterials": "Student book",
+    "procedure": "Warm-up, practice, production",
+    "evaluation": "Observation",
+    "sourceFileName": "Unit 1 lesson 1.docx",
+    "attachment": "https://cdn.example.com/file.docx",
+    "isActive": true,
+    "createdAt": "2026-05-21T10:00:00Z",
+    "updatedAt": "2026-05-21T10:00:00Z"
+  }
+}
+```
+
+Luu y:
+
+- API tao thu cong hien chua nhan `lessonPlanUnitId`.
+- Sau khi tao, neu can gan unit thi goi `PATCH /api/lesson-plan-templates/{id}/unit`.
+
+### 15.2 `GET /api/lesson-plan-templates`
+
+Lay danh sach template co phan trang.
+
+```http
+GET /api/lesson-plan-templates?moduleId=uuid-module&isActive=true&pageNumber=1&pageSize=20
+```
+
+Query:
+
+| Param | Bat buoc | Mo ta |
+|---|---:|---|
+| `moduleId` | No | Loc theo module |
+| `title` | No | Tim theo title |
+| `isActive` | No | Loc active/inactive |
+| `includeDeleted` | No | Mac dinh `false` |
+| `pageNumber` | No | Mac dinh `1` |
+| `pageSize` | No | Mac dinh `10` |
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "templates": {
+      "items": [
+        {
+          "id": "uuid-template",
+          "moduleId": "uuid-module",
+          "moduleName": "Stater01",
+          "levelId": "uuid-level",
+          "levelName": "Starters",
+          "programId": "uuid-program",
+          "programName": "Kids English",
+          "lessonPlanUnitId": "uuid-unit",
+          "lessonPlanUnitName": "UNIT 1: I LOVE ANIMALS",
+          "orderIndexInUnit": 0,
+          "title": "UNIT 1: I LOVE ANIMALS - Lesson 1",
+          "sessionIndex": 1,
+          "sessionOrder": 1,
+          "syllabusMetadata": "UNIT 1: I LOVE ANIMALS",
+          "syllabusContent": "Noi dung giao an",
+          "objectives": "Muc tieu",
+          "languageContent": "Language content",
+          "vocabulary": "cat, dog",
+          "grammar": "This is...",
+          "teachingMethodology": "PPP",
+          "teacherMaterials": "Teacher book",
+          "studentMaterials": "Student book",
+          "procedure": "Warm-up, practice, production",
+          "evaluation": "Observation",
+          "sourceFileName": "Unit 1 lesson 1.docx",
+          "attachment": "https://cdn.example.com/file.docx",
+          "isActive": true,
+          "createdBy": "uuid-user",
+          "createdByName": "Admin",
+          "createdAt": "2026-05-21T10:00:00Z",
+          "updatedAt": "2026-05-21T10:00:00Z",
+          "usedCount": 0
+        }
+      ],
+      "pageNumber": 1,
+      "totalPages": 1,
+      "totalCount": 1,
+      "hasPreviousPage": false,
+      "hasNextPage": false
+    }
+  }
+}
+```
+
+### 15.3 `GET /api/lesson-plan-templates/{id}`
+
+Lay chi tiet 1 template.
+
+```http
+GET /api/lesson-plan-templates/uuid-template
+```
+
+Response co cung field voi item trong API list, bao gom:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-template",
+    "moduleId": "uuid-module",
+    "lessonPlanUnitId": "uuid-unit",
+    "lessonPlanUnitName": "UNIT 1: I LOVE ANIMALS",
+    "orderIndexInUnit": 0,
+    "title": "UNIT 1: I LOVE ANIMALS - Lesson 1",
+    "sessionIndex": 1,
+    "sessionOrder": 1,
+    "isActive": true,
+    "usedCount": 0
+  }
+}
+```
+
+### 15.4 `PUT /api/lesson-plan-templates/{id}`
+
+Cap nhat template. BE chi update field nao FE gui khac `null`.
+
+```http
+PUT /api/lesson-plan-templates/uuid-template
+```
+
+Request:
+
+```json
+{
+  "moduleId": "uuid-module",
+  "title": "UNIT 1: I LOVE ANIMALS - Lesson 2",
+  "sessionIndex": 2,
+  "sessionOrder": 2,
+  "syllabusMetadata": "UNIT 1: I LOVE ANIMALS",
+  "syllabusContent": "Noi dung moi",
+  "objectives": "Muc tieu moi",
+  "languageContent": "Language content moi",
+  "vocabulary": "cat, dog, bird",
+  "grammar": "These are...",
+  "teachingMethodology": "PPP",
+  "teacherMaterials": "Teacher book",
+  "studentMaterials": "Student book",
+  "procedure": "Warm-up, practice, production",
+  "evaluation": "Observation",
+  "sourceFileName": "Unit 1 lesson 2.docx",
+  "attachment": "https://cdn.example.com/file.docx",
+  "isActive": true
+}
+```
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-template",
+    "moduleId": "uuid-module",
+    "title": "UNIT 1: I LOVE ANIMALS - Lesson 2",
+    "sessionIndex": 2,
+    "sessionOrder": 2,
+    "isActive": true,
+    "updatedAt": "2026-05-21T10:10:00Z"
+  }
+}
+```
+
+Luu y:
+
+- `sessionIndex` phai nam trong `module.plannedSessionCount`.
+- Khong duoc trung `sessionIndex` trong cung module voi template khac dang active/not deleted.
+- API nay khong move unit. Muon move unit dung API ben duoi.
+
+### 15.5 `PATCH /api/lesson-plan-templates/{id}/unit`
+
+Gan template vao unit, chuyen unit, reorder trong unit, hoac bo khoi unit.
+
+```http
+PATCH /api/lesson-plan-templates/uuid-template/unit
+```
+
+Request:
+
+```json
+{
+  "lessonPlanUnitId": "uuid-unit-or-null",
+  "orderIndexInUnit": 2
+}
+```
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-template",
+    "moduleId": "uuid-module",
+    "lessonPlanUnitId": "uuid-unit",
+    "orderIndexInUnit": 2,
+    "updatedAt": "2026-05-21T10:10:00Z"
+  }
+}
+```
+
+Luu y:
+
+- Gui `"lessonPlanUnitId": null` de dua template ve orphan/chua gan unit.
+- `lessonPlanUnitId` phai thuoc cung module voi template.
+
+### 15.6 `POST /api/lesson-plan-templates/import`
+
+Import template tu file dang bang du lieu, dung cho luong import cu.
+
+```http
+POST /api/lesson-plan-templates/import?moduleId=uuid-module&overwriteExisting=true
+Content-Type: multipart/form-data
+```
+
+Form-data:
+
+| Field | Type | Bat buoc | Mo ta |
+|---|---|---:|---|
+| `file` | file | Yes | File import |
+
+Query:
+
+| Param | Bat buoc | Mo ta |
+|---|---:|---|
+| `moduleId` | No | Module dich neu file khong tu xac dinh duoc module |
+| `overwriteExisting` | No | Mac dinh `true` |
+
+### 15.7 `POST /api/lesson-plan-templates/import-word`
+
+Import 1 file Word lesson plan vao 1 module. API nay co the gan `LessonPlanUnitId` tu dong neu title/source file match unit.
+
+```http
+POST /api/lesson-plan-templates/import-word?moduleId=uuid-module&overwriteExisting=true
+Content-Type: multipart/form-data
+```
+
+Form-data:
+
+| Field | Type | Bat buoc | Mo ta |
+|---|---|---:|---|
+| `file` | file | Yes | File `.docx` lesson plan |
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "lessonPlanTemplateId": "uuid-template",
+    "sessionTemplateId": "uuid-session-template",
+    "sessionIndex": 1,
+    "created": true,
+    "title": "UNIT STARTER: HELLO! - Lesson 1"
+  }
+}
+```
+
+Sau khi import word thanh cong:
+
+1. FE goi `GET /api/lesson-plan-templates/{lessonPlanTemplateId}` neu can xem `lessonPlanUnitId`.
+2. FE goi `GET /api/syllabuses/{syllabusId}/unit-lesson-plans` neu can refresh hierarchy.
+
+---
+
+## 16. FE Flow Goi Y Cho Man Lesson Plan
+
+### Quan ly template theo unit
+
+1. Goi `GET /api/syllabuses/{syllabusId}/unit-lesson-plans` de render hierarchy.
+2. Tao template thu cong bang `POST /api/lesson-plan-templates`.
+3. Gan template vao unit bang `PATCH /api/lesson-plan-templates/{id}/unit`.
+4. Sua noi dung template bang `PUT /api/lesson-plan-templates/{id}`.
+5. Reorder lesson trong unit bang `PATCH /api/lesson-plan-units/{unitId}/lessons/reorder`.
+6. Doi so buoi co dinh theo level bang `PATCH /api/levels/{levelId}/lesson-plan-templates/session-orders`.
+
+### Giao vien cap nhat lesson plan cua lop
+
+1. Goi `GET /api/lesson-plans/classes/{classId}/syllabus`.
+2. Neu session chua co `lessonPlanId`, goi `POST /api/lesson-plans`.
+3. Neu session da co `lessonPlanId`, goi `PUT /api/lesson-plans/{id}`.
+4. FE chi cho sua khi `canEdit = true`.
+
+---
+
+## 17. FE Types Goi Y Cho CRUD
+
+```ts
+export type LessonPlanCreateRequest = {
+  classId: string;
+  sessionId: string;
+  templateId?: string | null;
+  plannedContent?: string | null;
+  actualContent?: string | null;
+  actualHomework?: string | null;
+  teacherNotes?: string | null;
+  completionPercent?: number | null;
+  carryForwardContent?: string | null;
+};
+
+export type LessonPlanUpdateRequest = Partial<
+  Pick<
+    LessonPlanCreateRequest,
+    | "templateId"
+    | "plannedContent"
+    | "actualContent"
+    | "actualHomework"
+    | "teacherNotes"
+    | "completionPercent"
+    | "carryForwardContent"
+  >
+>;
+
+export type LessonPlanTemplateCreateRequest = {
+  moduleId: string;
+  title: string;
+  sessionIndex: number;
+  sessionOrder?: number | null;
+  syllabusMetadata?: string | null;
+  syllabusContent?: string | null;
+  objectives?: string | null;
+  languageContent?: string | null;
+  vocabulary?: string | null;
+  grammar?: string | null;
+  teachingMethodology?: string | null;
+  teacherMaterials?: string | null;
+  studentMaterials?: string | null;
+  procedure?: string | null;
+  evaluation?: string | null;
+  sourceFileName?: string | null;
+  attachment?: string | null;
+};
+
+export type LessonPlanTemplateUpdateRequest =
+  Partial<LessonPlanTemplateCreateRequest> & {
+    isActive?: boolean | null;
+  };
+
+export type MoveLessonPlanTemplateUnitRequest = {
+  lessonPlanUnitId: string | null;
+  orderIndexInUnit?: number | null;
+};
+```
+
+---
+
+## 18. API Moi Bo Sung Cho CRUD/Import/Reorder
+
+### 18.1 `DELETE /api/lesson-plan-templates/{id}`
+
+Soft-delete lesson plan template. BE se set `isDeleted = true`, `isActive = false`.
+
+```http
+DELETE /api/lesson-plan-templates/uuid-template
+```
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "uuid-template",
+    "isDeleted": true,
+    "updatedAt": "2026-05-21T10:30:00Z"
+  }
+}
+```
+
+Luu y:
+
+- Neu template dang duoc lesson plan thuc te su dung, BE tra `409`.
+- Khi delete thanh cong, BE cung go bo link `SessionTemplates.LessonPlanTemplateId`.
+
+### 18.2 Import Word vao Unit cu the
+
+Co 2 cach goi.
+
+#### Cach 1: Dung endpoint template cu, them `lessonPlanUnitId`
+
+```http
+POST /api/lesson-plan-templates/import-word?moduleId=uuid-module&lessonPlanUnitId=uuid-unit&sessionIndexOverride=7&overwriteExisting=true
+Content-Type: multipart/form-data
+```
+
+Form-data:
+
+| Field | Type | Bat buoc | Mo ta |
+|---|---|---:|---|
+| `file` | file | Yes | File `.docx` lesson plan |
+
+Query:
+
+| Param | Bat buoc | Mo ta |
+|---|---:|---|
+| `moduleId` | Yes | Module chua unit |
+| `lessonPlanUnitId` | No | Neu co, template se duoc gan thang vao unit nay |
+| `sessionIndexOverride` | No | So buoi co dinh neu FE muon chi dinh |
+| `overwriteExisting` | No | Mac dinh `true` |
+
+#### Cach 2: Goi truc tiep theo unit
+
+```http
+POST /api/lesson-plan-units/uuid-unit/lesson-plan-templates/import-word?sessionIndexOverride=7&overwriteExisting=true
+Content-Type: multipart/form-data
+```
+
+Form-data:
+
+| Field | Type | Bat buoc | Mo ta |
+|---|---|---:|---|
+| `file` | file | Yes | File `.docx` lesson plan |
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "lessonPlanTemplateId": "uuid-template",
+    "lessonPlanUnitId": "uuid-unit",
+    "sessionTemplateId": "uuid-session-template-or-null",
+    "sessionIndex": 7,
+    "sessionOrder": 7,
+    "orderIndexInUnit": 1,
+    "created": true,
+    "title": "UNIT STARTER: HELLO! - Lesson 2"
+  }
+}
+```
+
+Behavior:
+
+- Neu co `lessonPlanUnitId`, BE validate unit phai active va thuoc dung module.
+- Neu khong gui `sessionIndexOverride` khi import theo unit, BE tu lay session index con trong tiep theo cua module.
+- `orderIndexInUnit` uu tien lay theo lesson number trong file/title, fallback la next order trong unit.
+
+### 18.3 Reorder so buoi co dinh theo Level
+
+API nay dung cho UI drag-drop toan bo template trong 1 level, de cap nhat cot `sessionOrder`. FE nen hien thi "Buoi" bang `sessionOrder`, khong nen dung `sessionIndex` neu can thu tu co dinh tren toan level.
+
+```http
+PATCH /api/levels/uuid-level/lesson-plan-templates/session-orders
+Content-Type: application/json
+```
+
+Request:
+
+```json
+[
+  {
+    "id": "uuid-template-1",
+    "sessionOrder": 1
+  },
+  {
+    "id": "uuid-template-2",
+    "sessionOrder": 2
+  },
+  {
+    "id": "uuid-template-3",
+    "sessionOrder": 3
+  }
+]
+```
+
+Response:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "levelId": "uuid-level",
+    "items": [
+      {
+        "id": "uuid-template-1",
+        "moduleId": "uuid-module",
+        "sessionIndex": 1,
+        "sessionOrder": 1,
+        "updatedAt": "2026-05-21T10:40:00Z"
+      }
+    ]
+  }
+}
+```
+
+Validation:
+
+- Template phai thuoc level trong path.
+- `sessionOrder` phai >= 1.
+- `sessionOrder` khong duoc trung nhau trong request.
+- Neu level co tong planned sessions > 0, `sessionOrder` khong duoc vuot tong planned sessions cua level.
+
+FE flow khuyen nghi:
+
+1. Goi `GET /api/syllabuses/{syllabusId}/unit-lesson-plans`.
+2. Flatten `groups -> units -> lessons`.
+3. Sau drag-drop, tao list `{ id: lesson.lessonPlanTemplateId, sessionOrder: index + 1 }`.
+4. Goi `PATCH /api/levels/{levelId}/lesson-plan-templates/session-orders`.
+5. Refresh lai hierarchy.
+
+Type:
+
+```ts
+export type ReorderLessonPlanTemplateSessionOrderRequest = {
+  id: string;
+  sessionOrder: number;
+};
+```

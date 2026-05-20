@@ -12,6 +12,10 @@ public static class LessonPlanTemplateErrors
         "LessonPlanTemplate.ModuleNotFound",
         $"Module with Id = '{moduleId}' was not found");
 
+    public static Error LevelNotFound(Guid levelId) => Error.NotFound(
+        "LessonPlanTemplate.LevelNotFound",
+        $"Level with Id = '{levelId}' was not found");
+
     public static readonly Error SessionIndexRequired = Error.Validation(
         "LessonPlanTemplate.SessionIndexRequired",
         "SessionIndex is required and must be greater than 0");
@@ -20,9 +24,21 @@ public static class LessonPlanTemplateErrors
         "LessonPlanTemplate.DuplicateSessionIndex",
         $"Template with SessionIndex {sessionIndex} already exists for Module {moduleId}");
 
+    public static Error DuplicateSessionOrder(int sessionOrder) => Error.Conflict(
+        "LessonPlanTemplate.DuplicateSessionOrder",
+        $"More than one template is assigned to SessionOrder {sessionOrder}");
+
     public static Error SessionIndexOutOfRange(int sessionIndex, int totalSessions) => Error.Validation(
         "LessonPlanTemplate.SessionIndexOutOfRange",
         $"SessionIndex {sessionIndex} must be between 1 and {totalSessions}");
+
+    public static Error SessionOrderOutOfRange(int sessionOrder, int totalSessions) => Error.Validation(
+        "LessonPlanTemplate.SessionOrderOutOfRange",
+        $"SessionOrder {sessionOrder} must be between 1 and {totalSessions}");
+
+    public static Error DoesNotBelongToLevel(Guid templateId, Guid levelId) => Error.Validation(
+        "LessonPlanTemplate.DoesNotBelongToLevel",
+        $"Lesson plan template '{templateId}' does not belong to level '{levelId}'");
 
     public static readonly Error HasActiveLessonPlans = Error.Conflict(
         "LessonPlanTemplate.HasActiveLessonPlans",

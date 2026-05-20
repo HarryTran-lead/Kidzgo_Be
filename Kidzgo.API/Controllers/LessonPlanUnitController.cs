@@ -3,6 +3,7 @@ using Kidzgo.API.Requests;
 using Kidzgo.Application.LessonPlanUnits.DeleteLessonPlanUnit;
 using Kidzgo.Application.LessonPlanUnits.ReorderLessonPlanUnitLessons;
 using Kidzgo.Application.LessonPlanUnits.UpdateLessonPlanUnit;
+using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +54,33 @@ public class LessonPlanUnitController(ISender mediator) : ControllerBase
                     OrderIndexInUnit = x.OrderIndexInUnit
                 })
                 .ToList()
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/lesson-plan-templates/import-word")]
+    [RequestSizeLimit(41_943_040)]
+    [Consumes("multipart/form-data")]
+    public async Task<IResult> ImportLessonPlanTemplateFromWord(
+        Guid id,
+        IFormFile file,
+        [FromQuery] int? sessionIndexOverride,
+        [FromQuery] bool overwriteExisting = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest(new { error = "No file provided" });
+        }
+
+        var result = await mediator.Send(new ImportLessonPlanTemplateFromWordCommand
+        {
+            LessonPlanUnitId = id,
+            SessionIndexOverride = sessionIndexOverride,
+            OverwriteExisting = overwriteExisting,
+            FileName = file.FileName,
+            FileStream = file.OpenReadStream()
         }, cancellationToken);
 
         return result.MatchOk();

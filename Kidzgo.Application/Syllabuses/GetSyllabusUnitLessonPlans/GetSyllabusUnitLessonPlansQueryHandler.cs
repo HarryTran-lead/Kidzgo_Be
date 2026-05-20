@@ -67,6 +67,7 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
         var orphanLessons = templates
             .Where(x => !x.LessonPlanUnitId.HasValue)
             .OrderBy(x => x.ModuleOrder)
+            .ThenBy(x => x.SessionOrder)
             .ThenBy(x => x.SessionIndex)
             .Select(ToLessonDto)
             .ToList();
@@ -96,6 +97,7 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
                     {
                         var lessons = unitGroup
                             .OrderBy(x => x.OrderIndexInUnit)
+                            .ThenBy(x => x.SessionOrder)
                             .ThenBy(x => x.SessionIndex)
                             .ThenBy(x => x.Title)
                             .Select(ToLessonDto)

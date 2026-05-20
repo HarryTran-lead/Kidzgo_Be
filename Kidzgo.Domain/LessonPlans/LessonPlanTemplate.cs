@@ -8,10 +8,12 @@ public class LessonPlanTemplate : Entity
 {
     public Guid Id { get; set; }
     public Guid ModuleId { get; set; }
+    public Guid? LessonPlanUnitId { get; set; }
     public Guid? SessionTemplateId { get; set; }
     public string? Title { get; set; }
     public int SessionIndex { get; set; }
     public int SessionOrder { get; set; }
+    public int OrderIndexInUnit { get; set; }
     public string? SyllabusMetadata { get; set; }
     public string? SyllabusContent { get; set; }
     public string? Objectives { get; set; }
@@ -36,6 +38,7 @@ public class LessonPlanTemplate : Entity
     
     // Navigation properties
     public Module Module { get; set; } = null!;
+    public LessonPlanUnit? LessonPlanUnit { get; set; }
     public SessionTemplate? SessionTemplate { get; set; }
     public User? CreatedByUser { get; set; }
     public ICollection<LessonPlan> LessonPlans { get; set; } = new List<LessonPlan>();

@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -41,12 +41,16 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
             .Select(t => new LessonPlanTemplateProjection
             {
                 LessonPlanTemplateId = t.Id,
+                LessonPlanUnitId = t.LessonPlanUnitId,
+                LessonPlanUnitName = t.LessonPlanUnit != null ? t.LessonPlanUnit.Name : null,
+                LessonPlanUnitOrder = t.LessonPlanUnit != null ? t.LessonPlanUnit.OrderIndex : null,
                 SessionTemplateId = t.SessionTemplateId,
                 Title = t.Title,
                 SyllabusMetadata = t.SyllabusMetadata,
                 SourceFileName = t.SourceFileName,
                 SessionIndex = t.SessionIndex,
                 SessionOrder = t.SessionOrder,
+                OrderIndexInUnit = t.OrderIndexInUnit,
                 IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
@@ -60,64 +64,64 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
             })
             .ToListAsync(cancellationToken);
 
+        var orphanLessons = templates
+            .Where(x => !x.LessonPlanUnitId.HasValue)
+            .OrderBy(x => x.ModuleOrder)
+            .ThenBy(x => x.SessionIndex)
+            .Select(ToLessonDto)
+            .ToList();
+
         var groups = templates
-            .Select(x => new
-            {
-                Template = x,
-                Group = ResolveGroup(x.SourceFileName, x.Title, x.SyllabusMetadata)
-            })
+            .Where(x => x.LessonPlanUnitId.HasValue)
             .GroupBy(x => new
             {
-                x.Group.GroupKey,
-                x.Group.GroupType,
-                x.Group.UnitNumber,
-                x.Group.RevisionNumber,
-                x.Group.DisplayName,
-                x.Template.ModuleId,
-                x.Template.ModuleCode,
-                x.Template.ModuleName,
-                x.Template.ModuleOrder
+                x.ModuleId,
+                x.ModuleCode,
+                x.ModuleName,
+                x.ModuleOrder
             })
-            .OrderBy(g => GetGroupOrder(g.Key.GroupType, g.Key.UnitNumber, g.Key.RevisionNumber))
-            .ThenBy(g => g.Key.ModuleOrder)
-            .Select(g => new SyllabusUnitLessonPlanGroupDto
+            .OrderBy(g => g.Key.ModuleOrder)
+            .Select(moduleGroup =>
             {
-                GroupKey = g.Key.GroupKey,
-                GroupType = g.Key.GroupType,
-                UnitNumber = g.Key.UnitNumber,
-                RevisionNumber = g.Key.RevisionNumber,
-                DisplayName = g.Key.DisplayName,
-                ModuleId = g.Key.ModuleId,
-                ModuleCode = g.Key.ModuleCode,
-                ModuleName = g.Key.ModuleName,
-                ModuleOrder = g.Key.ModuleOrder,
-                LessonPlanCount = g.Count(),
-                LessonPlans = g
-                    .Select(x => new
+                var units = moduleGroup
+                    .GroupBy(x => new
                     {
-                        x.Template,
-                        LessonNumber = ExtractLessonNumber(x.Template.SourceFileName, x.Template.Title)
+                        UnitId = x.LessonPlanUnitId!.Value,
+                        UnitName = x.LessonPlanUnitName ?? "Unmapped",
+                        UnitOrder = x.LessonPlanUnitOrder ?? int.MaxValue
                     })
-                    .OrderBy(x => x.LessonNumber ?? int.MaxValue)
-                    .ThenBy(x => x.Template.SessionIndex)
-                    .ThenBy(x => x.Template.Title)
-                    .Select(x => new SyllabusUnitLessonPlanDto
+                    .OrderBy(g => g.Key.UnitOrder)
+                    .ThenBy(g => g.Key.UnitName)
+                    .Select(unitGroup =>
                     {
-                        LessonPlanTemplateId = x.Template.LessonPlanTemplateId,
-                        SessionTemplateId = x.Template.SessionTemplateId,
-                        Title = x.Template.Title,
-                        LessonNumber = x.LessonNumber,
-                        SessionIndex = x.Template.SessionIndex,
-                        SessionOrder = x.Template.SessionOrder,
-                        SessionIndexInModule = x.Template.SessionIndexInModule,
-                        SessionTitle = x.Template.SessionTitle,
-                        SessionTopic = x.Template.SessionTopic,
-                        SourceFileName = x.Template.SourceFileName,
-                        IsActive = x.Template.IsActive,
-                        CreatedAt = x.Template.CreatedAt,
-                        UpdatedAt = x.Template.UpdatedAt
+                        var lessons = unitGroup
+                            .OrderBy(x => x.OrderIndexInUnit)
+                            .ThenBy(x => x.SessionIndex)
+                            .ThenBy(x => x.Title)
+                            .Select(ToLessonDto)
+                            .ToList();
+
+                        return new SyllabusLessonPlanUnitDto
+                        {
+                            UnitId = unitGroup.Key.UnitId,
+                            UnitName = unitGroup.Key.UnitName,
+                            OrderIndex = unitGroup.Key.UnitOrder == int.MaxValue ? 0 : unitGroup.Key.UnitOrder,
+                            LessonPlanCount = lessons.Count,
+                            Lessons = lessons
+                        };
                     })
-                    .ToList()
+                    .ToList();
+
+                return new SyllabusModuleUnitLessonPlanGroupDto
+                {
+                    ModuleId = moduleGroup.Key.ModuleId,
+                    ModuleCode = moduleGroup.Key.ModuleCode,
+                    ModuleName = moduleGroup.Key.ModuleName,
+                    ModuleOrder = moduleGroup.Key.ModuleOrder,
+                    UnitCount = units.Count,
+                    LessonPlanCount = units.Sum(x => x.LessonPlanCount),
+                    Units = units
+                };
             })
             .ToList();
 
@@ -128,107 +132,50 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
             ProgramName = syllabus.ProgramName,
             LevelId = syllabus.LevelId,
             LevelName = syllabus.LevelName,
+            TotalModules = groups.Count,
+            TotalUnits = groups.Sum(x => x.UnitCount),
             TotalGroups = groups.Count,
-            TotalLessonPlans = groups.Sum(x => x.LessonPlanCount),
-            Groups = groups
+            TotalLessonPlans = groups.Sum(x => x.LessonPlanCount) + orphanLessons.Count,
+            Groups = groups,
+            OrphanLessons = orphanLessons
         };
     }
 
-    private static UnitLessonPlanGroup ResolveGroup(params string?[] hints)
+    private static SyllabusUnitLessonPlanDto ToLessonDto(LessonPlanTemplateProjection template)
     {
-        var texts = hints
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(Normalize)
-            .ToList();
-
-        foreach (var text in texts)
+        return new SyllabusUnitLessonPlanDto
         {
-            if (Regex.IsMatch(text, @"\bUNIT\s+STARTER\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
-                return new UnitLessonPlanGroup("unit-starter", "Unit", 0, null, "Unit Starter");
-            }
-
-            var unitMatch = Regex.Match(
-                text,
-                @"\bUNIT\s*0*(\d+)\b",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-            if (unitMatch.Success && int.TryParse(unitMatch.Groups[1].Value, out var unitNumber))
-            {
-                return new UnitLessonPlanGroup(
-                    $"unit-{unitNumber}",
-                    "Unit",
-                    unitNumber,
-                    null,
-                    $"Unit {unitNumber}");
-            }
-
-            var revisionMatch = Regex.Match(
-                text,
-                @"\bREVISION\s*0*(\d+)\b",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-            if (revisionMatch.Success && int.TryParse(revisionMatch.Groups[1].Value, out var revisionNumber))
-            {
-                return new UnitLessonPlanGroup(
-                    $"revision-{revisionNumber}",
-                    "Revision",
-                    null,
-                    revisionNumber,
-                    $"Revision {revisionNumber}");
-            }
-        }
-
-        return new UnitLessonPlanGroup("unmapped", "Unmapped", null, null, "Unmapped");
-    }
-
-    private static int? ExtractLessonNumber(params string?[] hints)
-    {
-        foreach (var text in hints.Where(x => !string.IsNullOrWhiteSpace(x)).Select(Normalize))
-        {
-            var match = Regex.Match(
-                text,
-                @"\bLESSON\s*0*(\d+)\b",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var lessonNumber))
-            {
-                return lessonNumber;
-            }
-        }
-
-        return null;
-    }
-
-    private static int GetGroupOrder(string groupType, int? unitNumber, int? revisionNumber)
-    {
-        return groupType switch
-        {
-            "Unit" => unitNumber ?? 0,
-            "Revision" => 10_000 + (revisionNumber ?? 0),
-            _ => int.MaxValue
+            LessonPlanTemplateId = template.LessonPlanTemplateId,
+            LessonPlanUnitId = template.LessonPlanUnitId,
+            SessionTemplateId = template.SessionTemplateId,
+            Title = template.Title,
+            LessonNumber = LessonPlanUnitNameNormalizer.ExtractLessonNumber(template.SourceFileName, template.Title),
+            SessionIndex = template.SessionIndex,
+            SessionOrder = template.SessionOrder,
+            SessionIndexInModule = template.SessionIndexInModule,
+            SessionTitle = template.SessionTitle,
+            SessionTopic = template.SessionTopic,
+            SourceFileName = template.SourceFileName,
+            OrderIndexInUnit = template.OrderIndexInUnit,
+            IsActive = template.IsActive,
+            CreatedAt = template.CreatedAt,
+            UpdatedAt = template.UpdatedAt
         };
     }
-
-    private static string Normalize(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"\s+", " ").Trim();
-    }
-
-    private sealed record UnitLessonPlanGroup(
-        string GroupKey,
-        string GroupType,
-        int? UnitNumber,
-        int? RevisionNumber,
-        string DisplayName);
 
     private sealed class LessonPlanTemplateProjection
     {
         public Guid LessonPlanTemplateId { get; init; }
+        public Guid? LessonPlanUnitId { get; init; }
+        public string? LessonPlanUnitName { get; init; }
+        public int? LessonPlanUnitOrder { get; init; }
         public Guid? SessionTemplateId { get; init; }
         public string? Title { get; init; }
         public string? SyllabusMetadata { get; init; }
         public string? SourceFileName { get; init; }
         public int SessionIndex { get; init; }
         public int SessionOrder { get; init; }
+        public int OrderIndexInUnit { get; init; }
         public bool IsActive { get; init; }
         public DateTime CreatedAt { get; init; }
         public DateTime UpdatedAt { get; init; }

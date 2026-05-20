@@ -25,6 +25,7 @@ public class Module : Entity
     public ICollection<Classes.ClassModuleProgress> ClassModuleProgresses { get; set; } = new List<Classes.ClassModuleProgress>();
     public ICollection<Sessions.Session> Sessions { get; set; } = new List<Sessions.Session>();
     public ICollection<LessonPlanTemplate> LessonPlanTemplates { get; set; } = new List<LessonPlanTemplate>();
+    public ICollection<LessonPlanUnit> LessonPlanUnits { get; set; } = new List<LessonPlanUnit>();
     public ICollection<SessionTemplate> SessionTemplates { get; set; } = new List<SessionTemplate>();
     public ICollection<SyllabusUnit> SyllabusUnits { get; set; } = new List<SyllabusUnit>();
     public ICollection<SyllabusLesson> SyllabusLessons { get; set; } = new List<SyllabusLesson>();

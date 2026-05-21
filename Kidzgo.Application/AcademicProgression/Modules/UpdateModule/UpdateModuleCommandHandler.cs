@@ -41,6 +41,13 @@ public sealed class UpdateModuleCommandHandler(IDbContext context)
 
         await context.SaveChangesAsync(cancellationToken);
 
+        var lessonPlanCount = await context.LessonPlanTemplates
+            .CountAsync(
+                x => x.ModuleId == module.Id &&
+                     x.IsActive &&
+                     !x.IsDeleted,
+                cancellationToken);
+
         return Result.Success(new ModuleDto
         {
             Id = module.Id,
@@ -51,6 +58,7 @@ public sealed class UpdateModuleCommandHandler(IDbContext context)
             Order = module.Order,
             Description = module.Description,
             PlannedSessionCount = module.PlannedSessionCount,
+            LessonPlanCount = lessonPlanCount,
             IsActive = module.IsActive
         });
     }

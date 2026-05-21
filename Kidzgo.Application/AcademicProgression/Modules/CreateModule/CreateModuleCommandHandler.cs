@@ -56,6 +56,7 @@ public sealed class CreateModuleCommandHandler(IDbContext context)
             Order = module.Order,
             Description = module.Description,
             PlannedSessionCount = module.PlannedSessionCount,
+            LessonPlanCount = 0,
             IsActive = module.IsActive
         });
     }

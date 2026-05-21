@@ -27,6 +27,13 @@ public class Syllabus : Entity
     public string? SourceFileName { get; set; }
     public string? AttachmentUrl { get; set; }
     public string? RawContentJson { get; set; }
+    public string DocumentStatus { get; set; } = null!;
+    public string SourceType { get; set; } = null!;
+    public string? ParserVersion { get; set; }
+    public int DocumentVersion { get; set; }
+    public string? SectionsJson { get; set; }
+    public string? WarningsJson { get; set; }
+    public string? ArchiveReason { get; set; }
     public bool IsActive { get; set; }
     public bool IsDeleted { get; set; }
     public Guid? CreatedBy { get; set; }

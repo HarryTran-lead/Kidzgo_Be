@@ -33,6 +33,30 @@ public class SyllabusConfiguration : IEntityTypeConfiguration<Syllabus>
         builder.Property(x => x.AttachmentUrl)
             .HasMaxLength(500);
 
+        builder.Property(x => x.DocumentStatus)
+            .HasMaxLength(50)
+            .HasDefaultValue("Draft")
+            .IsRequired();
+
+        builder.Property(x => x.SourceType)
+            .HasMaxLength(50)
+            .HasDefaultValue("Manual")
+            .IsRequired();
+
+        builder.Property(x => x.ParserVersion)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.DocumentVersion)
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(x => x.SectionsJson);
+
+        builder.Property(x => x.WarningsJson);
+
+        builder.Property(x => x.ArchiveReason)
+            .HasMaxLength(500);
+
         builder.HasIndex(x => new { x.ProgramId, x.LevelId, x.Code, x.Version })
             .IsUnique();
 

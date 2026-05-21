@@ -43,4 +43,40 @@ public static class SyllabusErrors
     public static Error InvalidImportConfiguration(string message) => Error.Validation(
         "Syllabus.InvalidImportConfiguration",
         message);
+
+    public static Error DuplicateCode(Guid programId, Guid levelId, string code) => Error.Conflict(
+        "Syllabus.DuplicateCode",
+        $"Syllabus code '{code}' already exists for Program '{programId}' and Level '{levelId}' in an active document state.");
+
+    public static Error VersionConflict(int expectedVersion, int currentVersion) => Error.Conflict(
+        "Syllabus.VersionConflict",
+        $"Version conflict. Please reload document. Expected version {expectedVersion}, current version {currentVersion}.");
+
+    public static readonly Error PublishedReadOnly = Error.Conflict(
+        "Syllabus.PublishedReadOnly",
+        "Published syllabus cannot be edited directly. Create or clone a draft before editing.");
+
+    public static Error InvalidTableLayout(string message) => Error.Validation(
+        "Syllabus.InvalidTableLayout",
+        message);
+
+    public static Error PublishValidationFailed(string message) => Error.Validation(
+        "Syllabus.PublishValidationFailed",
+        message);
+
+    public static Error ImportParseFailed(string message) => Error.Validation(
+        "Syllabus.ImportParseFailed",
+        message);
+
+    public static Error SectionNotFound(Guid sectionId) => Error.NotFound(
+        "Syllabus.SectionNotFound",
+        $"Syllabus section '{sectionId}' was not found");
+
+    public static Error RowNotFound(Guid rowId) => Error.NotFound(
+        "Syllabus.RowNotFound",
+        $"Syllabus table row '{rowId}' was not found");
+
+    public static Error CellNotFound(string columnKey) => Error.NotFound(
+        "Syllabus.CellNotFound",
+        $"Syllabus table cell '{columnKey}' was not found");
 }

@@ -44,6 +44,7 @@ public sealed class GetModulesQueryHandler(IDbContext context)
                 Order = x.Order,
                 Description = x.Description,
                 PlannedSessionCount = x.PlannedSessionCount,
+                LessonPlanCount = x.LessonPlanTemplates.Count(t => t.IsActive && !t.IsDeleted),
                 IsActive = x.IsActive
             })
             .ToListAsync(cancellationToken);

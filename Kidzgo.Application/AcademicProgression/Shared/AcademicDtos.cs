@@ -21,6 +21,7 @@ public sealed class ModuleDto
     public int Order { get; init; }
     public string? Description { get; init; }
     public int PlannedSessionCount { get; init; }
+    public int LessonPlanCount { get; init; }
     public bool IsActive { get; init; }
 }
 

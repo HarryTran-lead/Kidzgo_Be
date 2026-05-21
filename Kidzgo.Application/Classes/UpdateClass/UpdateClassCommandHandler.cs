@@ -86,6 +86,12 @@ public sealed class UpdateClassCommandHandler(
                 : ClassErrors.StartModuleNotFound);
         }
 
+        if (command.StartSessionIndex < 1 || command.StartSessionIndex > startModule.PlannedSessionCount)
+        {
+            return Result.Failure<UpdateClassResponse>(
+                ClassErrors.InvalidStartSessionIndex(command.StartSessionIndex, startModule.PlannedSessionCount));
+        }
+
         // Check if code is unique (excluding current class)
         bool codeExists = await context.Classes
             .AnyAsync(c => c.Code == command.Code && c.Id != command.Id, cancellationToken);
@@ -100,6 +106,7 @@ public sealed class UpdateClassCommandHandler(
                                       classEntity.ProgramId != command.ProgramId ||
                                       classEntity.LevelId != command.LevelId;
         bool startModuleChanged = classEntity.StartModuleId != command.StartModuleId;
+        bool startSessionChanged = classEntity.StartSessionIndex != command.StartSessionIndex;
         bool scheduleChanged = classEntity.StartDate != command.StartDate ||
                                classEntity.EndDate != command.EndDate ||
                                classEntity.WeeklyScheduleJson != normalizedWeeklyScheduleJson;
@@ -118,7 +125,7 @@ public sealed class UpdateClassCommandHandler(
             }
         }
 
-        if (startModuleChanged)
+        if (startModuleChanged || startSessionChanged)
         {
             var hasSessions = await context.Sessions.AnyAsync(x => x.ClassId == command.Id, cancellationToken);
             if (hasSessions)
@@ -321,6 +328,7 @@ public sealed class UpdateClassCommandHandler(
         classEntity.ProgramId = command.ProgramId;
         classEntity.LevelId = command.LevelId;
         classEntity.StartModuleId = command.StartModuleId;
+        classEntity.StartSessionIndex = command.StartSessionIndex;
         classEntity.Code = command.Code;
         classEntity.Title = command.Title;
         classEntity.RoomId = command.RoomId;
@@ -339,9 +347,11 @@ public sealed class UpdateClassCommandHandler(
             classEntity.EndDate,
             VietnamTime.ToVietnamDateOnly(classEntity.UpdatedAt));
 
-        if (startModuleChanged || branchOrProgramChanged)
+        if (startModuleChanged || startSessionChanged || branchOrProgramChanged)
         {
             classEntity.CurrentModuleId = command.StartModuleId;
+            classEntity.CurrentSessionIndex = command.StartSessionIndex;
+            classEntity.CurrentLessonPlanTemplateId = null;
             context.ClassModuleProgresses.RemoveRange(classEntity.ModuleProgresses);
             var now = classEntity.UpdatedAt;
             context.ClassModuleProgresses.AddRange(
@@ -352,7 +362,10 @@ public sealed class UpdateClassCommandHandler(
                     ModuleId = module.Id,
                     OrderIndex = module.Order,
                     RequiredSessions = module.PlannedSessionCount,
-                    CompletedSessions = 0,
+                    CompletedClassSessions = 0,
+                    CompletedLessonPlans = 0,
+                    StartSessionIndex = module.Id == startModule.Id ? command.StartSessionIndex : 1,
+                    CurrentSessionIndex = module.Id == startModule.Id ? command.StartSessionIndex : 1,
                     Status = module.Order < startModule.Order
                         ? ClassModuleProgressStatus.Skipped
                         : module.Id == startModule.Id
@@ -374,7 +387,10 @@ public sealed class UpdateClassCommandHandler(
             ProgramId = classEntity.ProgramId,
             LevelId = classEntity.LevelId,
             StartModuleId = classEntity.StartModuleId,
+            StartSessionIndex = classEntity.StartSessionIndex,
             CurrentModuleId = classEntity.CurrentModuleId,
+            CurrentSessionIndex = classEntity.CurrentSessionIndex,
+            CurrentLessonPlanTemplateId = classEntity.CurrentLessonPlanTemplateId,
             Code = classEntity.Code,
             Title = classEntity.Title,
             RoomId = classEntity.RoomId,
@@ -383,6 +399,8 @@ public sealed class UpdateClassCommandHandler(
             SlotTypeId = classEntity.SlotTypeId,
             SlotTypeCode = slotTypeCode,
             StartDate = classEntity.StartDate,
+            ExpectedEndDate = classEntity.ExpectedEndDate,
+            ActualEndDate = classEntity.ActualEndDate,
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,

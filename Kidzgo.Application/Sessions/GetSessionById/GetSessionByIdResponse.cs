@@ -39,6 +39,16 @@ public sealed class SessionDetailDto
     public string? ActualAssistantName { get; init; }
     public Guid? LessonPlanId { get; init; }
     public string? LessonPlanLink { get; init; }
+    public string? PlannedLessonTitle { get; init; }
+    public Guid? ActualLessonPlanTemplateId { get; init; }
+    public string? ActualLessonTitle { get; init; }
+    public Guid? TeachingLogId { get; init; }
+    public string? TeachingLogStatus { get; init; }
+    public string? TeachingProgressStatus { get; init; }
+    public string? ActualTeachingType { get; init; }
+    public string? ActualContent { get; init; }
+    public string? ActualHomework { get; init; }
+    public string? TeacherNote { get; init; }
     public AttendanceSummaryDto AttendanceSummary { get; init; } = null!;
 }
 

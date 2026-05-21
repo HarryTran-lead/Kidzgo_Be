@@ -18,7 +18,16 @@ public class ClassModuleProgressConfiguration : IEntityTypeConfiguration<ClassMo
         builder.Property(x => x.RequiredSessions)
             .IsRequired();
 
-        builder.Property(x => x.CompletedSessions)
+        builder.Property(x => x.CompletedClassSessions)
+            .IsRequired();
+
+        builder.Property(x => x.CompletedLessonPlans)
+            .IsRequired();
+
+        builder.Property(x => x.StartSessionIndex)
+            .IsRequired();
+
+        builder.Property(x => x.CurrentSessionIndex)
             .IsRequired();
 
         builder.Property(x => x.CreatedAt)

@@ -5,6 +5,7 @@ using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,9 +14,14 @@ namespace Kidzgo.Application.Classes.CreateClass;
 public sealed class CreateClassCommandHandler(
     IDbContext context,
     SessionConflictChecker conflictChecker,
-    ISchedulePatternParser patternParser
+    ISchedulePatternParser patternParser,
+    ClassSessionPlanningService classSessionPlanningService,
+    StudentSessionAssignmentService studentSessionAssignmentService
 ) : ICommandHandler<CreateClassCommand, CreateClassResponse>
 {
+    private const int OccurrenceBatchDays = 56;
+    private const int MaxOccurrenceSearchDays = 730;
+
     public async Task<Result<CreateClassResponse>> Handle(CreateClassCommand command, CancellationToken cancellationToken)
     {
         var normalizedPatternResult = SchedulePatternSupport.NormalizeWeeklyScheduleJson(
@@ -69,6 +75,12 @@ public sealed class CreateClassCommandHandler(
             return Result.Failure<CreateClassResponse>(moduleExists
                 ? ClassErrors.StartModuleLevelMismatch
                 : ClassErrors.StartModuleNotFound);
+        }
+
+        if (command.StartSessionIndex < 1 || command.StartSessionIndex > startModule.PlannedSessionCount)
+        {
+            return Result.Failure<CreateClassResponse>(
+                ClassErrors.InvalidStartSessionIndex(command.StartSessionIndex, startModule.PlannedSessionCount));
         }
 
         var codeExists = await context.Classes
@@ -164,33 +176,60 @@ public sealed class CreateClassCommandHandler(
             slotTypeCode = slotType.Code;
         }
 
-        var endDate = command.EndDate;
-
-        if (!string.IsNullOrWhiteSpace(normalizedWeeklyScheduleJson) && endDate.HasValue)
+        var sessionsToGenerate = command.SessionsToGenerate.GetValueOrDefault();
+        if (sessionsToGenerate > 0 && string.IsNullOrWhiteSpace(normalizedWeeklyScheduleJson))
         {
-            var parseResult = patternParser.ParseAndGenerateOccurrenceDetails(
-                normalizedWeeklyScheduleJson,
+            return Result.Failure<CreateClassResponse>(Error.Validation(
+                "Class.WeeklyScheduleRequired",
+                "Weekly schedule is required when sessionsToGenerate is provided."));
+        }
+
+        List<ScheduleOccurrence> plannedOccurrences = [];
+        List<PlannedSessionMetadata> plannedMetadata = [];
+        if (sessionsToGenerate > 0)
+        {
+            var occurrenceResult = await BuildOccurrencesAsync(
+                normalizedWeeklyScheduleJson!,
                 command.StartDate,
-                endDate.Value);
-
-            if (parseResult.IsSuccess && parseResult.Value.Count > 0)
+                command.EndDate,
+                sessionsToGenerate,
+                command.SkipHolidays,
+                cancellationToken);
+            if (occurrenceResult.IsFailure)
             {
-                foreach (var occurrence in parseResult.Value.Take(10))
+                return Result.Failure<CreateClassResponse>(occurrenceResult.Error);
+            }
+
+            plannedOccurrences = occurrenceResult.Value;
+
+            var metadataResult = await classSessionPlanningService.PlanAsync(
+                command.LevelId,
+                command.StartModuleId,
+                command.StartSessionIndex,
+                existingSessionCount: 0,
+                newSessionCount: sessionsToGenerate,
+                strictCurriculumCoverage: true,
+                cancellationToken);
+            if (metadataResult.IsFailure)
+            {
+                return Result.Failure<CreateClassResponse>(metadataResult.Error);
+            }
+
+            plannedMetadata = metadataResult.Value;
+
+            foreach (var occurrence in plannedOccurrences)
+            {
+                var conflictResult = await conflictChecker.CheckConflictsAsync(
+                    Guid.Empty,
+                    occurrence.PlannedDatetime,
+                    occurrence.DurationMinutes,
+                    command.RoomId,
+                    command.MainTeacherId,
+                    command.AssistantTeacherId,
+                    cancellationToken);
+
+                if (conflictResult.HasConflicts)
                 {
-                    var conflictResult = await conflictChecker.CheckConflictsAsync(
-                        Guid.Empty,
-                        occurrence.PlannedDatetime,
-                        occurrence.DurationMinutes,
-                        command.RoomId,
-                        command.MainTeacherId,
-                        command.AssistantTeacherId,
-                        cancellationToken);
-
-                    if (!conflictResult.HasConflicts)
-                    {
-                        continue;
-                    }
-
                     var firstConflict = conflictResult.Conflicts.First();
                     return firstConflict.Type switch
                     {
@@ -224,7 +263,10 @@ public sealed class CreateClassCommandHandler(
             ProgramId = command.ProgramId,
             LevelId = command.LevelId,
             StartModuleId = command.StartModuleId,
+            StartSessionIndex = command.StartSessionIndex,
             CurrentModuleId = command.StartModuleId,
+            CurrentSessionIndex = command.StartSessionIndex,
+            CurrentLessonPlanTemplateId = plannedMetadata.FirstOrDefault()?.LessonPlanTemplateId,
             Code = command.Code,
             Title = command.Title,
             RoomId = command.RoomId,
@@ -232,7 +274,11 @@ public sealed class CreateClassCommandHandler(
             AssistantTeacherId = command.AssistantTeacherId,
             SlotTypeId = command.SlotTypeId,
             StartDate = command.StartDate,
-            EndDate = endDate,
+            ExpectedEndDate = plannedOccurrences.Count > 0
+                ? VietnamTime.ToVietnamDateOnly(plannedOccurrences[^1].PlannedDatetime)
+                : null,
+            ActualEndDate = null,
+            EndDate = command.EndDate,
             Status = ClassStatus.Active,
             Capacity = command.Capacity,
             WeeklyScheduleJson = normalizedWeeklyScheduleJson,
@@ -250,7 +296,10 @@ public sealed class CreateClassCommandHandler(
                 ModuleId = module.Id,
                 OrderIndex = module.Order,
                 RequiredSessions = module.PlannedSessionCount,
-                CompletedSessions = 0,
+                CompletedClassSessions = 0,
+                CompletedLessonPlans = 0,
+                StartSessionIndex = module.Id == startModule.Id ? command.StartSessionIndex : 1,
+                CurrentSessionIndex = module.Id == startModule.Id ? command.StartSessionIndex : 1,
                 Status = module.Order < startModule.Order
                     ? ClassModuleProgressStatus.Skipped
                     : module.Id == startModule.Id
@@ -261,6 +310,40 @@ public sealed class CreateClassCommandHandler(
                 CreatedAt = now,
                 UpdatedAt = now
             }));
+
+        if (plannedOccurrences.Count > 0)
+        {
+            var sessions = plannedOccurrences
+                .Select((occurrence, index) => new Session
+                {
+                    Id = Guid.NewGuid(),
+                    ClassId = classEntity.Id,
+                    BranchId = classEntity.BranchId,
+                    ModuleId = plannedMetadata[index].ModuleId,
+                    LessonPlanTemplateId = plannedMetadata[index].LessonPlanTemplateId,
+                    SessionIndexInModule = plannedMetadata[index].SessionIndexInModule,
+                    Color = SessionColorPalette.GetRandomColor(),
+                    PlannedDatetime = occurrence.PlannedDatetime,
+                    PlannedRoomId = classEntity.RoomId,
+                    PlannedTeacherId = classEntity.MainTeacherId,
+                    PlannedAssistantId = classEntity.AssistantTeacherId,
+                    SlotTypeId = classEntity.SlotTypeId,
+                    DurationMinutes = occurrence.DurationMinutes,
+                    ParticipationType = ParticipationType.Main,
+                    SectionType = SectionType.Normal,
+                    Status = SessionStatus.Scheduled,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                })
+                .ToList();
+
+            context.Sessions.AddRange(sessions);
+            foreach (var session in sessions)
+            {
+                await studentSessionAssignmentService.SyncAssignmentsForSessionAsync(session, cancellationToken);
+            }
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         return new CreateClassResponse
@@ -270,7 +353,10 @@ public sealed class CreateClassCommandHandler(
             ProgramId = classEntity.ProgramId,
             LevelId = classEntity.LevelId,
             StartModuleId = classEntity.StartModuleId,
+            StartSessionIndex = classEntity.StartSessionIndex,
             CurrentModuleId = classEntity.CurrentModuleId,
+            CurrentSessionIndex = classEntity.CurrentSessionIndex,
+            CurrentLessonPlanTemplateId = classEntity.CurrentLessonPlanTemplateId,
             Code = classEntity.Code,
             Title = classEntity.Title,
             RoomId = classEntity.RoomId,
@@ -279,12 +365,94 @@ public sealed class CreateClassCommandHandler(
             SlotTypeId = classEntity.SlotTypeId,
             SlotTypeCode = slotTypeCode,
             StartDate = classEntity.StartDate,
+            ExpectedEndDate = classEntity.ExpectedEndDate,
+            ActualEndDate = classEntity.ActualEndDate,
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
             WeeklyScheduleSlots = ParseSlots(classEntity.WeeklyScheduleJson),
             Description = classEntity.Description
         };
+    }
+
+    private async Task<Result<List<ScheduleOccurrence>>> BuildOccurrencesAsync(
+        string weeklyScheduleJson,
+        DateOnly startDate,
+        DateOnly? endDate,
+        int sessionsToGenerate,
+        bool skipHolidays,
+        CancellationToken cancellationToken)
+    {
+        var occurrences = new List<ScheduleOccurrence>(sessionsToGenerate);
+        var searchStart = startDate;
+        var absoluteSearchEnd = endDate ?? startDate.AddDays(MaxOccurrenceSearchDays);
+
+        while (occurrences.Count < sessionsToGenerate && searchStart <= absoluteSearchEnd)
+        {
+            var batchEnd = searchStart.AddDays(OccurrenceBatchDays - 1);
+            if (batchEnd > absoluteSearchEnd)
+            {
+                batchEnd = absoluteSearchEnd;
+            }
+
+            var parseResult = patternParser.ParseAndGenerateOccurrenceDetails(
+                weeklyScheduleJson,
+                searchStart,
+                batchEnd);
+
+            if (parseResult.IsFailure)
+            {
+                return Result.Failure<List<ScheduleOccurrence>>(parseResult.Error);
+            }
+
+            HashSet<DateOnly> holidayDates = [];
+            if (skipHolidays)
+            {
+                var holidays = await context.Holidays
+                    .AsNoTracking()
+                    .Where(h => h.IsActive && h.StartDate <= batchEnd && h.EndDate >= searchStart)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var holiday in holidays)
+                {
+                    for (var date = holiday.StartDate; date <= holiday.EndDate; date = date.AddDays(1))
+                    {
+                        holidayDates.Add(date);
+                    }
+                }
+            }
+
+            foreach (var occurrence in parseResult.Value.OrderBy(x => x.PlannedDatetime))
+            {
+                var occurrenceDate = VietnamTime.ToVietnamDateOnly(occurrence.PlannedDatetime);
+                if (skipHolidays && holidayDates.Contains(occurrenceDate))
+                {
+                    continue;
+                }
+
+                if (occurrences.Any(x => x.PlannedDatetime == occurrence.PlannedDatetime))
+                {
+                    continue;
+                }
+
+                occurrences.Add(occurrence);
+                if (occurrences.Count == sessionsToGenerate)
+                {
+                    break;
+                }
+            }
+
+            searchStart = batchEnd.AddDays(1);
+        }
+
+        if (occurrences.Count < sessionsToGenerate)
+        {
+            return Result.Failure<List<ScheduleOccurrence>>(Error.Validation(
+                "Class.NotEnoughScheduleOccurrences",
+                $"Could only generate {occurrences.Count} scheduled occurrence(s) from {startDate:yyyy-MM-dd} but {sessionsToGenerate} were requested."));
+        }
+
+        return Result.Success(occurrences);
     }
 
     private List<ScheduleSlot> ParseSlots(string? weeklyScheduleJson)
@@ -297,5 +465,4 @@ public sealed class CreateClassCommandHandler(
         var parseResult = patternParser.ParseScheduleSlots(weeklyScheduleJson);
         return parseResult.IsSuccess ? parseResult.Value : [];
     }
-
 }

@@ -104,7 +104,15 @@ public sealed class CreateSessionCommandHandler(
             UpdatedAt = now
         };
 
-        await classSessionPlanningService.AssignMetadataAsync(classEntity.Id, [session], cancellationToken);
+        var planningResult = await classSessionPlanningService.AssignMetadataAsync(
+            classEntity.Id,
+            [session],
+            strictCurriculumCoverage: false,
+            cancellationToken);
+        if (planningResult.IsFailure)
+        {
+            return Result.Failure<CreateSessionResponse>(planningResult.Error);
+        }
         context.Sessions.Add(session);
         await studentSessionAssignmentService.SyncAssignmentsForSessionAsync(session, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);

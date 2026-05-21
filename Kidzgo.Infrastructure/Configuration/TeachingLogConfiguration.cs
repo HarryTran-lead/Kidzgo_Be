@@ -1,4 +1,5 @@
 using Kidzgo.Domain.Sessions;
+using Kidzgo.Domain.LessonPlans;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,6 +19,11 @@ public class TeachingLogConfiguration : IEntityTypeConfiguration<TeachingLog>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(x => x.ActualTeachingType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 
@@ -27,6 +33,16 @@ public class TeachingLogConfiguration : IEntityTypeConfiguration<TeachingLog>
         builder.HasOne(x => x.LessonPlan)
             .WithOne(x => x.TeachingLog)
             .HasForeignKey<TeachingLog>(x => x.LessonPlanId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.PlannedLessonPlanTemplate)
+            .WithMany()
+            .HasForeignKey(x => x.PlannedLessonPlanTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.ActualLessonPlanTemplate)
+            .WithMany()
+            .HasForeignKey(x => x.ActualLessonPlanTemplateId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.SubmittedByUser)

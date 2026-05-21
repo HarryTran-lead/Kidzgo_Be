@@ -16,6 +16,8 @@ public sealed class GetSessionsQueryHandler(
         var sessionsQuery = context.Sessions
             .Include(s => s.Class)
                 .ThenInclude(c => c.Branch)
+            .Include(s => s.TeachingLog)
+                .ThenInclude(t => t!.Lessons)
             .Include(s => s.PlannedRoom)
             .Include(s => s.ActualRoom)
             .Include(s => s.PlannedTeacher)
@@ -88,7 +90,18 @@ public sealed class GetSessionsQueryHandler(
                 PlannedAssistantId = s.PlannedAssistantId,
                 PlannedAssistantName = s.PlannedAssistant != null ? s.PlannedAssistant.Name : null,
                 ActualAssistantId = s.ActualAssistantId,
-                ActualAssistantName = s.ActualAssistant != null ? s.ActualAssistant.Name : null
+                ActualAssistantName = s.ActualAssistant != null ? s.ActualAssistant.Name : null,
+                TeachingLogId = s.TeachingLog != null ? s.TeachingLog.Id : null,
+                TeachingLogStatus = s.TeachingLog != null ? s.TeachingLog.Status.ToString() : null,
+                TeachingProgressStatus = s.TeachingLog != null
+                    ? s.TeachingLog.Lessons
+                        .OrderBy(l => l.OrderIndex)
+                        .Select(l => l.ProgressStatus.ToString())
+                        .FirstOrDefault()
+                    : null,
+                ActualTeachingType = s.TeachingLog != null
+                    ? s.TeachingLog.ActualTeachingType.ToString()
+                    : null
             })
             .ToListAsync(cancellationToken);
 
@@ -126,7 +139,11 @@ public sealed class GetSessionsQueryHandler(
                 PlannedAssistantId = s.PlannedAssistantId,
                 PlannedAssistantName = s.PlannedAssistantName,
                 ActualAssistantId = s.ActualAssistantId,
-                ActualAssistantName = s.ActualAssistantName
+                ActualAssistantName = s.ActualAssistantName,
+                TeachingLogId = s.TeachingLogId,
+                TeachingLogStatus = s.TeachingLogStatus,
+                TeachingProgressStatus = s.TeachingProgressStatus,
+                ActualTeachingType = s.ActualTeachingType
             })
             .ToList();
 

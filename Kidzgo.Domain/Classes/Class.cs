@@ -22,7 +22,10 @@ public class Class : Entity
     public Guid LevelId { get; set; }
     public Guid? SyllabusId { get; set; }
     public Guid StartModuleId { get; set; }
+    public int StartSessionIndex { get; set; }
     public Guid CurrentModuleId { get; set; }
+    public int CurrentSessionIndex { get; set; }
+    public Guid? CurrentLessonPlanTemplateId { get; set; }
     public string Code { get; set; } = null!;
     public string Title { get; set; } = null!;
     public Guid? RoomId { get; set; }
@@ -30,6 +33,8 @@ public class Class : Entity
     public Guid? AssistantTeacherId { get; set; }
     public Guid? SlotTypeId { get; set; }
     public DateOnly StartDate { get; set; }
+    public DateOnly? ExpectedEndDate { get; set; }
+    public DateOnly? ActualEndDate { get; set; }
     public DateOnly? EndDate { get; set; }
     public ClassStatus Status { get; set; }
     public int Capacity { get; set; }
@@ -45,6 +50,7 @@ public class Class : Entity
     public Syllabus? Syllabus { get; set; }
     public Module StartModule { get; set; } = null!;
     public Module CurrentModule { get; set; } = null!;
+    public LessonPlanTemplate? CurrentLessonPlanTemplate { get; set; }
     public Classroom? Room { get; set; }
     public User? MainTeacher { get; set; }
     public User? AssistantTeacher { get; set; }

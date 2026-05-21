@@ -32,6 +32,18 @@ public static class ClassErrors
         "Class.StartModuleLevelMismatch",
         "Start module does not belong to the selected level");
 
+    public static Error InvalidStartSessionIndex(int startSessionIndex, int maxSessionIndex) => Error.Validation(
+        "Class.InvalidStartSessionIndex",
+        $"Start session index '{startSessionIndex}' is invalid. Allowed range is 1..{maxSessionIndex}.");
+
+    public static Error MissingLessonPlanTemplate(string moduleCode, IReadOnlyCollection<int> missingSessionIndexes) => Error.Validation(
+        "Class.MissingLessonPlanTemplate",
+        $"Module '{moduleCode}' is missing lesson plan template(s) for session index(es): {string.Join(", ", missingSessionIndexes.Order())}.");
+
+    public static Error NotEnoughCurriculumSessions(int requestedSessions, int availableSessions) => Error.Validation(
+        "Class.NotEnoughCurriculumSessions",
+        $"Requested {requestedSessions} curriculum session(s) but only {availableSessions} session(s) are available from the selected start point.");
+
     public static readonly Error ProgramNotAvailableInBranch = Error.Validation(
         "Class.ProgramNotAvailableInBranch",
         "Program is not assigned to the selected branch");

@@ -40,6 +40,10 @@ public sealed class SessionListItemDto
     public string? PlannedAssistantName { get; init; }
     public Guid? ActualAssistantId { get; init; }
     public string? ActualAssistantName { get; init; }
+    public Guid? TeachingLogId { get; init; }
+    public string? TeachingLogStatus { get; init; }
+    public string? TeachingProgressStatus { get; init; }
+    public string? ActualTeachingType { get; init; }
 }
 
 

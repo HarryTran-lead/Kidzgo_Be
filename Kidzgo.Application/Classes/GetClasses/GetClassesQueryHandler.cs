@@ -23,6 +23,7 @@ public sealed class GetClassesQueryHandler(
             .Include(c => c.Level)
             .Include(c => c.StartModule)
             .Include(c => c.CurrentModule)
+            .Include(c => c.CurrentLessonPlanTemplate)
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
@@ -96,8 +97,12 @@ public sealed class GetClassesQueryHandler(
                 LevelId = c.LevelId,
                 LevelName = c.Level.Name,
                 StartModuleId = c.StartModuleId,
+                StartSessionIndex = c.StartSessionIndex,
                 StartModuleName = c.StartModule.Name,
                 CurrentModuleId = c.CurrentModuleId,
+                CurrentSessionIndex = c.CurrentSessionIndex,
+                CurrentLessonPlanTemplateId = c.CurrentLessonPlanTemplateId,
+                CurrentLessonTitle = c.CurrentLessonPlanTemplate != null ? c.CurrentLessonPlanTemplate.Title : null,
                 CurrentModuleName = c.CurrentModule.Name,
                 SlotTypeId = c.SlotTypeId,
                 SlotTypeCode = c.SlotType != null ? c.SlotType.Code : null,
@@ -110,13 +115,18 @@ public sealed class GetClassesQueryHandler(
                 AssistantTeacherId = c.AssistantTeacherId,
                 AssistantTeacherName = c.AssistantTeacher != null ? c.AssistantTeacher.Name : null,
                 StartDate = c.StartDate,
+                ExpectedEndDate = c.ExpectedEndDate,
+                ActualEndDate = c.ActualEndDate,
                 EndDate = c.EndDate,
                 Status = c.Status.ToString(),
                 Capacity = c.Capacity,
                 CurrentEnrollmentCount = c.ClassEnrollments.Count(ce => ce.Status == Domain.Classes.EnrollmentStatus.Active),
                 Description = c.Description,
                 TotalSessions = c.Sessions.Count(),
-                CompletedSessions = c.Sessions.Count(s => s.Status == Domain.Sessions.SessionStatus.Completed)
+                CompletedSessions = c.Sessions.Count(s => s.Status == Domain.Sessions.SessionStatus.Completed),
+                TotalCurriculumSessions = c.ModuleProgresses.Sum(mp => mp.RequiredSessions),
+                CompletedClassSessions = c.ModuleProgresses.Sum(mp => mp.CompletedClassSessions),
+                CompletedLessonPlans = c.ModuleProgresses.Sum(mp => mp.CompletedLessonPlans)
             })
             .ToListAsync(cancellationToken);
 

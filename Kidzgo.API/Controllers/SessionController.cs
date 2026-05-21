@@ -12,14 +12,18 @@ using Kidzgo.Application.Sessions.DeleteSessionRole;
 using Kidzgo.Application.Sessions.GetSessionById;
 using Kidzgo.Application.Sessions.GetSessionRoles;
 using Kidzgo.Application.Sessions.GetSessions;
+using Kidzgo.Application.Sessions.GetTeachingLogBySession;
 using Kidzgo.Application.Sessions.GenerateSessionsFromPattern;
 using Kidzgo.Application.Sessions.UpdateSession;
 using Kidzgo.Application.Sessions.UpdateSessionColor;
 using Kidzgo.Application.Sessions.UpdateSessionSectionType;
 using Kidzgo.Application.Sessions.UpdateSessionRole;
+using Kidzgo.Application.Sessions.UpdateTeachingLog;
 using Kidzgo.Application.Sessions.GetSessionAvailability;
 using Kidzgo.Application.Sessions.UpdateSessionsByClass;
+using Kidzgo.Application.Sessions.SubmitTeachingLog;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Sessions.Errors;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -331,6 +335,78 @@ public class SessionController : ControllerBase
         {
             SessionId = sessionId,
             ActualDatetime = request.ActualDatetime
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpPost("{sessionId:guid}/teaching-log")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+    public async Task<IResult> SubmitTeachingLog(
+        Guid sessionId,
+        [FromBody] SubmitTeachingLogRequest request,
+        CancellationToken cancellationToken)
+    {
+        var teachingType = Enum.TryParse<TeachingLogTeachingType>(
+            request.ActualTeachingType,
+            true,
+            out var parsedTeachingType)
+            ? parsedTeachingType
+            : TeachingLogTeachingType.Normal;
+
+        var command = new SubmitTeachingLogCommand
+        {
+            SessionId = sessionId,
+            ActualLessonPlanTemplateId = request.ActualLessonPlanTemplateId,
+            ActualTeachingType = teachingType,
+            ProgressStatus = request.ProgressStatus,
+            ActualContent = request.ActualContent,
+            ActualHomework = request.ActualHomework,
+            TeacherNote = request.TeacherNote
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchCreated(x => $"/api/sessions/{sessionId}/teaching-log");
+    }
+
+    [HttpGet("{sessionId:guid}/teaching-log")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+    public async Task<IResult> GetTeachingLog(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetTeachingLogBySessionQuery
+        {
+            SessionId = sessionId
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPut("{sessionId:guid}/teaching-log")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+    public async Task<IResult> UpdateTeachingLog(
+        Guid sessionId,
+        [FromBody] SubmitTeachingLogRequest request,
+        CancellationToken cancellationToken)
+    {
+        var teachingType = Enum.TryParse<TeachingLogTeachingType>(
+            request.ActualTeachingType,
+            true,
+            out var parsedTeachingType)
+            ? parsedTeachingType
+            : TeachingLogTeachingType.Normal;
+
+        var command = new UpdateTeachingLogCommand
+        {
+            SessionId = sessionId,
+            ActualLessonPlanTemplateId = request.ActualLessonPlanTemplateId,
+            ActualTeachingType = teachingType,
+            ProgressStatus = request.ProgressStatus,
+            ActualContent = request.ActualContent,
+            ActualHomework = request.ActualHomework,
+            TeacherNote = request.TeacherNote
         };
 
         var result = await _mediator.Send(command, cancellationToken);

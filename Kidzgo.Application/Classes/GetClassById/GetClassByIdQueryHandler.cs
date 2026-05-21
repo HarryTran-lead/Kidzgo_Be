@@ -21,6 +21,7 @@ public sealed class GetClassByIdQueryHandler(
             .Include(c => c.Level)
             .Include(c => c.StartModule)
             .Include(c => c.CurrentModule)
+            .Include(c => c.CurrentLessonPlanTemplate)
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
@@ -58,6 +59,9 @@ public sealed class GetClassByIdQueryHandler(
                 segment.EffectiveTo,
                 segment.WeeklyScheduleJson)),
             VietnamTime.TodayDateOnly());
+        var totalCurriculumSessions = classEntity.ModuleProgresses.Sum(x => x.RequiredSessions);
+        var completedClassSessions = classEntity.ModuleProgresses.Sum(x => x.CompletedClassSessions);
+        var completedLessonPlans = classEntity.ModuleProgresses.Sum(x => x.CompletedLessonPlans);
 
         return new GetClassByIdResponse
         {
@@ -69,8 +73,12 @@ public sealed class GetClassByIdQueryHandler(
             LevelId = classEntity.LevelId,
             LevelName = classEntity.Level.Name,
             StartModuleId = classEntity.StartModuleId,
+            StartSessionIndex = classEntity.StartSessionIndex,
             StartModuleName = classEntity.StartModule.Name,
             CurrentModuleId = classEntity.CurrentModuleId,
+            CurrentSessionIndex = classEntity.CurrentSessionIndex,
+            CurrentLessonPlanTemplateId = classEntity.CurrentLessonPlanTemplateId,
+            CurrentLessonTitle = classEntity.CurrentLessonPlanTemplate?.Title,
             CurrentModuleName = classEntity.CurrentModule.Name,
             SlotTypeId = classEntity.SlotTypeId,
             SlotTypeCode = classEntity.SlotType?.Code,
@@ -84,6 +92,8 @@ public sealed class GetClassByIdQueryHandler(
             AssistantTeacherId = classEntity.AssistantTeacherId,
             AssistantTeacherName = classEntity.AssistantTeacher?.Name,
             StartDate = classEntity.StartDate,
+            ExpectedEndDate = classEntity.ExpectedEndDate,
+            ActualEndDate = classEntity.ActualEndDate,
             EndDate = classEntity.EndDate,
             Status = classEntity.Status.ToString(),
             Capacity = classEntity.Capacity,
@@ -101,6 +111,9 @@ public sealed class GetClassByIdQueryHandler(
                 .ToList(),
             TotalSessions = totalSessions,
             CompletedSessions = completedSessions,
+            TotalCurriculumSessions = totalCurriculumSessions,
+            CompletedClassSessions = completedClassSessions,
+            CompletedLessonPlans = completedLessonPlans,
             ModuleProgresses = classEntity.ModuleProgresses
                 .OrderBy(x => x.OrderIndex)
                 .Select(x => new ClassModuleProgressDto
@@ -109,7 +122,10 @@ public sealed class GetClassByIdQueryHandler(
                     ModuleName = x.Module.Name,
                     OrderIndex = x.OrderIndex,
                     RequiredSessions = x.RequiredSessions,
-                    CompletedSessions = x.CompletedSessions,
+                    CompletedClassSessions = x.CompletedClassSessions,
+                    CompletedLessonPlans = x.CompletedLessonPlans,
+                    StartSessionIndex = x.StartSessionIndex,
+                    CurrentSessionIndex = x.CurrentSessionIndex,
                     Status = x.Status.ToString(),
                     StartedAt = x.StartedAt,
                     CompletedAt = x.CompletedAt

@@ -601,6 +601,9 @@ namespace Kidzgo.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateOnly?>("ActualEndDate")
+                        .HasColumnType("date");
+
                     b.Property<Guid?>("AssistantTeacherId")
                         .HasColumnType("uuid");
 
@@ -618,13 +621,22 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("CurrentLessonPlanTemplateId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("CurrentModuleId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("CurrentSessionIndex")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
                     b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ExpectedEndDate")
                         .HasColumnType("date");
 
                     b.Property<Guid>("LevelId")
@@ -647,6 +659,9 @@ namespace Kidzgo.Infrastructure.Migrations
 
                     b.Property<Guid>("StartModuleId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("StartSessionIndex")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -676,6 +691,8 @@ namespace Kidzgo.Infrastructure.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("CurrentLessonPlanTemplateId");
 
                     b.HasIndex("CurrentModuleId");
 
@@ -803,11 +820,17 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("CompletedSessions")
+                    b.Property<int>("CompletedClassSessions")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CompletedLessonPlans")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentSessionIndex")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("ModuleId")
                         .HasColumnType("uuid");
@@ -816,6 +839,9 @@ namespace Kidzgo.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("RequiredSessions")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StartSessionIndex")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("StartedAt")
@@ -6218,6 +6244,20 @@ namespace Kidzgo.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ActualContent")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ActualHomework")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ActualLessonPlanTemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActualTeachingType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -6239,6 +6279,9 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<DateTime?>("LockedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("PlannedLessonPlanTemplateId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uuid");
 
@@ -6253,13 +6296,20 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Property<Guid?>("SubmittedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TeacherNote")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActualLessonPlanTemplateId");
+
                     b.HasIndex("LessonPlanId")
                         .IsUnique();
+
+                    b.HasIndex("PlannedLessonPlanTemplateId");
 
                     b.HasIndex("SessionId")
                         .IsUnique();
@@ -7476,6 +7526,11 @@ namespace Kidzgo.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Kidzgo.Domain.LessonPlans.LessonPlanTemplate", "CurrentLessonPlanTemplate")
+                        .WithMany()
+                        .HasForeignKey("CurrentLessonPlanTemplateId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Kidzgo.Domain.Programs.Module", "CurrentModule")
                         .WithMany("CurrentClasses")
                         .HasForeignKey("CurrentModuleId")
@@ -7523,6 +7578,8 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("AssistantTeacher");
 
                     b.Navigation("Branch");
+
+                    b.Navigation("CurrentLessonPlanTemplate");
 
                     b.Navigation("CurrentModule");
 
@@ -9647,9 +9704,19 @@ namespace Kidzgo.Infrastructure.Migrations
 
             modelBuilder.Entity("Kidzgo.Domain.Sessions.TeachingLog", b =>
                 {
+                    b.HasOne("Kidzgo.Domain.LessonPlans.LessonPlanTemplate", "ActualLessonPlanTemplate")
+                        .WithMany()
+                        .HasForeignKey("ActualLessonPlanTemplateId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Kidzgo.Domain.LessonPlans.LessonPlan", "LessonPlan")
                         .WithOne("TeachingLog")
                         .HasForeignKey("Kidzgo.Domain.Sessions.TeachingLog", "LessonPlanId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Kidzgo.Domain.LessonPlans.LessonPlanTemplate", "PlannedLessonPlanTemplate")
+                        .WithMany()
+                        .HasForeignKey("PlannedLessonPlanTemplateId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Kidzgo.Domain.Sessions.Session", "Session")
@@ -9663,7 +9730,11 @@ namespace Kidzgo.Infrastructure.Migrations
                         .HasForeignKey("SubmittedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.Navigation("ActualLessonPlanTemplate");
+
                     b.Navigation("LessonPlan");
+
+                    b.Navigation("PlannedLessonPlanTemplate");
 
                     b.Navigation("Session");
 

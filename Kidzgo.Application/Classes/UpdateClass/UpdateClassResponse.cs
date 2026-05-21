@@ -11,7 +11,10 @@ public sealed class UpdateClassResponse
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public Guid StartModuleId { get; init; }
+    public int StartSessionIndex { get; init; }
     public Guid CurrentModuleId { get; init; }
+    public int CurrentSessionIndex { get; init; }
+    public Guid? CurrentLessonPlanTemplateId { get; init; }
     public string Code { get; init; } = null!;
     public string Title { get; init; } = null!;
     public Guid? RoomId { get; init; }
@@ -20,6 +23,8 @@ public sealed class UpdateClassResponse
     public Guid? SlotTypeId { get; init; }
     public string? SlotTypeCode { get; init; }
     public DateOnly StartDate { get; init; }
+    public DateOnly? ExpectedEndDate { get; init; }
+    public DateOnly? ActualEndDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public string Status { get; init; } = null!;
     public int Capacity { get; init; }

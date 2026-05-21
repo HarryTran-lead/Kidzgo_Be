@@ -28,8 +28,16 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
         builder.Property(x => x.StartModuleId)
             .IsRequired();
 
+        builder.Property(x => x.StartSessionIndex)
+            .IsRequired();
+
         builder.Property(x => x.CurrentModuleId)
             .IsRequired();
+
+        builder.Property(x => x.CurrentSessionIndex)
+            .IsRequired();
+
+        builder.Property(x => x.CurrentLessonPlanTemplateId);
 
         builder.Property(x => x.Code)
             .HasMaxLength(50)
@@ -52,6 +60,10 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
 
         builder.Property(x => x.StartDate)
             .IsRequired();
+
+        builder.Property(x => x.ExpectedEndDate);
+
+        builder.Property(x => x.ActualEndDate);
 
         builder.Property(x => x.EndDate);
 
@@ -104,6 +116,11 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .WithMany(x => x.CurrentClasses)
             .HasForeignKey(x => x.CurrentModuleId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.CurrentLessonPlanTemplate)
+            .WithMany()
+            .HasForeignKey(x => x.CurrentLessonPlanTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.Room)
             .WithMany()

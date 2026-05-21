@@ -30,6 +30,13 @@ public sealed class GetSessionByIdQueryHandler(
             .Include(s => s.ActualAssistant)
             .Include(s => s.SlotType)
             .Include(s => s.LessonPlan)
+            .Include(s => s.LessonPlanTemplate)
+            .Include(s => s.TeachingLog)
+                .ThenInclude(x => x!.Lessons)
+            .Include(s => s.TeachingLog)
+                .ThenInclude(x => x!.PlannedLessonPlanTemplate)
+            .Include(s => s.TeachingLog)
+                .ThenInclude(x => x!.ActualLessonPlanTemplate)
             .Include(s => s.Attendances)
                 .ThenInclude(a => a.StudentProfile)
             .FirstOrDefaultAsync(s => s.Id == query.SessionId, cancellationToken);
@@ -87,6 +94,19 @@ public sealed class GetSessionByIdQueryHandler(
             ActualAssistantName = session.ActualAssistant != null ? session.ActualAssistant.Name : null,
             LessonPlanId = session.LessonPlan != null ? session.LessonPlan.Id : null,
             LessonPlanLink = session.LessonPlan != null ? $"/api/lesson-plans/{session.LessonPlan.Id}" : null,
+            PlannedLessonTitle = session.TeachingLog?.PlannedLessonPlanTemplate?.Title ?? session.LessonPlanTemplate?.Title,
+            ActualLessonPlanTemplateId = session.TeachingLog?.ActualLessonPlanTemplateId,
+            ActualLessonTitle = session.TeachingLog?.ActualLessonPlanTemplate?.Title,
+            TeachingLogId = session.TeachingLog?.Id,
+            TeachingLogStatus = session.TeachingLog?.Status.ToString(),
+            TeachingProgressStatus = session.TeachingLog?.Lessons
+                .OrderBy(x => x.OrderIndex)
+                .Select(x => x.ProgressStatus.ToString())
+                .FirstOrDefault(),
+            ActualTeachingType = session.TeachingLog?.ActualTeachingType.ToString(),
+            ActualContent = session.TeachingLog?.ActualContent,
+            ActualHomework = session.TeachingLog?.ActualHomework,
+            TeacherNote = session.TeachingLog?.TeacherNote,
             AttendanceSummary = new AttendanceSummaryDto
             {
                 TotalStudents = totalStudents,

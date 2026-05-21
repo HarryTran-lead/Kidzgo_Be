@@ -8,6 +8,7 @@ public sealed class UpdateClassRequest
     public Guid ProgramId { get; set; }
     public Guid LevelId { get; set; }
     public Guid StartModuleId { get; set; }
+    public int StartSessionIndex { get; set; } = 1;
     public string Code { get; set; } = null!;
     public string? Title { get; set; }
     public string? Name { get; set; }

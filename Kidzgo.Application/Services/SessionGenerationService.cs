@@ -267,7 +267,15 @@ public sealed class SessionGenerationService
 
         try
         {
-            await _classSessionPlanningService.AssignMetadataAsync(classEntity.Id, sessionsToCreate, cancellationToken);
+            var planningResult = await _classSessionPlanningService.AssignMetadataAsync(
+                classEntity.Id,
+                sessionsToCreate,
+                strictCurriculumCoverage: false,
+                cancellationToken);
+            if (planningResult.IsFailure)
+            {
+                return Result.Failure<int>(planningResult.Error);
+            }
             _context.Sessions.AddRange(sessionsToCreate);
             foreach (var session in sessionsToCreate)
             {

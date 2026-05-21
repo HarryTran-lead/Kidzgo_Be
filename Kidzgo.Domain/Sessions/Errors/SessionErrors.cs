@@ -107,4 +107,28 @@ public static class SessionErrors
     public static Error UnauthorizedAccess(Guid sessionId) => Error.Validation(
         "Session.UnauthorizedAccess",
         $"Teacher is not allowed to create a report for session with ID '{sessionId}'");
+
+    public static Error TeachingLogAlreadyExists(Guid sessionId) => Error.Conflict(
+        "Session.TeachingLogAlreadyExists",
+        $"Teaching log already exists for session '{sessionId}'.");
+
+    public static Error TeachingLogNotFound(Guid sessionId) => Error.NotFound(
+        "Session.TeachingLogNotFound",
+        $"Teaching log not found for session '{sessionId}'.");
+
+    public static Error TeachingLogLocked(Guid sessionId) => Error.Conflict(
+        "Session.TeachingLogLocked",
+        $"Teaching log for session '{sessionId}' is locked and cannot be updated.");
+
+    public static Error MissingLessonTemplateForTeachingLog(Guid sessionId) => Error.Validation(
+        "Session.MissingLessonTemplateForTeachingLog",
+        $"Session '{sessionId}' does not have a planned lesson plan template.");
+
+    public static Error InvalidTeachingProgressStatus(string? status) => Error.Validation(
+        "Session.InvalidTeachingProgressStatus",
+        $"Invalid teaching progress status '{status}'. Valid values: completed, partial, not_started, skipped.");
+
+    public static Error SkippedRequiresReason => Error.Validation(
+        "Session.SkippedRequiresReason",
+        "Skipped lesson requires a teacher note or reason.");
 }

@@ -6,12 +6,15 @@ using Kidzgo.Application.Classes.AssignTeacher;
 using Kidzgo.Application.Classes.ChangeClassStatus;
 using Kidzgo.Application.Classes.CheckClassCapacity;
 using Kidzgo.Application.Classes.CreateClass;
+using Kidzgo.Application.Classes.PreviewClassSessions;
+using Kidzgo.Application.Classes.ResyncFutureLessons;
 using Kidzgo.Application.Classes.DeleteClass;
 using Kidzgo.Application.Classes.GetClassById;
 using Kidzgo.Application.Classes.GetClasses;
 using Kidzgo.Application.Classes.GetClassStudents;
 using Kidzgo.Application.Classes.UpdateClass;
 using Kidzgo.Application.Classes.UpdateClassColor;
+using Kidzgo.Application.Abstraction.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,6 +45,7 @@ public class ClassController : ControllerBase
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
             StartModuleId = request.StartModuleId,
+            StartSessionIndex = request.StartSessionIndex,
             Code = request.Code,
             Title = request.Name ?? request.Title ?? request.Code,
             RoomId = request.RoomId,
@@ -51,12 +55,37 @@ public class ClassController : ControllerBase
             StartDate = request.StartDate,
             EndDate = request.EndDate, 
             Capacity = request.Capacity,
-            WeeklyScheduleSlots = request.WeeklyScheduleSlots,
+            SessionsToGenerate = request.SessionsToGenerate,
+            SkipHolidays = request.SkipHolidays,
+            WeeklyScheduleSlots = BuildWeeklyScheduleSlots(request.Schedule, request.WeeklyScheduleSlots),
             Description = request.Description
         };
 
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchCreated(c => $"/api/classes/{c.Id}");
+    }
+
+    [HttpPost("preview-sessions")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> PreviewSessions(
+        [FromBody] CreateClassRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new PreviewClassSessionsCommand
+        {
+            ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
+            StartModuleId = request.StartModuleId,
+            StartSessionIndex = request.StartSessionIndex,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            SessionsToGenerate = request.SessionsToGenerate ?? 0,
+            SkipHolidays = request.SkipHolidays,
+            WeeklyScheduleSlots = BuildWeeklyScheduleSlots(request.Schedule, request.WeeklyScheduleSlots)
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
     }
 
     /// UC-058: Xem danh sÃ¡ch Classes
@@ -139,6 +168,20 @@ public class ClassController : ControllerBase
         return result.MatchOk();
     }
 
+    [HttpPost("{id:guid}/resync-future-lessons")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> ResyncFutureLessons(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new ResyncFutureLessonsCommand
+        {
+            ClassId = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
     [HttpGet("{id:guid}/students")]
     [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
     public async Task<IResult> GetClassStudents(
@@ -173,6 +216,7 @@ public class ClassController : ControllerBase
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
             StartModuleId = request.StartModuleId,
+            StartSessionIndex = request.StartSessionIndex,
             Code = request.Code,
             Title = request.Name ?? request.Title ?? request.Code,
             RoomId = request.RoomId,
@@ -280,5 +324,73 @@ public class ClassController : ControllerBase
 
         var result = await _mediator.Send(query, cancellationToken);
         return result.MatchOk();
+    }
+
+    private static List<ScheduleSlot>? BuildWeeklyScheduleSlots(
+        ClassScheduleRequest? schedule,
+        List<ScheduleSlot>? weeklyScheduleSlots)
+    {
+        if (weeklyScheduleSlots is { Count: > 0 })
+        {
+            return weeklyScheduleSlots;
+        }
+
+        if (schedule is null || schedule.DaysOfWeek.Count == 0)
+        {
+            return null;
+        }
+
+        if (!TimeOnly.TryParse(schedule.StartTime, out var startTime) ||
+            !TimeOnly.TryParse(schedule.EndTime, out var endTime))
+        {
+            return [];
+        }
+
+        var durationMinutes = (int)(endTime - startTime).TotalMinutes;
+        if (durationMinutes <= 0)
+        {
+            return [];
+        }
+
+        return schedule.DaysOfWeek
+            .Select(day => MapDayOfWeek(day, schedule.DaysOfWeek.Contains(0)))
+            .Where(dayCode => dayCode is not null)
+            .Select(dayCode => new ScheduleSlot
+            {
+                DayOfWeek = dayCode!,
+                StartTime = startTime.ToString("HH:mm"),
+                DurationMinutes = durationMinutes
+            })
+            .ToList();
+    }
+
+    private static string? MapDayOfWeek(int dayOfWeek, bool usesZeroBasedConvention)
+    {
+        if (usesZeroBasedConvention)
+        {
+            return dayOfWeek switch
+            {
+                0 => "SU",
+                1 => "MO",
+                2 => "TU",
+                3 => "WE",
+                4 => "TH",
+                5 => "FR",
+                6 => "SA",
+                _ => null
+            };
+        }
+
+        return dayOfWeek switch
+        {
+            1 => "SU",
+            2 => "MO",
+            3 => "TU",
+            4 => "WE",
+            5 => "TH",
+            6 => "FR",
+            7 => "SA",
+            _ => null
+        };
     }
 }

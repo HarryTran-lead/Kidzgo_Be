@@ -77,6 +77,7 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         }
 
         var now = VietnamTime.UtcNow();
+        var importDocument = SyllabusDocumentMapper.BuildFromParsedImport(parsed.Value);
         if (syllabus is null)
         {
             syllabus = new Syllabus
@@ -119,6 +120,12 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             .Max();
         syllabus.SourceFileName = FitLegacyShortText(command.FileName);
         syllabus.RawContentJson = JsonSerializer.Serialize(parsed.Value);
+        syllabus.DocumentStatus = SyllabusDocumentStatuses.Draft;
+        syllabus.SourceType = SyllabusDocumentSourceTypes.Imported;
+        syllabus.ParserVersion = "docx-v1";
+        syllabus.DocumentVersion = Math.Max(1, syllabus.DocumentVersion);
+        syllabus.SectionsJson = SyllabusDocumentMapper.WriteSections(importDocument.Sections);
+        syllabus.WarningsJson = SyllabusDocumentMapper.WriteWarnings(importDocument.Warnings);
         syllabus.IsActive = true;
         syllabus.IsDeleted = false;
         syllabus.UpdatedAt = now;

@@ -1,15 +1,28 @@
 using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.Syllabuses.CreateSyllabus;
+using Kidzgo.Application.Syllabuses.AddSyllabusSection;
+using Kidzgo.Application.Syllabuses.AddSyllabusTableRow;
+using Kidzgo.Application.Syllabuses.ArchiveSyllabusDocument;
+using Kidzgo.Application.Syllabuses.DeleteSyllabusTableRow;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
+using Kidzgo.Application.Syllabuses.GetSyllabusDocument;
 using Kidzgo.Application.Syllabuses.GetSyllabuses;
 using Kidzgo.Application.Syllabuses.GetSyllabusUnitLessonPlans;
 using Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
+using Kidzgo.Application.Syllabuses.ImportSyllabusCommit;
+using Kidzgo.Application.Syllabuses.ImportSyllabusPreview;
 using Kidzgo.Application.Syllabuses.ImportLessonPlanWords;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
+using Kidzgo.Application.Syllabuses.PublishSyllabusDocument;
+using Kidzgo.Application.Syllabuses.ReorderSyllabusSections;
 using Kidzgo.Application.Syllabuses.UpsertCurriculumImportConfiguration;
+using Kidzgo.Application.Syllabuses.UpdateSyllabusDocumentMetadata;
+using Kidzgo.Application.Syllabuses.UpdateSyllabusSection;
+using Kidzgo.Application.Syllabuses.UpdateSyllabusTableCell;
 using Kidzgo.Application.Syllabuses.UpdateSyllabus;
+using Kidzgo.Application.Syllabuses.Shared;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +66,8 @@ public class SyllabusController(ISender mediator) : ControllerBase
             SourceFileName = request.SourceFileName,
             AttachmentUrl = request.AttachmentUrl,
             RawContentJson = request.RawContentJson,
+            Status = request.Status,
+            SourceType = request.SourceType,
             IsActive = request.IsActive
         }, cancellationToken);
 
@@ -99,6 +114,16 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetSyllabusByIdQuery { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("{id:guid}/document")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetDocument(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSyllabusDocumentQuery { Id = id }, cancellationToken);
         return result.MatchOk();
     }
 
@@ -252,6 +277,72 @@ public class SyllabusController(ISender mediator) : ControllerBase
         return result.MatchOk();
     }
 
+    [HttpPost("import-preview")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [RequestSizeLimit(41_943_040)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IResult> ImportPreview(
+        [FromForm] Guid programId,
+        [FromForm] Guid levelId,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest(new { error = "No file provided" });
+        }
+
+        var result = await mediator.Send(new ImportSyllabusPreviewCommand
+        {
+            ProgramId = programId,
+            LevelId = levelId,
+            FileName = file.FileName,
+            FileStream = file.OpenReadStream()
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("import-commit")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [RequestSizeLimit(41_943_040)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> ImportCommit(
+        [FromForm] Guid programId,
+        [FromForm] Guid levelId,
+        [FromForm] string code,
+        [FromForm] string? title,
+        [FromForm] string? edition,
+        IFormFile file,
+        [FromForm] bool asDraft = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest(new { error = "No file provided" });
+        }
+
+        var result = await mediator.Send(new ImportSyllabusCommitCommand
+        {
+            ProgramId = programId,
+            LevelId = levelId,
+            Code = code,
+            Title = title,
+            Edition = edition,
+            AsDraft = asDraft,
+            FileName = file.FileName,
+            FileStream = file.OpenReadStream()
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
     /// <summary>
     /// Import one curriculum zip archive that contains PPCT, UNIT, and REVISION folders.
     /// </summary>
@@ -339,5 +430,237 @@ public class SyllabusController(ISender mediator) : ControllerBase
         }, cancellationToken);
 
         return result.MatchOk();
+    }
+
+    [HttpPatch("{id:guid}/metadata")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> UpdateMetadata(
+        Guid id,
+        [FromBody] UpdateSyllabusMetadataRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new UpdateSyllabusDocumentMetadataCommand
+        {
+            Id = id,
+            ExpectedVersion = request.ExpectedVersion,
+            Code = request.Code,
+            Title = request.Title,
+            Edition = request.Edition,
+            MinutesPerPeriod = request.MinutesPerPeriod
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/sections")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> AddSection(
+        Guid id,
+        [FromBody] AddSyllabusSectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new AddSyllabusSectionCommand
+        {
+            Id = id,
+            ExpectedVersion = request.ExpectedVersion,
+            Section = MapSection(request.Section)
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPatch("{id:guid}/sections/{sectionId:guid}")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> UpdateSection(
+        Guid id,
+        Guid sectionId,
+        [FromBody] UpdateSyllabusSectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new UpdateSyllabusSectionCommand
+        {
+            Id = id,
+            SectionId = sectionId,
+            ExpectedVersion = request.ExpectedVersion,
+            Title = request.Title,
+            Content = request.Content,
+            Items = request.Items
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPatch("{id:guid}/sections/{sectionId:guid}/rows/{rowId:guid}/cells/{columnKey}")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> UpdateTableCell(
+        Guid id,
+        Guid sectionId,
+        Guid rowId,
+        string columnKey,
+        [FromBody] UpdateSyllabusTableCellRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new UpdateSyllabusTableCellCommand
+        {
+            Id = id,
+            SectionId = sectionId,
+            RowId = rowId,
+            ColumnKey = columnKey,
+            ExpectedVersion = request.ExpectedVersion,
+            Value = request.Value,
+            RowSpan = request.RowSpan,
+            ColSpan = request.ColSpan,
+            Align = request.Align,
+            Bold = request.Bold
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/sections/{sectionId:guid}/rows")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> AddTableRow(
+        Guid id,
+        Guid sectionId,
+        [FromBody] AddSyllabusTableRowRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new AddSyllabusTableRowCommand
+        {
+            Id = id,
+            SectionId = sectionId,
+            ExpectedVersion = request.ExpectedVersion,
+            OrderIndex = request.OrderIndex,
+            Cells = request.Cells.Select(MapCell).ToList()
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpDelete("{id:guid}/sections/{sectionId:guid}/rows/{rowId:guid}")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> DeleteTableRow(
+        Guid id,
+        Guid sectionId,
+        Guid rowId,
+        [FromQuery] int expectedVersion,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new DeleteSyllabusTableRowCommand
+        {
+            Id = id,
+            SectionId = sectionId,
+            RowId = rowId,
+            ExpectedVersion = expectedVersion
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPatch("{id:guid}/sections/reorder")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> ReorderSections(
+        Guid id,
+        [FromBody] ReorderSyllabusSectionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ReorderSyllabusSectionsCommand
+        {
+            Id = id,
+            ExpectedVersion = request.ExpectedVersion,
+            Orders = request.Orders.Select(x => new ReorderSyllabusSectionItem
+            {
+                SectionId = x.SectionId,
+                OrderIndex = x.OrderIndex
+            }).ToList()
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/publish")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> Publish(
+        Guid id,
+        [FromBody] PublishSyllabusDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new PublishSyllabusDocumentCommand
+        {
+            Id = id,
+            ExpectedVersion = request.ExpectedVersion
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/archive")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> Archive(
+        Guid id,
+        [FromBody] ArchiveSyllabusDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new ArchiveSyllabusDocumentCommand
+        {
+            Id = id,
+            ExpectedVersion = request.ExpectedVersion,
+            Reason = request.Reason
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    private static SyllabusDocumentSectionDto MapSection(SyllabusSectionRequest request)
+    {
+        return new SyllabusDocumentSectionDto
+        {
+            SectionId = Guid.NewGuid(),
+            Type = request.Type,
+            Title = request.Title,
+            OrderIndex = request.OrderIndex,
+            Editable = true,
+            Content = request.Content,
+            Items = request.Items,
+            Table = request.Table is null
+                ? null
+                : new SyllabusDocumentTableDto
+                {
+                    Columns = request.Table.Columns.Select(x => new SyllabusDocumentTableColumnDto
+                    {
+                        Key = x.Key,
+                        Label = x.Label,
+                        Width = x.Width,
+                        Sticky = x.Sticky
+                    }).ToList(),
+                    Rows = request.Table.Rows.Select(x => new SyllabusDocumentTableRowDto
+                    {
+                        RowId = Guid.NewGuid(),
+                        OrderIndex = x.OrderIndex,
+                        Group = x.Group is null
+                            ? null
+                            : new SyllabusDocumentTableRowGroupDto
+                            {
+                                BlockLabel = x.Group.BlockLabel,
+                                TopicGroupId = x.Group.TopicGroupId,
+                                TopicRowSpan = x.Group.TopicRowSpan
+                            },
+                        Cells = x.Cells.Select(MapCell).ToList()
+                    }).ToList()
+                }
+        };
+    }
+
+    private static SyllabusDocumentTableCellDto MapCell(SyllabusTableCellRequest request)
+    {
+        return new SyllabusDocumentTableCellDto
+        {
+            ColumnKey = request.ColumnKey,
+            Value = request.Value,
+            RowSpan = request.RowSpan,
+            ColSpan = request.ColSpan,
+            Align = request.Align,
+            Bold = request.Bold
+        };
     }
 }

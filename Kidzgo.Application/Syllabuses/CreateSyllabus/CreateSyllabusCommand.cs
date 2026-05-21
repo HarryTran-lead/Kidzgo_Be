@@ -1,13 +1,14 @@
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Application.Abstraction.Messaging;
 
 namespace Kidzgo.Application.Syllabuses.CreateSyllabus;
 
-public sealed class CreateSyllabusCommand : ICommand<CreateSyllabusResponse>
+public sealed class CreateSyllabusCommand : ICommand<SyllabusDocumentResponse>
 {
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public string? Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public DateTime? EffectiveFrom { get; init; }
@@ -24,16 +25,7 @@ public sealed class CreateSyllabusCommand : ICommand<CreateSyllabusResponse>
     public string? SourceFileName { get; init; }
     public string? AttachmentUrl { get; init; }
     public string? RawContentJson { get; init; }
+    public string Status { get; init; } = SyllabusDocumentStatuses.Draft;
+    public string SourceType { get; init; } = SyllabusDocumentSourceTypes.Manual;
     public bool IsActive { get; init; } = true;
-}
-
-public sealed class CreateSyllabusResponse
-{
-    public Guid Id { get; init; }
-    public Guid ProgramId { get; init; }
-    public Guid LevelId { get; init; }
-    public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
-    public string Title { get; init; } = null!;
-    public bool IsActive { get; init; }
 }

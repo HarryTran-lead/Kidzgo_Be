@@ -21,9 +21,9 @@ public sealed class CreateSyllabusRequest
     public string Code { get; init; } = null!;
 
     /// <summary>
-    /// Version label, for example v1.
+    /// Optional legacy version label. When omitted, backend generates an internal document version key.
     /// </summary>
-    public string Version { get; init; } = null!;
+    public string? Version { get; init; }
 
     /// <summary>
     /// Display title.
@@ -48,5 +48,7 @@ public sealed class CreateSyllabusRequest
     /// Optional raw JSON snapshot imported from external source.
     /// </summary>
     public string? RawContentJson { get; init; }
+    public string Status { get; init; } = "Draft";
+    public string SourceType { get; init; } = "Manual";
     public bool IsActive { get; init; } = true;
 }

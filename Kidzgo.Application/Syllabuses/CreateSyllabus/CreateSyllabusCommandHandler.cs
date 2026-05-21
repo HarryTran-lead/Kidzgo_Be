@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
@@ -8,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Syllabuses.CreateSyllabus;
 
 public sealed class CreateSyllabusCommandHandler(IDbContext context)
-    : ICommandHandler<CreateSyllabusCommand, CreateSyllabusResponse>
+    : ICommandHandler<CreateSyllabusCommand, SyllabusDocumentResponse>
 {
-    public async Task<Result<CreateSyllabusResponse>> Handle(CreateSyllabusCommand command, CancellationToken cancellationToken)
+    public async Task<Result<SyllabusDocumentResponse>> Handle(CreateSyllabusCommand command, CancellationToken cancellationToken)
     {
         var level = await context.Levels
             .Where(x => x.Id == command.LevelId && x.IsActive)
@@ -19,37 +20,46 @@ public sealed class CreateSyllabusCommandHandler(IDbContext context)
 
         if (level is null)
         {
-            return Result.Failure<CreateSyllabusResponse>(SyllabusErrors.LevelNotFound(command.LevelId));
+            return Result.Failure<SyllabusDocumentResponse>(SyllabusErrors.LevelNotFound(command.LevelId));
         }
 
         if (level.ProgramId != command.ProgramId)
         {
-            return Result.Failure<CreateSyllabusResponse>(
+            return Result.Failure<SyllabusDocumentResponse>(
                 SyllabusErrors.LevelDoesNotBelongToProgram(command.LevelId, command.ProgramId));
         }
 
-        var exists = await context.Syllabuses.AnyAsync(
-            x => x.ProgramId == command.ProgramId &&
-                 x.LevelId == command.LevelId &&
-                 x.Code == command.Code &&
-                 x.Version == command.Version &&
-                 !x.IsDeleted,
-            cancellationToken);
-
-        if (exists)
+        var normalizedCode = command.Code.Trim();
+        try
         {
-            return Result.Failure<CreateSyllabusResponse>(
-                SyllabusErrors.DuplicateVersion(command.ProgramId, command.LevelId, command.Code, command.Version));
+            await SyllabusDocumentRules.EnsureUniqueActiveCodeAsync(
+                context,
+                command.ProgramId,
+                command.LevelId,
+                normalizedCode,
+                ignoreId: null,
+                cancellationToken);
+        }
+        catch (SyllabusDocumentRuleException ex)
+        {
+            return Result.Failure<SyllabusDocumentResponse>(ex.Error);
         }
 
         var now = VietnamTime.UtcNow();
+        var status = SyllabusDocumentMapper.NormalizeStatus(command.Status);
+        var sourceType = SyllabusDocumentMapper.NormalizeSourceType(command.SourceType);
+        var version = string.IsNullOrWhiteSpace(command.Version)
+            ? $"doc-{now:yyyyMMddHHmmssfff}"
+            : command.Version.Trim();
+        var sections = SyllabusDocumentMapper.BuildInitialManualSections();
+        var warnings = new List<SyllabusDocumentWarningDto>();
         var syllabus = new Syllabus
         {
             Id = Guid.NewGuid(),
             ProgramId = command.ProgramId,
             LevelId = command.LevelId,
-            Code = command.Code.Trim(),
-            Version = command.Version.Trim(),
+            Code = normalizedCode,
+            Version = version,
             Title = command.Title.Trim(),
             Edition = command.Edition?.Trim(),
             EffectiveFrom = command.EffectiveFrom,
@@ -66,6 +76,11 @@ public sealed class CreateSyllabusCommandHandler(IDbContext context)
             SourceFileName = command.SourceFileName,
             AttachmentUrl = command.AttachmentUrl,
             RawContentJson = command.RawContentJson,
+            DocumentStatus = status,
+            SourceType = sourceType,
+            DocumentVersion = 1,
+            SectionsJson = SyllabusDocumentMapper.WriteSections(sections),
+            WarningsJson = SyllabusDocumentMapper.WriteWarnings(warnings),
             IsActive = command.IsActive,
             IsDeleted = false,
             CreatedAt = now,
@@ -75,15 +90,13 @@ public sealed class CreateSyllabusCommandHandler(IDbContext context)
         context.Syllabuses.Add(syllabus);
         await context.SaveChangesAsync(cancellationToken);
 
-        return new CreateSyllabusResponse
-        {
-            Id = syllabus.Id,
-            ProgramId = syllabus.ProgramId,
-            LevelId = syllabus.LevelId,
-            Code = syllabus.Code,
-            Version = syllabus.Version,
-            Title = syllabus.Title,
-            IsActive = syllabus.IsActive
-        };
+        return SyllabusDocumentMapper.ToResponse(
+            syllabus,
+            sections,
+            warnings,
+            totalUnits: 0,
+            totalSessions: 0,
+            totalLessons: syllabus.TotalLessons ?? 0,
+            totalPeriods: syllabus.TotalPeriods ?? 0);
     }
 }

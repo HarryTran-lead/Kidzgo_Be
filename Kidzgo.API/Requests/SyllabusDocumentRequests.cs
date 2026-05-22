@@ -3,7 +3,7 @@ namespace Kidzgo.API.Requests;
 public sealed class UpdateSyllabusMetadataRequest
 {
     public int ExpectedVersion { get; init; }
-    public string Code { get; init; } = null!;
+    public string? Code { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public int? MinutesPerPeriod { get; init; }

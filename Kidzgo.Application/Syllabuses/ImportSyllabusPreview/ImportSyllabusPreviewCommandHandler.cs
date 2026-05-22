@@ -32,7 +32,7 @@ public sealed class ImportSyllabusPreviewCommandHandler(IDbContext context)
                 SyllabusErrors.LevelDoesNotBelongToProgram(command.LevelId, command.ProgramId));
         }
 
-        var parsed = CurriculumWordImportParser.ParseSyllabusDocx(command.FileStream, command.FileName);
+        var parsed = CurriculumWordImportParser.ParseSyllabusFile(command.FileStream, command.FileName);
         if (parsed.IsFailure)
         {
             return Result.Failure<SyllabusImportPreviewResponse>(SyllabusErrors.ImportParseFailed(parsed.Error.Description));
@@ -50,7 +50,7 @@ public sealed class ImportSyllabusPreviewCommandHandler(IDbContext context)
             DocumentStatus = SyllabusDocumentStatuses.Draft,
             SourceType = SyllabusDocumentSourceTypes.Imported,
             SourceFileName = command.FileName,
-            ParserVersion = "docx-v1",
+            ParserVersion = GetParserVersion(command.FileName),
             DocumentVersion = 1,
             MinutesPerPeriod = 45
         };
@@ -69,5 +69,12 @@ public sealed class ImportSyllabusPreviewCommandHandler(IDbContext context)
             Document = document,
             Warnings = warnings
         });
+    }
+
+    private static string GetParserVersion(string fileName)
+    {
+        return string.Equals(Path.GetExtension(fileName), ".pdf", StringComparison.OrdinalIgnoreCase)
+            ? "pdf-v1"
+            : "docx-v1";
     }
 }

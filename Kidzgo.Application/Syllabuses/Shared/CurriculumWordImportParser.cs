@@ -4,11 +4,24 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
+using UglyToad.PdfPig;
 
 namespace Kidzgo.Application.Syllabuses.Shared;
 
 internal static class CurriculumWordImportParser
 {
+    public static Result<ParsedSyllabusDocument> ParseSyllabusFile(Stream stream, string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".docx" => ParseSyllabusDocx(stream, fileName),
+            ".pdf" => ParseSyllabusPdf(stream, fileName),
+            _ => Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.UnsupportedImportFileType(extension))
+        };
+    }
+
     public static Result<ParsedSyllabusDocument> ParseSyllabusDocx(Stream stream, string fileName)
     {
         if (!string.Equals(Path.GetExtension(fileName), ".docx", StringComparison.OrdinalIgnoreCase))
@@ -43,6 +56,59 @@ internal static class CurriculumWordImportParser
         var resources = ParseResources(tables);
         var lessons = ParseLessons(tables);
         var units = BuildUnits(lessons, tables);
+
+        return Result.Success(new ParsedSyllabusDocument(
+            title.Trim(),
+            edition?.Trim(),
+            string.IsNullOrWhiteSpace(overview) ? null : overview.Trim(),
+            units,
+            lessons,
+            resources,
+            rawText));
+    }
+
+    public static Result<ParsedSyllabusDocument> ParseSyllabusPdf(Stream stream, string fileName)
+    {
+        if (!string.Equals(Path.GetExtension(fileName), ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.UnsupportedImportFileType(Path.GetExtension(fileName)));
+        }
+
+        using var document = PdfDocument.Open(stream);
+        var rawText = string.Join("\n", document.GetPages().Select(p => p.Text));
+        var lines = rawText
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => Regex.Replace(x, @"\s+", " ").Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        if (lines.Count == 0)
+        {
+            return Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.InvalidImportFile("The PDF document is empty."));
+        }
+
+        var title = lines.FirstOrDefault(x =>
+                        x.Contains("syllabus", StringComparison.OrdinalIgnoreCase) ||
+                        x.Contains("curriculum", StringComparison.OrdinalIgnoreCase))
+                    ?? Path.GetFileNameWithoutExtension(fileName);
+        var edition = lines.FirstOrDefault(x => x.Contains("edition", StringComparison.OrdinalIgnoreCase));
+        var overview = string.Join(
+            "\n",
+            lines.TakeWhile(x => !LooksLikePdfTableStart(x))
+                .Take(20));
+
+        var lessons = ParseLessonsFromPdfLines(lines);
+        if (lessons.Count == 0)
+        {
+            return Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.ImportParseFailed(
+                    "Could not detect curriculum rows from PDF. Export to Word or provide a PDF with selectable text table layout."));
+        }
+
+        var units = BuildUnitsFromLessons(lessons);
+        var resources = ParseResourcesFromPdfLines(lines);
 
         return Result.Success(new ParsedSyllabusDocument(
             title.Trim(),
@@ -447,6 +513,18 @@ internal static class CurriculumWordImportParser
     private static List<ParsedSyllabusUnit> BuildUnits(List<ParsedSyllabusLesson> lessons, List<Table> tables)
     {
         var definitions = ParseUnitDefinitions(tables);
+        return BuildUnits(lessons, definitions);
+    }
+
+    private static List<ParsedSyllabusUnit> BuildUnitsFromLessons(List<ParsedSyllabusLesson> lessons)
+    {
+        return BuildUnits(lessons, Array.Empty<UnitDefinition>());
+    }
+
+    private static List<ParsedSyllabusUnit> BuildUnits(
+        List<ParsedSyllabusLesson> lessons,
+        IReadOnlyList<UnitDefinition> definitions)
+    {
         var lessonGroups = lessons
             .Select(lesson => new
             {
@@ -499,6 +577,160 @@ internal static class CurriculumWordImportParser
         }
 
         return units;
+    }
+
+    private static List<ParsedSyllabusLesson> ParseLessonsFromPdfLines(IReadOnlyList<string> lines)
+    {
+        var headerIndex = lines
+            .Select((line, index) => new { line, index })
+            .FirstOrDefault(x => LooksLikePdfTableStart(x.line))?.index ?? -1;
+
+        if (headerIndex < 0)
+        {
+            return [];
+        }
+
+        string? currentTopic = null;
+        var lessons = new List<ParsedSyllabusLesson>();
+
+        foreach (var rawLine in lines.Skip(headerIndex + 1))
+        {
+            if (LooksLikeResourceHeader(rawLine))
+            {
+                break;
+            }
+
+            var columns = SplitPdfColumns(rawLine);
+            var lesson = TryParsePdfLessonRow(columns, ref currentTopic, lessons.Count + 1)
+                         ?? TryParsePdfLessonRow([rawLine], ref currentTopic, lessons.Count + 1);
+            if (lesson is not null)
+            {
+                lessons.Add(lesson);
+            }
+        }
+
+        return lessons;
+    }
+
+    private static ParsedSyllabusLesson? TryParsePdfLessonRow(
+        IReadOnlyList<string> columns,
+        ref string? currentTopic,
+        int orderIndex)
+    {
+        if (columns.Count == 0)
+        {
+            return null;
+        }
+
+        var periods = columns[0];
+        var (periodFrom, periodTo) = ParsePeriodRange(periods);
+        if (!periodFrom.HasValue && !periodTo.HasValue)
+        {
+            var regexMatch = Regex.Match(
+                string.Join(" | ", columns),
+                @"^(?<period>\d+(?:\s*-\s*\d+)?)\s+(?<topic>.+?)(?:\s+\|\s+|\s{2,})(?<lesson>\d+)(?:\s+\|\s+|\s{2,})(?<content>.*)$",
+                RegexOptions.IgnoreCase);
+
+            if (!regexMatch.Success)
+            {
+                return null;
+            }
+
+            periods = regexMatch.Groups["period"].Value;
+            (periodFrom, periodTo) = ParsePeriodRange(periods);
+            columns = [
+                periods,
+                regexMatch.Groups["topic"].Value,
+                regexMatch.Groups["lesson"].Value,
+                regexMatch.Groups["content"].Value
+            ];
+        }
+
+        if (!periodFrom.HasValue && !periodTo.HasValue)
+        {
+            return null;
+        }
+
+        var topic = columns.Count > 1 ? columns[1] : null;
+        if (!string.IsNullOrWhiteSpace(topic))
+        {
+            currentTopic = topic.Trim();
+        }
+
+        var lessonNumber = columns.Count > 2 ? ParseFirstInt(columns[2]) : null;
+        var content = columns.Count > 3 ? columns[3] : null;
+        var structures = columns.Count > 4 ? columns[4] : null;
+        var studentBook = columns.Count > 5 ? columns[5] : null;
+        var teacherBook = columns.Count > 6 ? columns[6] : null;
+
+        if (string.IsNullOrWhiteSpace(currentTopic) && !lessonNumber.HasValue && string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        return new ParsedSyllabusLesson(
+            orderIndex,
+            periodFrom,
+            periodTo,
+            currentTopic,
+            lessonNumber,
+            content,
+            structures,
+            null,
+            studentBook,
+            teacherBook,
+            currentTopic);
+    }
+
+    private static List<string> SplitPdfColumns(string line)
+    {
+        if (line.Contains('|'))
+        {
+            return line.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+        }
+
+        if (line.Contains('\t'))
+        {
+            return line.Split('\t', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+        }
+
+        var multiSpaceParts = Regex.Split(line, @"\s{2,}")
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return multiSpaceParts.Count > 1 ? multiSpaceParts : [line.Trim()];
+    }
+
+    private static List<ParsedSyllabusResource> ParseResourcesFromPdfLines(IReadOnlyList<string> lines)
+    {
+        var headerIndex = lines
+            .Select((line, index) => new { line, index })
+            .FirstOrDefault(x => LooksLikeResourceHeader(x.line))?.index ?? -1;
+
+        if (headerIndex < 0)
+        {
+            return [];
+        }
+
+        var resources = new List<ParsedSyllabusResource>();
+        foreach (var line in lines.Skip(headerIndex + 1))
+        {
+            var columns = SplitPdfColumns(line);
+            if (columns.Count == 0 || columns.All(string.IsNullOrWhiteSpace))
+            {
+                continue;
+            }
+
+            resources.Add(new ParsedSyllabusResource(
+                resources.Count + 1,
+                columns.ElementAtOrDefault(0),
+                columns.ElementAtOrDefault(1),
+                columns.ElementAtOrDefault(2),
+                columns.ElementAtOrDefault(3)));
+        }
+
+        return resources;
     }
 
     private static List<UnitDefinition> ParseUnitDefinitions(IEnumerable<Table> tables)
@@ -800,6 +1032,19 @@ internal static class CurriculumWordImportParser
         return normalized.Contains("period") ||
                normalized.Contains("topic") ||
                normalized.Contains("document");
+    }
+
+    private static bool LooksLikePdfTableStart(string value)
+    {
+        var normalized = Normalize(value);
+        return normalized.Contains("period") &&
+               (normalized.Contains("topic") || normalized.Contains("lesson") || normalized.Contains("content"));
+    }
+
+    private static bool LooksLikeResourceHeader(string value)
+    {
+        var normalized = Normalize(value);
+        return normalized.Contains("document") && normalized.Contains("abbreviation");
     }
 
     private sealed record DocumentBlock(bool IsTable, string Text);

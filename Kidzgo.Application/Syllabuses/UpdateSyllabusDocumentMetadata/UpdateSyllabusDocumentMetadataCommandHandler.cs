@@ -24,15 +24,19 @@ public sealed class UpdateSyllabusDocumentMetadataCommandHandler(IDbContext cont
             var syllabus = syllabusResult.Value;
             SyllabusDocumentRules.EnsureExpectedVersion(syllabus, command.ExpectedVersion);
             SyllabusDocumentRules.EnsureDraftEditable(syllabus);
+            var normalizedCode = string.IsNullOrWhiteSpace(command.Code)
+                ? syllabus.Code.Trim()
+                : command.Code.Trim();
+
             await SyllabusDocumentRules.EnsureUniqueActiveCodeAsync(
                 context,
                 syllabus.ProgramId,
                 syllabus.LevelId,
-                command.Code.Trim(),
+                normalizedCode,
                 syllabus.Id,
                 cancellationToken);
 
-            syllabus.Code = command.Code.Trim();
+            syllabus.Code = normalizedCode;
             syllabus.Title = command.Title.Trim();
             syllabus.Edition = string.IsNullOrWhiteSpace(command.Edition) ? null : command.Edition.Trim();
             syllabus.MinutesPerPeriod = command.MinutesPerPeriod;

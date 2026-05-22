@@ -66,8 +66,9 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
         Guid? syllabusId = null;
         var importedLessonPlans = 0;
-        var importedEntries = new List<ImportedCurriculumLessonPlanDto>();
+        var importedEntries = new List<ImportedCurriculumArchiveEntryDto>();
         var skipped = new List<string>();
+        var skippedItems = new List<SkippedCurriculumArchiveEntryDto>();
         Error? syllabusImportError = null;
 
         foreach (var entry in syllabusEntries)
@@ -93,11 +94,23 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             if (syllabusResult.IsFailure)
             {
                 syllabusImportError = syllabusResult.Error;
-                skipped.Add($"{entry.FullName}: {syllabusResult.Error.Description}");
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    syllabusResult.Error.Description);
                 continue;
             }
 
             syllabusId = syllabusResult.Value.SyllabusId;
+            importedEntries.Add(new ImportedCurriculumArchiveEntryDto
+            {
+                EntryName = entry.FullName,
+                SourceFolder = ResolveSourceFolder(entry.FullName),
+                SourceType = ResolveSourceType(entry.FullName),
+                Created = true,
+                Title = Path.GetFileNameWithoutExtension(entry.FullName)
+            });
             break;
         }
 
@@ -131,7 +144,11 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             }
             if (module is null)
             {
-                skipped.Add(entry.FullName);
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    "Could not map entry to a module.");
                 continue;
             }
 
@@ -143,7 +160,11 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 Path.GetDirectoryName(entry.FullName));
             if (!sessionIndexOverride.HasValue)
             {
-                skipped.Add($"{entry.FullName}: Could not resolve session index from import configuration");
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    "Could not resolve session index from import configuration");
                 continue;
             }
 
@@ -161,18 +182,26 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
             if (lessonResult.IsFailure)
             {
-                skipped.Add($"{entry.FullName}: {lessonResult.Error.Description}");
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    lessonResult.Error.Description);
                 continue;
             }
 
             importedLessonPlans++;
-            importedEntries.Add(new ImportedCurriculumLessonPlanDto
+            importedEntries.Add(new ImportedCurriculumArchiveEntryDto
             {
                 EntryName = entry.FullName,
+                SourceFolder = ResolveSourceFolder(entry.FullName),
+                SourceType = ResolveSourceType(entry.FullName),
                 ModuleId = module.Id,
+                ModuleName = module.Name,
                 LessonPlanTemplateId = lessonResult.Value.LessonPlanTemplateId,
                 SessionTemplateId = lessonResult.Value.SessionTemplateId,
                 SessionIndex = lessonResult.Value.SessionIndex,
+                SessionOrder = lessonResult.Value.SessionIndex,
                 Created = lessonResult.Value.Created,
                 Title = lessonResult.Value.Title
             });
@@ -184,7 +213,8 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             ImportedLessonPlans = importedLessonPlans,
             SkippedFiles = skipped.Count,
             ImportedEntries = importedEntries,
-            SkippedEntries = skipped
+            SkippedEntries = skipped,
+            SkippedItems = skippedItems
         };
     }
 
@@ -328,5 +358,50 @@ public sealed class ImportCurriculumArchiveCommandHandler(
     private static string NormalizeArchivePath(string value)
     {
         return Regex.Replace(value.Replace('\\', '/'), @"\s+", " ").Trim();
+    }
+
+    private static void AddSkippedEntry(
+        ICollection<string> skipped,
+        ICollection<SkippedCurriculumArchiveEntryDto> skippedItems,
+        string entryName,
+        string reason)
+    {
+        skipped.Add($"{entryName}: {reason}");
+        skippedItems.Add(new SkippedCurriculumArchiveEntryDto
+        {
+            EntryName = entryName,
+            SourceFolder = ResolveSourceFolder(entryName),
+            SourceType = ResolveSourceType(entryName),
+            Reason = reason
+        });
+    }
+
+    private static string? ResolveSourceFolder(string fullName)
+    {
+        var normalized = fullName.Replace('\\', '/');
+        var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 2)
+        {
+            return null;
+        }
+
+        return segments[^2];
+    }
+
+    private static string ResolveSourceType(string fullName)
+    {
+        var normalized = NormalizeArchivePath(fullName);
+
+        if (IsSyllabusEntry(normalized))
+        {
+            return "SyllabusDocument";
+        }
+
+        if (Regex.IsMatch(normalized, @"(?:^|/)\s*REVISION(?:\s|/|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return "RevisionLesson";
+        }
+
+        return "UnitLesson";
     }
 }

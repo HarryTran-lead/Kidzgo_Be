@@ -49,7 +49,7 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
                 SyllabusErrors.ImportConfigurationNotFound(command.ProgramId, command.LevelId));
         }
 
-        var parsed = CurriculumWordImportParser.ParseSyllabusDocx(command.FileStream, command.FileName);
+        var parsed = CurriculumWordImportParser.ParseSyllabusFile(command.FileStream, command.FileName);
         if (parsed.IsFailure)
         {
             return Result.Failure<ImportSyllabusFromWordResponse>(parsed.Error);
@@ -122,7 +122,7 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         syllabus.RawContentJson = JsonSerializer.Serialize(parsed.Value);
         syllabus.DocumentStatus = SyllabusDocumentStatuses.Draft;
         syllabus.SourceType = SyllabusDocumentSourceTypes.Imported;
-        syllabus.ParserVersion = "docx-v1";
+        syllabus.ParserVersion = GetParserVersion(command.FileName);
         syllabus.DocumentVersion = Math.Max(1, syllabus.DocumentVersion);
         syllabus.SectionsJson = SyllabusDocumentMapper.WriteSections(importDocument.Sections);
         syllabus.WarningsJson = SyllabusDocumentMapper.WriteWarnings(importDocument.Warnings);
@@ -218,6 +218,13 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             ImportedResources = resourceEntities.Count,
             ImportedSessionTemplates = sessionTemplates.Count
         };
+    }
+
+    private static string GetParserVersion(string fileName)
+    {
+        return string.Equals(Path.GetExtension(fileName), ".pdf", StringComparison.OrdinalIgnoreCase)
+            ? "pdf-v1"
+            : "docx-v1";
     }
 
     private static Guid? ResolveModuleId(

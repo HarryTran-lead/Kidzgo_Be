@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -13,35 +14,9 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
     {
         var syllabus = await context.Syllabuses
             .AsNoTracking()
-            .Where(x => x.Id == query.Id && !x.IsDeleted)
-            .Select(x => new
-            {
-                Id = x.Id,
-                ProgramId = x.ProgramId,
-                ProgramName = x.Program.Name,
-                LevelId = x.LevelId,
-                LevelName = x.Level.Name,
-                Code = x.Code,
-                Version = x.Version,
-                Title = x.Title,
-                Edition = x.Edition,
-                EffectiveFrom = x.EffectiveFrom,
-                EffectiveTo = x.EffectiveTo,
-                PacingSchemeJson = x.PacingSchemeJson,
-                Overview = x.Overview,
-                OverallObjectives = x.OverallObjectives,
-                SpecificObjectives = x.SpecificObjectives,
-                EthicsAndAttitudes = x.EthicsAndAttitudes,
-                BookOverview = x.BookOverview,
-                TotalPeriods = x.TotalPeriods,
-                MinutesPerPeriod = x.MinutesPerPeriod,
-                TotalLessons = x.TotalLessons,
-                SourceFileName = x.SourceFileName,
-                AttachmentUrl = x.AttachmentUrl,
-                RawContentJson = x.RawContentJson,
-                IsActive = x.IsActive
-            })
-            .FirstOrDefaultAsync(cancellationToken);
+            .Include(x => x.Program)
+            .Include(x => x.Level)
+            .FirstOrDefaultAsync(x => x.Id == query.Id && !x.IsDeleted, cancellationToken);
 
         if (syllabus is null)
         {
@@ -65,6 +40,12 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
             })
             .ToListAsync(cancellationToken);
 
+        var unitEntities = await context.SyllabusUnits
+            .AsNoTracking()
+            .Where(u => u.SyllabusId == query.Id)
+            .OrderBy(u => u.OrderIndex)
+            .ToListAsync(cancellationToken);
+
         var lessons = await context.SyllabusLessons
             .AsNoTracking()
             .Where(l => l.SyllabusId == query.Id)
@@ -86,6 +67,12 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
             })
             .ToListAsync(cancellationToken);
 
+        var lessonEntities = await context.SyllabusLessons
+            .AsNoTracking()
+            .Where(l => l.SyllabusId == query.Id)
+            .OrderBy(l => l.OrderIndex)
+            .ToListAsync(cancellationToken);
+
         var resources = await context.SyllabusResources
             .AsNoTracking()
             .Where(r => r.SyllabusId == query.Id)
@@ -99,6 +86,12 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
                 Notes = r.Notes,
                 OrderIndex = r.OrderIndex
             })
+            .ToListAsync(cancellationToken);
+
+        var resourceEntities = await context.SyllabusResources
+            .AsNoTracking()
+            .Where(r => r.SyllabusId == query.Id)
+            .OrderBy(r => r.OrderIndex)
             .ToListAsync(cancellationToken);
 
         var sessionTemplates = await context.SessionTemplates
@@ -125,6 +118,17 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
             })
             .ToListAsync(cancellationToken);
 
+        var sections = SyllabusDocumentMapper.ReadSections(syllabus, unitEntities, lessonEntities, resourceEntities);
+        var warnings = SyllabusDocumentMapper.ReadWarnings(syllabus);
+        var document = SyllabusDocumentMapper.ToResponseFromSections(
+            syllabus,
+            sections,
+            warnings,
+            fallbackTotalUnits: units.Count,
+            fallbackTotalSessions: sessionTemplates.Count,
+            fallbackTotalLessons: lessons.Count,
+            fallbackTotalPeriods: lessons.Select(x => x.PeriodTo ?? x.PeriodFrom ?? 0).DefaultIfEmpty(0).Max());
+
         var lessonPlanTemplateSummaries = await context.Modules
             .AsNoTracking()
             .Where(m => m.LevelId == syllabus.LevelId && m.IsActive)
@@ -145,9 +149,9 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
         {
             Id = syllabus.Id,
             ProgramId = syllabus.ProgramId,
-            ProgramName = syllabus.ProgramName,
+            ProgramName = syllabus.Program.Name,
             LevelId = syllabus.LevelId,
-            LevelName = syllabus.LevelName,
+            LevelName = syllabus.Level.Name,
             Code = syllabus.Code,
             Version = syllabus.Version,
             Title = syllabus.Title,
@@ -167,6 +171,8 @@ public sealed class GetSyllabusByIdQueryHandler(IDbContext context)
             AttachmentUrl = syllabus.AttachmentUrl,
             RawContentJson = syllabus.RawContentJson,
             IsActive = syllabus.IsActive,
+            Summary = document.Summary,
+            Document = document,
             Units = units,
             Lessons = lessons,
             Resources = resources,

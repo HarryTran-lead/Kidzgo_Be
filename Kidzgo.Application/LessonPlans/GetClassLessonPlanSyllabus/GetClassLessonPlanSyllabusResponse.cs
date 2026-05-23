@@ -19,13 +19,20 @@ public sealed class ClassLessonPlanSyllabusSessionDto
     public Guid? ModuleId { get; init; }
     public int? SessionIndexInModule { get; init; }
     public DateTime SessionDate { get; init; }
+    public string? RowRef { get; init; }
+    public string? UnitName { get; init; }
+    public string? LessonTitle { get; init; }
     public Guid? PlannedTeacherId { get; init; }
     public string? PlannedTeacherName { get; init; }
     public Guid? ActualTeacherId { get; init; }
     public string? ActualTeacherName { get; init; }
     public Guid? LessonPlanId { get; init; }
     public Guid? TemplateId { get; init; }
+    public Guid? PlannedLessonPlanTemplateId { get; init; }
+    public Guid? ActualLessonPlanTemplateId { get; init; }
     public string? TemplateTitle { get; init; }
+    public string? PlannedLessonTitle { get; init; }
+    public string? ActualLessonTitle { get; init; }
     public string? TemplateSyllabusContent { get; init; }
     public string? PlannedContent { get; init; }
     public string? ActualContent { get; init; }

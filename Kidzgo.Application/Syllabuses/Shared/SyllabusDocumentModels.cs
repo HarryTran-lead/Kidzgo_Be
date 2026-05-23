@@ -120,3 +120,9 @@ public sealed class SyllabusImportPreviewResponse
     [JsonPropertyName("warnings")]
     public IReadOnlyList<SyllabusDocumentWarningDto> Warnings { get; init; } = [];
 }
+
+public sealed class SyllabusImportCommitResponse
+{
+    [JsonPropertyName("document")]
+    public SyllabusDocumentResponse Document { get; init; } = new();
+}

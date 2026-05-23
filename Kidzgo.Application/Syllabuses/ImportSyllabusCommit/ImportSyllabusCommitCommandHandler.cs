@@ -12,9 +12,9 @@ namespace Kidzgo.Application.Syllabuses.ImportSyllabusCommit;
 public sealed class ImportSyllabusCommitCommandHandler(
     IDbContext context,
     ISender sender)
-    : ICommandHandler<ImportSyllabusCommitCommand, SyllabusDocumentResponse>
+    : ICommandHandler<ImportSyllabusCommitCommand, SyllabusImportCommitResponse>
 {
-    public async Task<Result<SyllabusDocumentResponse>> Handle(
+    public async Task<Result<SyllabusImportCommitResponse>> Handle(
         ImportSyllabusCommitCommand command,
         CancellationToken cancellationToken)
     {
@@ -30,7 +30,7 @@ public sealed class ImportSyllabusCommitCommandHandler(
         }
         catch (SyllabusDocumentRuleException ex)
         {
-            return Result.Failure<SyllabusDocumentResponse>(ex.Error);
+            return Result.Failure<SyllabusImportCommitResponse>(ex.Error);
         }
 
         var version = $"doc-{VietnamTime.UtcNow():yyyyMMddHHmmssfff}";
@@ -47,7 +47,7 @@ public sealed class ImportSyllabusCommitCommandHandler(
 
         if (importResult.IsFailure)
         {
-            return Result.Failure<SyllabusDocumentResponse>(importResult.Error);
+            return Result.Failure<SyllabusImportCommitResponse>(importResult.Error);
         }
 
         var syllabus = await context.Syllabuses
@@ -55,7 +55,7 @@ public sealed class ImportSyllabusCommitCommandHandler(
 
         if (syllabus is null)
         {
-            return Result.Failure<SyllabusDocumentResponse>(
+            return Result.Failure<SyllabusImportCommitResponse>(
                 Kidzgo.Domain.LessonPlans.Errors.SyllabusErrors.NotFound(importResult.Value.SyllabusId));
         }
 
@@ -77,7 +77,10 @@ public sealed class ImportSyllabusCommitCommandHandler(
 
         var documentResult = await sender.Send(new GetSyllabusDocumentQuery { Id = syllabus.Id }, cancellationToken);
         return documentResult.IsFailure
-            ? Result.Failure<SyllabusDocumentResponse>(documentResult.Error)
-            : Result.Success(documentResult.Value);
+            ? Result.Failure<SyllabusImportCommitResponse>(documentResult.Error)
+            : Result.Success(new SyllabusImportCommitResponse
+            {
+                Document = documentResult.Value
+            });
     }
 }

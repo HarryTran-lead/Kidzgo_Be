@@ -49,6 +49,7 @@ public sealed class GetSyllabusDocumentQueryHandler(IDbContext context)
             sections,
             warnings,
             fallbackTotalUnits: units.Count,
+            fallbackTotalSessions: syllabus.TotalLessons ?? lessons.Count,
             fallbackTotalLessons: syllabus.TotalLessons ?? lessons.Count,
             fallbackTotalPeriods: syllabus.TotalPeriods ?? lessons.Select(x => x.PeriodTo ?? x.PeriodFrom ?? 0).DefaultIfEmpty(0).Max());
     }

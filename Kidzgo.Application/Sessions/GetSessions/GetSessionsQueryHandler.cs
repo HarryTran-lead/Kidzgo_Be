@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
+using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Time;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -59,13 +60,21 @@ public sealed class GetSessionsQueryHandler(
         var sessionRows = await sessionsQuery
             .OrderBy(s => s.PlannedDatetime)
             .ApplyPagination(query.PageNumber, query.PageSize)
-            .Select(s => new SessionListItemDto
+            .Select(s => new
             {
                 Id = s.Id,
                 Color = s.Color,
                 ClassId = s.ClassId,
                 ModuleId = s.ModuleId,
-                LessonPlanTemplateId = s.LessonPlanTemplateId,
+                ModuleName = s.Module != null ? s.Module.Name : null,
+                SessionTemplateId = s.LessonPlanTemplateId,
+                LessonPlanTemplateId = s.LessonPlan != null ? s.LessonPlan.TemplateId : null,
+                PlannedLessonPlanTemplateId = s.TeachingLog != null ? s.TeachingLog.PlannedLessonPlanTemplateId : null,
+                ActualLessonPlanTemplateId = s.TeachingLog != null ? s.TeachingLog.ActualLessonPlanTemplateId : null,
+                SessionLessonTemplateId = s.SessionLessons
+                    .OrderBy(l => l.OrderIndex)
+                    .Select(l => l.LessonPlanTemplateId)
+                    .FirstOrDefault(),
                 SessionIndexInModule = s.SessionIndexInModule,
                 ClassCode = s.Class.Code,
                 ClassTitle = s.Class.Title,
@@ -91,7 +100,13 @@ public sealed class GetSessionsQueryHandler(
                 PlannedAssistantName = s.PlannedAssistant != null ? s.PlannedAssistant.Name : null,
                 ActualAssistantId = s.ActualAssistantId,
                 ActualAssistantName = s.ActualAssistant != null ? s.ActualAssistant.Name : null,
-                TeachingLogId = s.TeachingLog != null ? s.TeachingLog.Id : null,
+                PlannedLessonTitle = s.TeachingLog != null && s.TeachingLog.PlannedLessonPlanTemplate != null
+                    ? s.TeachingLog.PlannedLessonPlanTemplate.Title
+                    : null,
+                ActualLessonTitle = s.TeachingLog != null && s.TeachingLog.ActualLessonPlanTemplate != null
+                    ? s.TeachingLog.ActualLessonPlanTemplate.Title
+                    : null,
+                TeachingLogId = s.TeachingLog != null ? (Guid?)s.TeachingLog.Id : null,
                 TeachingLogStatus = s.TeachingLog != null ? s.TeachingLog.Status.ToString() : null,
                 TeachingProgressStatus = s.TeachingLog != null
                     ? s.TeachingLog.Lessons
@@ -105,14 +120,65 @@ public sealed class GetSessionsQueryHandler(
             })
             .ToListAsync(cancellationToken);
 
+        var moduleIds = sessionRows
+            .Where(s => s.ModuleId.HasValue && s.ModuleId.Value != Guid.Empty && s.SessionIndexInModule.HasValue)
+            .Select(s => s.ModuleId!.Value)
+            .Distinct()
+            .ToList();
+
+        var templateByModuleAndIndex = moduleIds.Count == 0
+            ? new Dictionary<(Guid ModuleId, int SessionIndex), Guid>()
+            : await context.LessonPlanTemplates
+                .Where(t => moduleIds.Contains(t.ModuleId) && t.IsActive && !t.IsDeleted)
+                .Select(t => new { t.Id, t.ModuleId, t.SessionIndex })
+                .ToDictionaryAsync(t => new ValueTuple<Guid, int>(t.ModuleId, t.SessionIndex), t => t.Id, cancellationToken);
+
+        var linkageSnapshots = sessionRows
+            .Select(s => new SessionLessonPlanLinkageSnapshot(
+                s.SessionTemplateId,
+                s.LessonPlanTemplateId,
+                s.PlannedLessonPlanTemplateId,
+                s.ActualLessonPlanTemplateId,
+                s.SessionLessonTemplateId,
+                s.ModuleId,
+                s.SessionIndexInModule))
+            .ToList();
+
+        var templateIds = SessionLessonPlanLinkageResolver.GetCandidateTemplateIds(
+            linkageSnapshots,
+            templateByModuleAndIndex);
+
+        var titleByTemplateId = templateIds.Count == 0
+            ? new Dictionary<Guid, string?>()
+            : await context.LessonPlanTemplates
+                .Where(t => templateIds.Contains(t.Id) && !t.IsDeleted)
+                .Select(t => new { t.Id, t.Title })
+                .ToDictionaryAsync(t => t.Id, t => t.Title, cancellationToken);
+
         var items = sessionRows
-            .Select(s => new SessionListItemDto
+            .Select(s =>
             {
+                var resolvedLinkage = SessionLessonPlanLinkageResolver.Resolve(
+                    new SessionLessonPlanLinkageSnapshot(
+                        s.SessionTemplateId,
+                        s.LessonPlanTemplateId,
+                        s.PlannedLessonPlanTemplateId,
+                        s.ActualLessonPlanTemplateId,
+                        s.SessionLessonTemplateId,
+                        s.ModuleId,
+                        s.SessionIndexInModule),
+                    templateByModuleAndIndex,
+                    titleByTemplateId);
+
+                return new SessionListItemDto
+                {
                 Id = s.Id,
                 Color = s.Color,
                 ClassId = s.ClassId,
                 ModuleId = s.ModuleId,
-                LessonPlanTemplateId = s.LessonPlanTemplateId,
+                ModuleName = s.ModuleName,
+                LessonPlanTemplateId = resolvedLinkage.LessonPlanTemplateId,
+                PlannedLessonPlanTemplateId = resolvedLinkage.PlannedLessonPlanTemplateId,
                 SessionIndexInModule = s.SessionIndexInModule,
                 ClassCode = s.ClassCode,
                 ClassTitle = s.ClassTitle,
@@ -140,10 +206,14 @@ public sealed class GetSessionsQueryHandler(
                 PlannedAssistantName = s.PlannedAssistantName,
                 ActualAssistantId = s.ActualAssistantId,
                 ActualAssistantName = s.ActualAssistantName,
+                PlannedLessonTitle = resolvedLinkage.PlannedLessonTitle ?? s.PlannedLessonTitle,
+                ActualLessonPlanTemplateId = resolvedLinkage.ActualLessonPlanTemplateId,
+                ActualLessonTitle = resolvedLinkage.ActualLessonTitle ?? s.ActualLessonTitle,
                 TeachingLogId = s.TeachingLogId,
                 TeachingLogStatus = s.TeachingLogStatus,
                 TeachingProgressStatus = s.TeachingProgressStatus,
                 ActualTeachingType = s.ActualTeachingType
+                };
             })
             .ToList();
 

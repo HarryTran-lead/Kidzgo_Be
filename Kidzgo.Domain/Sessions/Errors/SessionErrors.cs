@@ -124,6 +124,36 @@ public static class SessionErrors
         "Session.MissingLessonTemplateForTeachingLog",
         $"Session '{sessionId}' does not have a planned lesson plan template.");
 
+    public static Error LessonPlanTemplateMissing(
+        Guid sessionId,
+        Guid classId,
+        Guid? moduleId) => Error.NotFound(
+        "Session.LessonPlanTemplateMissing",
+        $"Lesson plan template linkage is missing for session '{sessionId}' in class '{classId}' and module '{moduleId}'.");
+
+    public static Error LessonPlanTemplateInconsistent(
+        Guid sessionId,
+        Guid classId,
+        Guid? moduleId,
+        IReadOnlyCollection<Guid> templateIds) => Error.Conflict(
+        "Session.LessonPlanTemplateInconsistent",
+        $"Lesson plan template linkage is inconsistent for session '{sessionId}' in class '{classId}' and module '{moduleId}'. Candidates: {string.Join(", ", templateIds)}");
+
+    public static Error CurriculumMappingMissing(
+        Guid sessionId,
+        Guid classId,
+        Guid moduleId,
+        int sessionIndexInModule) => Error.NotFound(
+        "Session.CurriculumMappingMissing",
+        $"Curriculum mapping is missing for session '{sessionId}' in class '{classId}', module '{moduleId}', sessionIndexInModule '{sessionIndexInModule}'.");
+
+    public static Error LessonPlanDocumentNotFound(
+        Guid sessionId,
+        Guid classId,
+        Guid templateId) => Error.NotFound(
+        "Session.LessonPlanDocumentNotFound",
+        $"Lesson plan document '{templateId}' was not found for session '{sessionId}' in class '{classId}'.");
+
     public static Error InvalidTeachingProgressStatus(string? status) => Error.Validation(
         "Session.InvalidTeachingProgressStatus",
         $"Invalid teaching progress status '{status}'. Valid values: completed, partial, not_started, skipped.");

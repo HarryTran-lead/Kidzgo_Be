@@ -10,6 +10,7 @@ using Kidzgo.Application.Sessions.CreateSession;
 using Kidzgo.Application.Sessions.CreateSessionRole;
 using Kidzgo.Application.Sessions.DeleteSessionRole;
 using Kidzgo.Application.Sessions.GetSessionById;
+using Kidzgo.Application.Sessions.GetSessionLessonPlanDocument;
 using Kidzgo.Application.Sessions.GetSessionRoles;
 using Kidzgo.Application.Sessions.GetSessions;
 using Kidzgo.Application.Sessions.GetTeachingLogBySession;
@@ -133,6 +134,20 @@ public class SessionController : ControllerBase
         };
 
         var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("{sessionId:guid}/lesson-plan-document")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+    public async Task<IResult> GetSessionLessonPlanDocument(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetSessionLessonPlanDocumentQuery
+        {
+            SessionId = sessionId
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 

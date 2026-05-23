@@ -294,13 +294,87 @@ Multipart fields:
 
 Response:
 
-- `200`: `SyllabusDocument`
+- `200`: object co `document`
+
+```json
+{
+  "document": {
+    "id": "uuid",
+    "programId": "uuid",
+    "levelId": "uuid",
+    "code": "STARTERS_V2",
+    "title": "THE SYLLABUS OF GET READY FOR STARTERS",
+    "edition": "Second edition",
+    "status": "Draft",
+    "sourceType": "Imported",
+    "sourceFileName": "The Syllabus of Get Ready for Starters full (1).docx",
+    "parserVersion": "docx-v1",
+    "version": 1,
+    "summary": {
+      "totalUnits": 19,
+      "totalSessions": 50,
+      "totalLessons": 50,
+      "totalPeriods": 100,
+      "minutesPerPeriod": 45
+    },
+    "sections": [
+      {
+        "sectionId": "uuid",
+        "type": "heading",
+        "title": "THE SYLLABUS OF GET READY FOR STARTERS",
+        "orderIndex": 1,
+        "content": "Second edition"
+      },
+      {
+        "sectionId": "uuid",
+        "type": "table",
+        "title": "Curriculum",
+        "orderIndex": 4,
+        "table": {
+          "columns": [
+            { "key": "periods", "label": "Periods", "width": 120, "sticky": false },
+            { "key": "topics", "label": "Topics", "width": 240, "sticky": true },
+            { "key": "lessons", "label": "Lessons", "width": 90, "sticky": false },
+            { "key": "contents", "label": "Contents", "width": 360, "sticky": false },
+            { "key": "structures", "label": "Structures", "width": 260, "sticky": false },
+            { "key": "studentsBook", "label": "Students book", "width": 140, "sticky": false },
+            { "key": "teachersBook", "label": "Teacher's book", "width": 140, "sticky": false }
+          ],
+          "rows": [
+            {
+              "rowId": "uuid",
+              "orderIndex": 1,
+              "group": {
+                "blockLabel": "Starter",
+                "topicGroupId": "topic-1",
+                "topicRowSpan": 2
+              },
+              "cells": [
+                { "columnKey": "periods", "value": "1-2", "rowSpan": 1, "colSpan": 1, "align": "center", "bold": true },
+                { "columnKey": "topics", "value": "Starter: HELLO!", "rowSpan": 2, "colSpan": 1, "align": "left", "bold": true },
+                { "columnKey": "lessons", "value": "1", "rowSpan": 1, "colSpan": 1, "align": "center", "bold": false },
+                { "columnKey": "contents", "value": "...", "rowSpan": 1, "colSpan": 1, "align": "left", "bold": false },
+                { "columnKey": "structures", "value": "...", "rowSpan": 1, "colSpan": 1, "align": "left", "bold": false },
+                { "columnKey": "studentsBook", "value": "p.4", "rowSpan": 1, "colSpan": 1, "align": "center", "bold": false },
+                { "columnKey": "teachersBook", "value": "p.8", "rowSpan": 1, "colSpan": 1, "align": "center", "bold": false }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "warnings": []
+  }
+}
+```
 
 Notes:
 
 - `asDraft = true`: document save o trang thai `Draft`
 - `asDraft = false`: document save o trang thai `Published`
 - Import commit se save syllabus + document model
+- FE nen dung `data.document` ngay sau import thay vi tu rebuild tu summary cu
+- `document.sections[]` phai la full parse payload, khong phai summary rut gon
 
 Common errors:
 
@@ -326,7 +400,108 @@ Common errors:
 
 ---
 
-## 9. Update Metadata
+## 9. Get Syllabus Detail
+
+### `GET /api/syllabuses/{id}`
+
+Endpoint nay van huu ich cho trang detail/overview sau import.
+
+Response ngoai cac field legacy se co them:
+
+- `summary`
+- `document`
+- `units`
+- `lessons`
+- `resources`
+- `sessionTemplates`
+
+```json
+{
+  "id": "uuid",
+  "programId": "uuid",
+  "programName": "Kids English",
+  "levelId": "uuid",
+  "levelName": "Starters",
+  "code": "STARTERS_V2",
+  "version": "doc-20260524093000123",
+  "title": "THE SYLLABUS OF GET READY FOR STARTERS",
+  "edition": "Second edition",
+  "totalPeriods": 100,
+  "minutesPerPeriod": 45,
+  "totalLessons": 50,
+  "sourceFileName": "The Syllabus of Get Ready for Starters full (1).docx",
+  "rawContentJson": "{...full parsed object...}",
+  "summary": {
+    "totalUnits": 19,
+    "totalSessions": 50,
+    "totalLessons": 50,
+    "totalPeriods": 100,
+    "minutesPerPeriod": 45
+  },
+  "document": {
+    "id": "uuid",
+    "programId": "uuid",
+    "levelId": "uuid",
+    "code": "STARTERS_V2",
+    "title": "THE SYLLABUS OF GET READY FOR STARTERS",
+    "edition": "Second edition",
+    "status": "Draft",
+    "sourceType": "Imported",
+    "sourceFileName": "The Syllabus of Get Ready for Starters full (1).docx",
+    "parserVersion": "docx-v1",
+    "version": 1,
+    "summary": {
+      "totalUnits": 19,
+      "totalSessions": 50,
+      "totalLessons": 50,
+      "totalPeriods": 100,
+      "minutesPerPeriod": 45
+    },
+    "sections": [],
+    "warnings": []
+  },
+  "lessons": [
+    {
+      "id": "uuid",
+      "moduleId": "uuid-or-null",
+      "moduleName": "Starter",
+      "periodFrom": 1,
+      "periodTo": 2,
+      "topic": "Starter: HELLO!",
+      "lessonNumber": 1,
+      "contentSummary": "...",
+      "structureSummary": "...",
+      "studentBookPages": "p.4",
+      "teacherBookPages": "p.8",
+      "orderIndex": 1
+    }
+  ],
+  "sessionTemplates": [
+    {
+      "id": "uuid",
+      "lessonPlanTemplateId": "uuid-or-null",
+      "lessonPlanTemplateTitle": "Starter - Lesson 1",
+      "sessionIndex": 1,
+      "sessionIndexInModule": 1,
+      "lessonNumber": 1,
+      "title": "Starter - Lesson 1",
+      "topic": "Starter: HELLO!",
+      "orderIndex": 1
+    }
+  ]
+}
+```
+
+FE note:
+
+- Dung `data.document.sections` de render full syllabus document
+- Dung `data.summary` cho header counters
+- Dung `data.lessons` va `data.sessionTemplates` cho side panel/list neu can
+- `data.document.summary`, `data.summary`, `GET /document.summary` va list counters phai khop nhau cho cung `syllabusId`
+
+---
+
+## 10. Update Metadata
 
 ### `PATCH /api/syllabuses/{id}/metadata`
 
@@ -355,7 +530,7 @@ Common errors:
 
 ---
 
-## 10. Section APIs
+## 11. Section APIs
 
 ### `POST /api/syllabuses/{id}/sections`
 
@@ -421,7 +596,7 @@ Common errors:
 
 ---
 
-## 11. Table APIs
+## 12. Table APIs
 
 ### `PATCH /api/syllabuses/{id}/sections/{sectionId}/rows/{rowId}/cells/{columnKey}`
 
@@ -480,7 +655,7 @@ Common errors:
 
 ---
 
-## 12. Publish Va Archive
+## 13. Publish Va Archive
 
 ### `POST /api/syllabuses/{id}/publish`
 
@@ -529,7 +704,7 @@ Notes:
 
 ---
 
-## 13. Warning Codes
+## 14. Warning Codes
 
 FE nen support it nhat cac warning sau:
 
@@ -554,17 +729,18 @@ Model:
 
 ---
 
-## 14. Luu Y Cho FE
+## 15. Luu Y Cho FE
 
 1. Dung `GET /api/syllabuses/{id}/document` lam endpoint chinh cho editor, khong dung `GET /api/syllabuses/{id}` cho UI editor moi.
 2. Moi mutation thanh cong deu nen overwrite local state bang `data` moi nhat tu response.
 3. Khi gap `Syllabus.VersionConflict`, FE nen reload document thay vi merge local.
 4. Khi gap `Syllabus.PublishedReadOnly`, FE nen khoa editor va hien thong bao read-only.
 5. FE khong nen tu tinh `rowSpan` / `colSpan`; render dung gia tri BE tra ve.
+6. Sau import DOCX, `POST /import-commit`, `GET /{id}` va `GET /{id}/document` deu phai tro ve cung full document, khong chi summary rut gon.
 
 ---
 
-## 15. API Cu Van Con
+## 16. API Cu Van Con
 
 Nhom API cu van con dung cho flow curriculum/import hien tai:
 

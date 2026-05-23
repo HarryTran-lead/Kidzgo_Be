@@ -50,11 +50,13 @@ internal static class SyllabusDocumentMapper
         IReadOnlyList<SyllabusDocumentSectionDto> sections,
         IReadOnlyList<SyllabusDocumentWarningDto> warnings,
         int fallbackTotalUnits = 0,
+        int fallbackTotalSessions = 0,
         int fallbackTotalLessons = 0,
         int fallbackTotalPeriods = 0)
     {
         var summary = ComputeSummaryFromSections(sections);
         var totalUnits = summary.TotalUnits > 0 ? summary.TotalUnits : fallbackTotalUnits;
+        var totalSessions = summary.TotalSessions > 0 ? summary.TotalSessions : fallbackTotalSessions;
         var totalLessons = summary.TotalLessons > 0 ? summary.TotalLessons : fallbackTotalLessons;
         var totalPeriods = summary.TotalPeriods > 0 ? summary.TotalPeriods : fallbackTotalPeriods;
 
@@ -63,7 +65,7 @@ internal static class SyllabusDocumentMapper
             sections,
             warnings,
             totalUnits,
-            totalLessons,
+            totalSessions,
             totalLessons,
             totalPeriods);
     }
@@ -196,7 +198,7 @@ internal static class SyllabusDocumentMapper
         };
     }
 
-    public static (int TotalUnits, int TotalLessons, int TotalPeriods) ComputeSummaryFromSections(
+    public static (int TotalUnits, int TotalSessions, int TotalLessons, int TotalPeriods) ComputeSummaryFromSections(
         IReadOnlyList<SyllabusDocumentSectionDto> sections)
     {
         var rows = sections
@@ -216,7 +218,7 @@ internal static class SyllabusDocumentMapper
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
 
-        return (totalUnits, rows.Count, totalPeriods);
+        return (totalUnits, rows.Count, rows.Count, totalPeriods);
     }
 
     private static List<SyllabusDocumentSectionDto> BuildFallbackSections(

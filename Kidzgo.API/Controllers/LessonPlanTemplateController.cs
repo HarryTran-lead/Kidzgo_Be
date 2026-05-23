@@ -60,7 +60,7 @@ public class LessonPlanTemplateController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     public async Task<IResult> GetLessonPlanTemplateById(
         Guid id,
         CancellationToken cancellationToken)

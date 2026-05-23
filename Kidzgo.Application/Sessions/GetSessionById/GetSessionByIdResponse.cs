@@ -11,7 +11,9 @@ public sealed class SessionDetailDto
     public string? Color { get; init; }
     public Guid ClassId { get; init; }
     public Guid? ModuleId { get; init; }
+    public string? ModuleName { get; init; }
     public Guid? LessonPlanTemplateId { get; init; }
+    public Guid? PlannedLessonPlanTemplateId { get; init; }
     public int? SessionIndexInModule { get; init; }
     public string ClassCode { get; init; } = null!;
     public string ClassTitle { get; init; } = null!;

@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Syllabuses.Shared;
 
 namespace Kidzgo.Application.Syllabuses.GetSyllabusById;
 
@@ -33,6 +34,8 @@ public sealed class GetSyllabusByIdResponse
     public string? AttachmentUrl { get; init; }
     public string? RawContentJson { get; init; }
     public bool IsActive { get; init; }
+    public SyllabusDocumentSummaryDto Summary { get; init; } = new();
+    public SyllabusDocumentResponse Document { get; init; } = new();
     public IReadOnlyList<SyllabusUnitDetailDto> Units { get; init; } = [];
     public IReadOnlyList<SyllabusLessonDetailDto> Lessons { get; init; } = [];
     public IReadOnlyList<SyllabusResourceDetailDto> Resources { get; init; } = [];

@@ -1,13 +1,16 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
+using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplateById;
 
 public sealed class GetLessonPlanTemplateByIdQueryHandler(
-    IDbContext context
+    IDbContext context,
+    IUserContext userContext
 ) : IQueryHandler<GetLessonPlanTemplateByIdQuery, GetLessonPlanTemplateByIdResponse>
 {
     public async Task<Result<GetLessonPlanTemplateByIdResponse>> Handle(
@@ -26,6 +29,36 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
         {
             return Result.Failure<GetLessonPlanTemplateByIdResponse>(
                 LessonPlanTemplateErrors.NotFound(query.Id));
+        }
+
+        var currentUser = await context.Users
+            .FirstOrDefaultAsync(u => u.Id == userContext.UserId, cancellationToken);
+
+        if (currentUser is null)
+        {
+            return Result.Failure<GetLessonPlanTemplateByIdResponse>(LessonPlanTemplateErrors.Unauthorized);
+        }
+
+        if (currentUser.Role == UserRole.Teacher)
+        {
+            var canAccessTemplate = await context.Sessions
+                .AnyAsync(s =>
+                        (s.PlannedTeacherId == currentUser.Id ||
+                         s.ActualTeacherId == currentUser.Id ||
+                         s.Class.MainTeacherId == currentUser.Id ||
+                         s.Class.AssistantTeacherId == currentUser.Id) &&
+                        (s.LessonPlanTemplateId == template.Id ||
+                         (s.LessonPlan != null && s.LessonPlan.TemplateId == template.Id) ||
+                         (s.TeachingLog != null &&
+                          (s.TeachingLog.PlannedLessonPlanTemplateId == template.Id ||
+                           s.TeachingLog.ActualLessonPlanTemplateId == template.Id)) ||
+                         s.SessionLessons.Any(sl => sl.LessonPlanTemplateId == template.Id)),
+                    cancellationToken);
+
+            if (!canAccessTemplate)
+            {
+                return Result.Failure<GetLessonPlanTemplateByIdResponse>(LessonPlanTemplateErrors.Unauthorized);
+            }
         }
 
         var usedCount = await context.LessonPlans

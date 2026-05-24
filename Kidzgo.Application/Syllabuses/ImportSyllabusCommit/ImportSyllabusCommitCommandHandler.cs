@@ -71,7 +71,7 @@ public sealed class ImportSyllabusCommitCommandHandler(
 
         syllabus.DocumentStatus = command.AsDraft ? SyllabusDocumentStatuses.Draft : SyllabusDocumentStatuses.Published;
         syllabus.SourceType = SyllabusDocumentSourceTypes.Imported;
-        syllabus.ParserVersion ??= "docx-v1";
+        syllabus.ParserVersion ??= SyllabusImportFileMetadata.ResolveParserVersion(command.FileName);
         syllabus.UpdatedAt = VietnamTime.UtcNow();
         await context.SaveChangesAsync(cancellationToken);
 

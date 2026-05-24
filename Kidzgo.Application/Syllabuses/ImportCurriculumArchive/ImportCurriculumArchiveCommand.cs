@@ -16,6 +16,9 @@ public sealed class ImportCurriculumArchiveCommand : ICommand<ImportCurriculumAr
 public sealed class ImportCurriculumArchiveResponse
 {
     public Guid? SyllabusId { get; init; }
+    public string? SelectedSyllabusEntryName { get; init; }
+    public string? SelectedSyllabusSourceType { get; init; }
+    public string? SelectedSyllabusParserVersion { get; init; }
     public int ImportedLessonPlans { get; init; }
     public int SkippedFiles { get; init; }
     public IReadOnlyList<ImportedCurriculumArchiveEntryDto> ImportedEntries { get; init; } = [];
@@ -28,6 +31,8 @@ public sealed class ImportedCurriculumArchiveEntryDto
     public string EntryName { get; init; } = null!;
     public string? SourceFolder { get; init; }
     public string SourceType { get; init; } = null!;
+    public string? ParserVersion { get; init; }
+    public bool IsPrimarySyllabusSource { get; init; }
     public Guid? ModuleId { get; init; }
     public string? ModuleName { get; init; }
     public Guid? LessonPlanTemplateId { get; init; }

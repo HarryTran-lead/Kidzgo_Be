@@ -113,16 +113,21 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         syllabus.Title = FitLegacyShortText(parsed.Value.Title);
         syllabus.Edition = FitMax(parsed.Value.Edition, 100);
         syllabus.Overview = parsed.Value.Overview;
+        syllabus.OverallObjectives = parsed.Value.OverallObjectives;
+        syllabus.SpecificObjectives = parsed.Value.SpecificObjectives;
+        syllabus.EthicsAndAttitudes = parsed.Value.EthicsAndAttitudes;
+        syllabus.BookOverview = parsed.Value.BookOverview;
         syllabus.TotalLessons = parsed.Value.Lessons.Count;
         syllabus.TotalPeriods = parsed.Value.Lessons
             .Select(x => x.PeriodTo ?? x.PeriodFrom ?? 0)
             .DefaultIfEmpty(0)
             .Max();
+        syllabus.MinutesPerPeriod = parsed.Value.MinutesPerPeriod ?? syllabus.MinutesPerPeriod;
         syllabus.SourceFileName = FitLegacyShortText(command.FileName);
         syllabus.RawContentJson = JsonSerializer.Serialize(parsed.Value);
         syllabus.DocumentStatus = SyllabusDocumentStatuses.Draft;
         syllabus.SourceType = SyllabusDocumentSourceTypes.Imported;
-        syllabus.ParserVersion = GetParserVersion(command.FileName);
+        syllabus.ParserVersion = SyllabusImportFileMetadata.ResolveParserVersion(command.FileName);
         syllabus.DocumentVersion = Math.Max(1, syllabus.DocumentVersion);
         syllabus.SectionsJson = SyllabusDocumentMapper.WriteSections(importDocument.Sections);
         syllabus.WarningsJson = SyllabusDocumentMapper.WriteWarnings(importDocument.Warnings);
@@ -219,14 +224,6 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             ImportedSessionTemplates = sessionTemplates.Count
         };
     }
-
-    private static string GetParserVersion(string fileName)
-    {
-        return string.Equals(Path.GetExtension(fileName), ".pdf", StringComparison.OrdinalIgnoreCase)
-            ? "pdf-v1"
-            : "docx-v1";
-    }
-
     private static Guid? ResolveModuleId(
         IReadOnlyList<Domain.Programs.Module> modules,
         IEnumerable<Domain.LessonPlans.CurriculumImportModuleRule> rules,

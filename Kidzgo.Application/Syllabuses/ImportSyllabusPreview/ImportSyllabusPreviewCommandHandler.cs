@@ -50,9 +50,9 @@ public sealed class ImportSyllabusPreviewCommandHandler(IDbContext context)
             DocumentStatus = SyllabusDocumentStatuses.Draft,
             SourceType = SyllabusDocumentSourceTypes.Imported,
             SourceFileName = command.FileName,
-            ParserVersion = GetParserVersion(command.FileName),
+            ParserVersion = SyllabusImportFileMetadata.ResolveParserVersion(command.FileName),
             DocumentVersion = 1,
-            MinutesPerPeriod = 45
+            MinutesPerPeriod = parsed.Value.MinutesPerPeriod ?? 45
         };
 
         var document = SyllabusDocumentMapper.ToResponse(
@@ -69,12 +69,5 @@ public sealed class ImportSyllabusPreviewCommandHandler(IDbContext context)
             Document = document,
             Warnings = warnings
         });
-    }
-
-    private static string GetParserVersion(string fileName)
-    {
-        return string.Equals(Path.GetExtension(fileName), ".pdf", StringComparison.OrdinalIgnoreCase)
-            ? "pdf-v1"
-            : "docx-v1";
     }
 }

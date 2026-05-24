@@ -81,10 +81,11 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         foreach (var entry in syllabusEntries)
         {
             await using var entryStream = entry.Open();
-            await using var memory = new MemoryStream();
-            await entryStream.CopyToAsync(memory, cancellationToken);
-            memory.Position = 0;
+            await using var buffer = new MemoryStream();
+            await entryStream.CopyToAsync(buffer, cancellationToken);
+            var entryBytes = buffer.ToArray();
 
+            await using var importStream = new MemoryStream(entryBytes, writable: false);
             var syllabusResult = await sender.Send(
                 new ImportSyllabusFromWordCommand
                 {
@@ -94,7 +95,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                     Version = command.Version,
                     OverwriteExisting = command.OverwriteExisting,
                     FileName = Path.GetFileName(entry.FullName),
-                    FileStream = memory
+                    FileStream = importStream
                 },
                 cancellationToken);
 
@@ -123,12 +124,12 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 return Result.Failure<ImportCurriculumArchiveResponse>(validationResult.Error);
             }
 
-            memory.Position = 0;
+            await using var uploadStream = new MemoryStream(entryBytes, writable: false);
             await AttachOriginalSyllabusFileAsync(
                 fileStorage,
                 syllabusResult.Value.SyllabusId,
                 entry,
-                memory,
+                uploadStream,
                 cancellationToken);
             importedEntries.Add(new ImportedCurriculumArchiveEntryDto
             {
@@ -157,9 +158,9 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         foreach (var entry in lessonPlanEntries)
         {
             await using var entryStream = entry.Open();
-            await using var memory = new MemoryStream();
-            await entryStream.CopyToAsync(memory, cancellationToken);
-            memory.Position = 0;
+            await using var buffer = new MemoryStream();
+            await entryStream.CopyToAsync(buffer, cancellationToken);
+            var entryBytes = buffer.ToArray();
 
             var module = ResolveModuleForEntry(modules, entry.FullName);
             if (module is null)
@@ -197,7 +198,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 continue;
             }
 
-            memory.Position = 0;
+            await using var importStream = new MemoryStream(entryBytes, writable: false);
             var lessonResult = await sender.Send(
                 new ImportLessonPlanTemplateFromWordCommand
                 {
@@ -205,7 +206,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                     SessionIndexOverride = sessionIndexOverride,
                     OverwriteExisting = command.OverwriteExisting,
                     FileName = Path.GetFileName(entry.FullName),
-                    FileStream = memory
+                    FileStream = importStream
                 },
                 cancellationToken);
 
@@ -219,12 +220,12 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 continue;
             }
 
-            memory.Position = 0;
+            await using var uploadStream = new MemoryStream(entryBytes, writable: false);
             await AttachOriginalLessonPlanFileAsync(
                 fileStorage,
                 lessonResult.Value.LessonPlanTemplateId,
                 entry,
-                memory,
+                uploadStream,
                 cancellationToken);
             importedLessonPlans++;
             importedEntries.Add(new ImportedCurriculumArchiveEntryDto

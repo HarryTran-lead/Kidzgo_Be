@@ -144,6 +144,11 @@ internal static class SyllabusDocumentMapper
             });
         }
 
+        AddNarrativeSection(sections, "Overall objectives", parsed.OverallObjectives, ref orderIndex);
+        AddNarrativeSection(sections, "Specific objectives", parsed.SpecificObjectives, ref orderIndex);
+        AddNarrativeSection(sections, "Ethics and attitudes", parsed.EthicsAndAttitudes, ref orderIndex);
+        AddNarrativeSection(sections, "Book overview", parsed.BookOverview, ref orderIndex);
+
         var lessonTableSection = BuildCurriculumTableSection(parsed.Lessons, orderIndex++);
         sections.Add(lessonTableSection);
         warnings.AddRange(BuildWarningsForTable(lessonTableSection));
@@ -286,6 +291,28 @@ internal static class SyllabusDocumentMapper
         }
 
         return sections;
+    }
+
+    private static void AddNarrativeSection(
+        ICollection<SyllabusDocumentSectionDto> sections,
+        string title,
+        string? content,
+        ref int orderIndex)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return;
+        }
+
+        sections.Add(new SyllabusDocumentSectionDto
+        {
+            SectionId = Guid.NewGuid(),
+            Type = SyllabusDocumentSectionTypes.Narrative,
+            Title = title,
+            OrderIndex = orderIndex++,
+            Editable = true,
+            Content = content
+        });
     }
 
     private static void AddNarrativeSectionIfPresent(

@@ -7,6 +7,7 @@ using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
 
@@ -176,12 +177,15 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         EntityStringLengthTrimmer.TrimToModelLimits(context, template);
 
         var orderIndex = 1;
+        var activities = BuildActivityTemplates(template.Id, parsed.Value, now);
         var materials = BuildMaterialTemplates(template.Id, parsed.Value, now, ref orderIndex);
         var homeworks = BuildHomeworkTemplates(template.Id, parsed.Value, now);
 
+        EntityStringLengthTrimmer.TrimToModelLimits(context, activities);
         EntityStringLengthTrimmer.TrimToModelLimits(context, materials);
         EntityStringLengthTrimmer.TrimToModelLimits(context, homeworks);
 
+        context.LessonPlanTemplateActivities.AddRange(activities);
         context.LessonPlanTemplateMaterials.AddRange(materials);
         context.HomeworkTemplates.AddRange(homeworks);
 
@@ -263,33 +267,55 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         return 0;
     }
 
+    private static List<LessonPlanTemplateActivity> BuildActivityTemplates(
+        Guid templateId,
+        ParsedLessonPlanDocument parsed,
+        DateTime now)
+    {
+        var stages = SplitProcedureStages(parsed.Procedure);
+        return stages.Select((stage, index) => new LessonPlanTemplateActivity
+            {
+                Id = Guid.NewGuid(),
+                LessonPlanTemplateId = templateId,
+                Title = stage.Title,
+                TeacherActivity = string.Join("\n", stage.Details),
+                StudentActivity = null,
+                Resources = null,
+                DurationMinutes = null,
+                OrderIndex = index + 1,
+                CreatedAt = now,
+                UpdatedAt = now
+            })
+            .ToList();
+    }
+
     private static List<LessonPlanTemplateMaterial> BuildMaterialTemplates(Guid templateId, ParsedLessonPlanDocument parsed, DateTime now, ref int orderIndex)
     {
         var items = new List<LessonPlanTemplateMaterial>();
-        if (!string.IsNullOrWhiteSpace(parsed.TeacherMaterials))
+        foreach (var material in SplitTextItems(parsed.TeacherMaterials))
         {
             items.Add(new LessonPlanTemplateMaterial
             {
                 Id = Guid.NewGuid(),
                 LessonPlanTemplateId = templateId,
-                Name = "Teacher materials",
+                Name = material,
                 MaterialType = "teacher",
-                Notes = parsed.TeacherMaterials,
+                Notes = material,
                 OrderIndex = orderIndex++,
                 CreatedAt = now,
                 UpdatedAt = now
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(parsed.StudentMaterials))
+        foreach (var material in SplitTextItems(parsed.StudentMaterials))
         {
             items.Add(new LessonPlanTemplateMaterial
             {
                 Id = Guid.NewGuid(),
                 LessonPlanTemplateId = templateId,
-                Name = "Student materials",
+                Name = material,
                 MaterialType = "student",
-                Notes = parsed.StudentMaterials,
+                Notes = material,
                 OrderIndex = orderIndex++,
                 CreatedAt = now,
                 UpdatedAt = now
@@ -301,24 +327,77 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
 
     private static List<HomeworkTemplate> BuildHomeworkTemplates(Guid templateId, ParsedLessonPlanDocument parsed, DateTime now)
     {
-        if (string.IsNullOrWhiteSpace(parsed.Homework))
-        {
-            return [];
-        }
-
-        return
-        [
-            new HomeworkTemplate
+        return SplitTextItems(parsed.Homework)
+            .Select((homework, index) => new HomeworkTemplate
             {
                 Id = Guid.NewGuid(),
                 LessonPlanTemplateId = templateId,
                 Title = "Homework",
-                Instructions = parsed.Homework,
-                OrderIndex = 1,
+                Instructions = homework,
+                OrderIndex = index + 1,
                 IsRequired = true,
                 CreatedAt = now,
                 UpdatedAt = now
-            }
-        ];
+            })
+            .ToList();
     }
+
+    private static List<string> SplitTextItems(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        return value
+            .Replace("\r", string.Empty)
+            .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => Regex.Replace(line, @"^\s*[-+*•\d\.\)]*\s*", string.Empty).Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<ProcedureStage> SplitProcedureStages(string? procedure)
+    {
+        var lines = SplitTextItems(procedure);
+        if (lines.Count == 0)
+        {
+            return [];
+        }
+
+        var stages = new List<ProcedureStage>();
+        ProcedureStage? current = null;
+
+        foreach (var line in lines)
+        {
+            if (LooksLikeProcedureStageTitle(line))
+            {
+                current = new ProcedureStage(line, []);
+                stages.Add(current);
+                continue;
+            }
+
+            if (current is null)
+            {
+                current = new ProcedureStage("Procedure", []);
+                stages.Add(current);
+            }
+
+            current.Details.Add(line);
+        }
+
+        return stages;
+    }
+
+    private static bool LooksLikeProcedureStageTitle(string value)
+    {
+        return value.EndsWith(':') ||
+               Regex.IsMatch(
+                   value,
+                   @"^(warm[\s-]?up|lead[\s-]?in|presentation|practice|production|wrap[\s-]?up|review|homework|activity\s*\d+|stage\s*\d+)",
+                   RegexOptions.IgnoreCase);
+    }
+
+    private sealed record ProcedureStage(string Title, List<string> Details);
 }

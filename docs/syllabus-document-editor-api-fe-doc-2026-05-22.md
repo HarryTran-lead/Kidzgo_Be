@@ -5,6 +5,83 @@
 
 ---
 
+## 0. Data Direction
+
+Huong du lieu nen chot nhu sau:
+
+### 0.1 Syllabus Master
+
+Nguon chuan cho `course skeleton` nen la `Excel -> DB` truoc.
+
+Pham vi du lieu:
+
+- `unit`
+- `lesson`
+- `period`
+- `topic`
+- `grammar`
+- `vocabulary`
+
+Muc tieu:
+
+- BE import tu file co cau truc on dinh hon Word
+- DB giu `source of truth` cho syllabus master
+- FE lay syllabus tong tu DB, khong suy dien tu lesson plan docx
+
+### 0.2 Lesson Plan
+
+`DOCX` van giu cho lesson plan vi noi dung mang tinh van ban va day hoc.
+
+BE parse lesson plan ra JSON chuan de FE render:
+
+- `objectives`
+- `vocabulary`
+- `grammar`
+- `materials`
+- `procedure`
+- `homework`
+
+Muc tieu:
+
+- Giao vien/nhan su van co the soan lesson plan bang Word
+- FE khong phai render raw docx
+- API chi tra document model/JSON da normalize
+
+### 0.3 Media
+
+Media nen tach rieng thanh asset file:
+
+- image
+- audio
+- video neu co
+- ppt/pptx
+
+DB chi luu metadata va link:
+
+- `mediaUrl`
+- `fileName`
+- `mimeType`
+- `size`
+- `duration` neu co
+
+Muc tieu:
+
+- Khong nhoi binary vao syllabus/lesson plan payload
+- FE load media theo URL rieng
+- Lesson plan/syllabus chi tham chieu asset
+
+### 0.4 Practical Boundary
+
+Tom lai:
+
+- `Syllabus` = curriculum master co cau truc, uu tien import tu Excel
+- `LessonPlan` = teaching document theo tung buoi, giu DOCX nhung parse sang JSON
+- `Media` = asset rieng, DB chi luu URL va metadata
+
+Doc hien tai tap trung vao `syllabus document editor/import`. Neu chuyen huong theo model nay, API import Word cho syllabus master nen duoc xem la giai phap tam thoi, khong phai input strategy uu tien lau dai.
+
+---
+
 ## 1. Tong Quan
 
 BE hien ho tro 3 nhom nhu cau moi:

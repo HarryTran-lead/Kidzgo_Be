@@ -2,6 +2,8 @@ using System.IO.Compression;
 using System.Text.RegularExpressions;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Storage;
+using Kidzgo.Application.Syllabuses.GetSyllabusDocument;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
 using Kidzgo.Application.Syllabuses.Shared;
@@ -14,7 +16,8 @@ namespace Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
 
 public sealed class ImportCurriculumArchiveCommandHandler(
     IDbContext context,
-    ISender sender)
+    ISender sender,
+    IFileStorageService fileStorage)
     : ICommandHandler<ImportCurriculumArchiveCommand, ImportCurriculumArchiveResponse>
 {
     public async Task<Result<ImportCurriculumArchiveResponse>> Handle(
@@ -48,18 +51,18 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         }
 
         using var archive = new ZipArchive(command.FileStream, ZipArchiveMode.Read, leaveOpen: true);
-        var docxEntries = archive.Entries
-            .Where(x => x.FullName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
-                        !Path.GetFileName(x.FullName).StartsWith("~$"))
+        var importEntries = archive.Entries
+            .Where(x => CurriculumArchiveImportEntryRules.IsSupportedImportEntry(x.FullName))
             .ToList();
 
-        var syllabusEntries = docxEntries
-            .Where(x => IsSyllabusEntry(x.FullName))
-            .OrderByDescending(x => GetSyllabusEntryPriority(x.FullName))
+        var syllabusEntries = importEntries
+            .Where(x => CurriculumArchiveImportEntryRules.IsSyllabusEntry(x.FullName))
+            .OrderByDescending(x => CurriculumArchiveImportEntryRules.GetSyllabusEntryPriority(x.FullName))
             .ToList();
 
-        var lessonPlanEntries = docxEntries
-            .Where(x => !IsSyllabusEntry(x.FullName))
+        var lessonPlanEntries = importEntries
+            .Where(x => !CurriculumArchiveImportEntryRules.IsSyllabusEntry(x.FullName) &&
+                        x.FullName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         ApplyArchiveLessonPlanCounts(importConfiguration, lessonPlanEntries);
@@ -70,6 +73,10 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         var skipped = new List<string>();
         var skippedItems = new List<SkippedCurriculumArchiveEntryDto>();
         Error? syllabusImportError = null;
+        ZipArchiveEntry? selectedSyllabusEntry = null;
+        string? selectedSyllabusParserVersion = null;
+
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         foreach (var entry in syllabusEntries)
         {
@@ -103,11 +110,33 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             }
 
             syllabusId = syllabusResult.Value.SyllabusId;
+            selectedSyllabusEntry = entry;
+            selectedSyllabusParserVersion = SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName);
+
+            var validationResult = await ValidateImportedSyllabusAsync(
+                syllabusResult.Value.SyllabusId,
+                syllabusResult.Value.ImportedLessons,
+                entry.FullName,
+                cancellationToken);
+            if (validationResult.IsFailure)
+            {
+                return Result.Failure<ImportCurriculumArchiveResponse>(validationResult.Error);
+            }
+
+            memory.Position = 0;
+            await AttachOriginalSyllabusFileAsync(
+                fileStorage,
+                syllabusResult.Value.SyllabusId,
+                entry,
+                memory,
+                cancellationToken);
             importedEntries.Add(new ImportedCurriculumArchiveEntryDto
             {
                 EntryName = entry.FullName,
                 SourceFolder = ResolveSourceFolder(entry.FullName),
-                SourceType = ResolveSourceType(entry.FullName),
+                SourceType = CurriculumArchiveImportEntryRules.ResolveSourceType(entry.FullName),
+                ParserVersion = selectedSyllabusParserVersion,
+                IsPrimarySyllabusSource = true,
                 Created = true,
                 Title = Path.GetFileNameWithoutExtension(entry.FullName)
             });
@@ -122,7 +151,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             }
 
             return Result.Failure<ImportCurriculumArchiveResponse>(
-                SyllabusErrors.InvalidImportFile("No syllabus Word document was found in the archive."));
+                SyllabusErrors.InvalidImportFile("No syllabus Excel or Word document was found in the archive."));
         }
 
         foreach (var entry in lessonPlanEntries)
@@ -190,12 +219,20 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 continue;
             }
 
+            memory.Position = 0;
+            await AttachOriginalLessonPlanFileAsync(
+                fileStorage,
+                lessonResult.Value.LessonPlanTemplateId,
+                entry,
+                memory,
+                cancellationToken);
             importedLessonPlans++;
             importedEntries.Add(new ImportedCurriculumArchiveEntryDto
             {
                 EntryName = entry.FullName,
                 SourceFolder = ResolveSourceFolder(entry.FullName),
-                SourceType = ResolveSourceType(entry.FullName),
+                SourceType = CurriculumArchiveImportEntryRules.ResolveSourceType(entry.FullName),
+                ParserVersion = SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName),
                 ModuleId = module.Id,
                 ModuleName = module.Name,
                 LessonPlanTemplateId = lessonResult.Value.LessonPlanTemplateId,
@@ -207,55 +244,20 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             });
         }
 
+        await transaction.CommitAsync(cancellationToken);
+
         return new ImportCurriculumArchiveResponse
         {
             SyllabusId = syllabusId,
+            SelectedSyllabusEntryName = selectedSyllabusEntry?.FullName,
+            SelectedSyllabusSourceType = selectedSyllabusEntry is null ? null : CurriculumArchiveImportEntryRules.ResolveSourceType(selectedSyllabusEntry.FullName),
+            SelectedSyllabusParserVersion = selectedSyllabusParserVersion,
             ImportedLessonPlans = importedLessonPlans,
             SkippedFiles = skipped.Count,
             ImportedEntries = importedEntries,
             SkippedEntries = skipped,
             SkippedItems = skippedItems
         };
-    }
-
-    private static bool IsSyllabusEntry(string fullName)
-    {
-        var normalized = fullName.Replace('\\', '/');
-        var fileName = Path.GetFileNameWithoutExtension(normalized);
-
-        return normalized.Contains("PPCT", StringComparison.OrdinalIgnoreCase) &&
-               normalized.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) &&
-               (fileName.Contains("syllabus", StringComparison.OrdinalIgnoreCase) ||
-                fileName.Contains("curriculum", StringComparison.OrdinalIgnoreCase) ||
-                fileName.Contains("ppct", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static int GetSyllabusEntryPriority(string fullName)
-    {
-        var fileName = Path.GetFileNameWithoutExtension(fullName);
-        var priority = 0;
-
-        if (fileName.Contains("full", StringComparison.OrdinalIgnoreCase))
-        {
-            priority += 100;
-        }
-
-        if (fileName.Contains("the syllabus", StringComparison.OrdinalIgnoreCase))
-        {
-            priority += 50;
-        }
-
-        if (fileName.Contains("course syllabus", StringComparison.OrdinalIgnoreCase))
-        {
-            priority += 10;
-        }
-
-        if (fileName.Contains("syllabus", StringComparison.OrdinalIgnoreCase))
-        {
-            priority += 5;
-        }
-
-        return priority;
     }
 
     private static Domain.Programs.Module? ResolveModuleForEntry(
@@ -295,7 +297,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
         foreach (var entry in lessonPlanEntries)
         {
-            var text = NormalizeArchivePath(entry.FullName);
+            var text = CurriculumArchiveImportEntryRules.NormalizeArchivePath(entry.FullName);
             var lessonIndex = ExtractLessonIndex(text) ?? 1;
 
             if (Regex.IsMatch(text, @"\bUNIT\s*STARTER\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
@@ -355,11 +357,6 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             : null;
     }
 
-    private static string NormalizeArchivePath(string value)
-    {
-        return Regex.Replace(value.Replace('\\', '/'), @"\s+", " ").Trim();
-    }
-
     private static void AddSkippedEntry(
         ICollection<string> skipped,
         ICollection<SkippedCurriculumArchiveEntryDto> skippedItems,
@@ -371,7 +368,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         {
             EntryName = entryName,
             SourceFolder = ResolveSourceFolder(entryName),
-            SourceType = ResolveSourceType(entryName),
+            SourceType = CurriculumArchiveImportEntryRules.ResolveSourceType(entryName),
             Reason = reason
         });
     }
@@ -388,20 +385,103 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         return segments[^2];
     }
 
-    private static string ResolveSourceType(string fullName)
+    private async Task AttachOriginalSyllabusFileAsync(
+        IFileStorageService fileStorage,
+        Guid syllabusId,
+        ZipArchiveEntry entry,
+        MemoryStream fileStream,
+        CancellationToken cancellationToken)
     {
-        var normalized = NormalizeArchivePath(fullName);
-
-        if (IsSyllabusEntry(normalized))
+        var syllabus = await context.Syllabuses.FirstOrDefaultAsync(x => x.Id == syllabusId, cancellationToken);
+        if (syllabus is null)
         {
-            return "SyllabusDocument";
+            return;
         }
 
-        if (Regex.IsMatch(normalized, @"(?:^|/)\s*REVISION(?:\s|/|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        var extension = Path.GetExtension(entry.FullName).ToLowerInvariant();
+        var resourceType = extension is ".xlsx" or ".xls" ? "excel" : "document";
+        var folder = $"curriculum/{syllabus.ProgramId}/{syllabus.LevelId}/syllabuses";
+        var url = await fileStorage.UploadFileAsync(
+            fileStream,
+            Path.GetFileName(entry.FullName),
+            folder,
+            resourceType,
+            cancellationToken);
+
+        syllabus.AttachmentUrl = url;
+        syllabus.SourceFileName = Path.GetFileName(entry.FullName);
+        syllabus.UpdatedAt = VietnamTime.UtcNow();
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task AttachOriginalLessonPlanFileAsync(
+        IFileStorageService fileStorage,
+        Guid templateId,
+        ZipArchiveEntry entry,
+        MemoryStream fileStream,
+        CancellationToken cancellationToken)
+    {
+        var template = await context.LessonPlanTemplates.FirstOrDefaultAsync(x => x.Id == templateId, cancellationToken);
+        if (template is null)
         {
-            return "RevisionLesson";
+            return;
         }
 
-        return "UnitLesson";
+        var folder = $"curriculum/{template.ModuleId}/lesson-plans";
+        var url = await fileStorage.UploadFileAsync(
+            fileStream,
+            Path.GetFileName(entry.FullName),
+            folder,
+            "document",
+            cancellationToken);
+
+        template.AttachmentUrl = url;
+        template.AttachmentMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        template.AttachmentFileSize = fileStream.Length;
+        template.AttachmentOriginalFileName = Path.GetFileName(entry.FullName);
+        template.SourceFileName = Path.GetFileName(entry.FullName);
+        template.UpdatedAt = VietnamTime.UtcNow();
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<Result> ValidateImportedSyllabusAsync(
+        Guid syllabusId,
+        int expectedLessonCount,
+        string sourceEntryName,
+        CancellationToken cancellationToken)
+    {
+        if (expectedLessonCount <= 0)
+        {
+            return Result.Success();
+        }
+
+        var documentResult = await sender.Send(new GetSyllabusDocumentQuery { Id = syllabusId }, cancellationToken);
+        if (documentResult.IsFailure)
+        {
+            return Result.Failure(documentResult.Error);
+        }
+
+        var curriculumSection = documentResult.Value.Sections
+            .FirstOrDefault(x =>
+                x.Type == SyllabusDocumentSectionTypes.Table &&
+                x.Table is not null &&
+                string.Equals(x.Title, "Curriculum", StringComparison.OrdinalIgnoreCase))
+            ?? documentResult.Value.Sections.FirstOrDefault(x => x.Type == SyllabusDocumentSectionTypes.Table && x.Table is not null);
+        var rowCount = curriculumSection?.Table?.Rows.Count ?? 0;
+
+        if (rowCount < expectedLessonCount)
+        {
+            return Result.Failure(SyllabusErrors.InvalidImportFile(
+                $"Imported curriculum rows mismatch for '{sourceEntryName}'. Expected {expectedLessonCount} rows from source, but syllabus document only contains {rowCount} rows. The archive import was aborted."));
+        }
+
+        var summaryLessons = documentResult.Value.Summary.TotalLessons;
+        if (summaryLessons != rowCount)
+        {
+            return Result.Failure(SyllabusErrors.InvalidImportFile(
+                $"Imported syllabus summary mismatch for '{sourceEntryName}'. Curriculum rows = {rowCount}, summary lessons = {summaryLessons}. The archive import was aborted."));
+        }
+
+        return Result.Success();
     }
 }

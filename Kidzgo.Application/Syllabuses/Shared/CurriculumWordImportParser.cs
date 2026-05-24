@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using ExcelDataReader;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using UglyToad.PdfPig;
@@ -17,6 +18,7 @@ internal static class CurriculumWordImportParser
         {
             ".docx" => ParseSyllabusDocx(stream, fileName),
             ".pdf" => ParseSyllabusPdf(stream, fileName),
+            ".xlsx" or ".xls" => ParseSyllabusExcel(stream, fileName),
             _ => Result.Failure<ParsedSyllabusDocument>(
                 SyllabusErrors.UnsupportedImportFileType(extension))
         };
@@ -47,10 +49,7 @@ internal static class CurriculumWordImportParser
         var title = paragraphTexts.FirstOrDefault(x => x.Contains("syllabus", StringComparison.OrdinalIgnoreCase))
                     ?? Path.GetFileNameWithoutExtension(fileName);
         var edition = paragraphTexts.FirstOrDefault(x => x.Contains("edition", StringComparison.OrdinalIgnoreCase));
-        var overview = string.Join(
-            "\n",
-            paragraphTexts.TakeWhile(x => !LooksLikeTableHeader(x))
-                .Take(20));
+        var narrative = ParseSyllabusNarrativeSections(paragraphTexts, title, edition);
 
         var tables = body.Elements<Table>().ToList();
         var resources = ParseResources(tables);
@@ -60,7 +59,12 @@ internal static class CurriculumWordImportParser
         return Result.Success(new ParsedSyllabusDocument(
             title.Trim(),
             edition?.Trim(),
-            string.IsNullOrWhiteSpace(overview) ? null : overview.Trim(),
+            narrative.Overview,
+            narrative.OverallObjectives,
+            narrative.SpecificObjectives,
+            narrative.EthicsAndAttitudes,
+            narrative.BookOverview,
+            narrative.MinutesPerPeriod,
             units,
             lessons,
             resources,
@@ -114,6 +118,81 @@ internal static class CurriculumWordImportParser
             title.Trim(),
             edition?.Trim(),
             string.IsNullOrWhiteSpace(overview) ? null : overview.Trim(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            units,
+            lessons,
+            resources,
+            rawText));
+    }
+
+    public static Result<ParsedSyllabusDocument> ParseSyllabusExcel(Stream stream, string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (extension is not (".xlsx" or ".xls"))
+        {
+            return Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.UnsupportedImportFileType(Path.GetExtension(fileName)));
+        }
+
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        using var reader = ExcelReaderFactory.CreateReader(stream);
+        var sheets = new Dictionary<string, List<string[]>>(StringComparer.OrdinalIgnoreCase);
+
+        do
+        {
+            var rows = new List<string[]>();
+            while (reader.Read())
+            {
+                var values = new string[reader.FieldCount];
+                for (var i = 0; i < reader.FieldCount; i++)
+                {
+                    values[i] = reader.GetValue(i)?.ToString()?.Trim() ?? string.Empty;
+                }
+
+                rows.Add(values);
+            }
+
+            sheets[reader.Name] = rows;
+        } while (reader.NextResult());
+
+        if (!sheets.TryGetValue("Import_Syllabus", out var importRows) || importRows.Count < 2)
+        {
+            return Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.InvalidImportFile("Worksheet 'Import_Syllabus' was not found or is empty."));
+        }
+
+        var importHeader = importRows[0].Select(Normalize).ToArray();
+        var lessons = ParseLessonsFromImportSheet(importRows.Skip(1).ToList(), importHeader);
+        if (lessons.Count == 0)
+        {
+            return Result.Failure<ParsedSyllabusDocument>(
+                SyllabusErrors.InvalidImportFile("No syllabus lessons were found in worksheet 'Import_Syllabus'."));
+        }
+
+        var units = ParseUnitsFromSummarySheet(sheets, lessons);
+        var resources = ParseResourcesFromMaterialsSheet(sheets);
+        var readmeLines = ParseReadmeLines(sheets);
+        var title = ResolveExcelTitle(readmeLines, fileName);
+        var overview = readmeLines.Count == 0 ? null : string.Join("\n", readmeLines);
+        var minutesPerPeriod = ParseMinutesPerPeriod(readmeLines);
+        var rawText = string.Join(
+            "\n",
+            importRows.Select(row => string.Join(" | ", row.Where(cell => !string.IsNullOrWhiteSpace(cell)))));
+
+        return Result.Success(new ParsedSyllabusDocument(
+            title,
+            null,
+            overview,
+            null,
+            null,
+            null,
+            null,
+            minutesPerPeriod,
             units,
             lessons,
             resources,
@@ -192,14 +271,38 @@ internal static class CurriculumWordImportParser
                 continue;
             }
 
-            return rows.Skip(1)
+            var documentIndex = FindHeaderIndex(header, "document");
+            var abbreviationIndex = FindHeaderIndex(header, "abbreviation");
+            var userIndex = FindHeaderIndex(header, "user", "teacher", "pupil");
+            var notesIndex = FindHeaderIndex(header, "note");
+            var startRowIndex = 1;
+
+            if (rows.Count > 2 && LooksLikeSupplementalResourceHeaderRow(rows[1]))
+            {
+                startRowIndex = 2;
+            }
+
+            return rows.Skip(startRowIndex)
                 .Where(row => row.Any(x => !string.IsNullOrWhiteSpace(x)))
-                .Select((row, index) => new ParsedSyllabusResource(
-                    index + 1,
-                    GetByIndex(row, 0),
-                    GetByIndex(row, 1),
-                    GetByIndex(row, 2),
-                    GetByIndex(row, 3)))
+                .Select((row, index) =>
+                {
+                    var documentName = GetByIndex(row, documentIndex);
+                    var abbreviation = GetByIndex(row, abbreviationIndex);
+                    var notes = ResolveResourceNotes(row, notesIndex);
+                    var intendedUsers = ResolveResourceUsers(row, userIndex, notesIndex);
+
+                    return new ParsedSyllabusResource(
+                        index + 1,
+                        documentName,
+                        abbreviation,
+                        intendedUsers,
+                        notes);
+                })
+                .Where(resource =>
+                    !string.IsNullOrWhiteSpace(resource.DocumentName) ||
+                    !string.IsNullOrWhiteSpace(resource.Abbreviation) ||
+                    !string.IsNullOrWhiteSpace(resource.IntendedUsers) ||
+                    !string.IsNullOrWhiteSpace(resource.Notes))
                 .ToList();
         }
 
@@ -208,6 +311,8 @@ internal static class CurriculumWordImportParser
 
     private static List<ParsedSyllabusLesson> ParseLessons(IEnumerable<Table> tables)
     {
+        List<ParsedSyllabusLesson> bestMatch = [];
+
         foreach (var table in tables)
         {
             var rows = ReadTable(table);
@@ -222,10 +327,13 @@ internal static class CurriculumWordImportParser
                 continue;
             }
 
-            return parsed;
+            if (parsed.Count > bestMatch.Count)
+            {
+                bestMatch = parsed;
+            }
         }
 
-        return [];
+        return bestMatch;
     }
 
     private static List<ParsedSyllabusLesson> TryParseLessonsFromTable(IReadOnlyList<string[]> rows)
@@ -240,13 +348,17 @@ internal static class CurriculumWordImportParser
         for (var headerRowIndex = 0; headerRowIndex < headerSearchLimit; headerRowIndex++)
         {
             var header = rows[headerRowIndex].Select(Normalize).ToArray();
-            var layout = BuildLessonTableLayout(header);
+            var supplementalHeader = headerRowIndex + 1 < rows.Count && LooksLikeSupplementalLessonHeaderRow(rows[headerRowIndex + 1])
+                ? rows[headerRowIndex + 1].Select(Normalize).ToArray()
+                : null;
+            var layout = BuildLessonTableLayout(header, supplementalHeader);
             if (!layout.IsRecognized)
             {
                 continue;
             }
 
-            var lessons = ParseLessonRows(rows.Skip(headerRowIndex + 1), layout);
+            var headerRows = supplementalHeader is null ? 1 : 2;
+            var lessons = ParseLessonRows(rows.Skip(headerRowIndex + headerRows), layout);
             if (lessons.Count > 0)
             {
                 return lessons;
@@ -333,7 +445,9 @@ internal static class CurriculumWordImportParser
             : null;
     }
 
-    private static LessonTableLayout BuildLessonTableLayout(IReadOnlyList<string> header)
+    private static LessonTableLayout BuildLessonTableLayout(
+        IReadOnlyList<string> header,
+        IReadOnlyList<string>? supplementalHeader = null)
     {
         var periodIndex = FindHeaderIndex(header, "period", "week", "session");
         var topicIndex = FindHeaderIndex(header, "topic", "theme", "unit", "revision");
@@ -343,6 +457,35 @@ internal static class CurriculumWordImportParser
         var componentIndex = FindHeaderIndex(header, "component", "skill", "competenc");
         var studentBookIndex = FindHeaderIndex(header, "studentbook", "sb", "book");
         var teacherBookIndex = FindHeaderIndex(header, "teacherbook", "tb");
+
+        if (supplementalHeader is not null)
+        {
+            var nestedStudentBookIndex = FindHeaderIndex(
+                supplementalHeader,
+                "studentbook",
+                "studentsbook",
+                "student'sbook",
+                "students'book",
+                "sb");
+            var nestedTeacherBookIndex = FindHeaderIndex(
+                supplementalHeader,
+                "teacherbook",
+                "teachersbook",
+                "teacher'sbook",
+                "teachers'book",
+                "tb");
+
+            if (nestedStudentBookIndex >= 0 || nestedTeacherBookIndex >= 0)
+            {
+                studentBookIndex = nestedStudentBookIndex >= 0 ? nestedStudentBookIndex : studentBookIndex;
+                teacherBookIndex = nestedTeacherBookIndex >= 0 ? nestedTeacherBookIndex : teacherBookIndex;
+
+                if (componentIndex == studentBookIndex || componentIndex == teacherBookIndex)
+                {
+                    componentIndex = -1;
+                }
+            }
+        }
 
         return new LessonTableLayout(
             periodIndex,
@@ -733,6 +876,234 @@ internal static class CurriculumWordImportParser
         return resources;
     }
 
+    private static List<ParsedSyllabusLesson> ParseLessonsFromImportSheet(
+        IReadOnlyList<string[]> rows,
+        IReadOnlyList<string> header)
+    {
+        var unitCodeIndex = FindHeaderIndex(header, "unitcode");
+        var unitTitleIndex = FindHeaderIndex(header, "unittitle");
+        var topicIndex = FindHeaderIndex(header, "topic");
+        var lessonNoIndex = FindHeaderIndex(header, "lessonno");
+        var periodStartIndex = FindHeaderIndex(header, "periodstart");
+        var periodEndIndex = FindHeaderIndex(header, "periodend");
+        var periodRangeIndex = FindHeaderIndex(header, "periodrange");
+        var contentsIndex = FindHeaderIndex(header, "contentsobjectives");
+        var structuresIndex = FindHeaderIndex(header, "structuresgrammar");
+        var studentBookIndex = FindHeaderIndex(header, "studentbookpages");
+        var teacherBookIndex = FindHeaderIndex(header, "teacherbookpages");
+
+        var lessons = new List<ParsedSyllabusLesson>();
+        foreach (var row in rows)
+        {
+            if (row.All(string.IsNullOrWhiteSpace))
+            {
+                continue;
+            }
+
+            var periodStart = ParseFirstInt(GetByIndex(row, periodStartIndex));
+            var periodEnd = ParseFirstInt(GetByIndex(row, periodEndIndex));
+            if (!periodStart.HasValue && !periodEnd.HasValue)
+            {
+                (periodStart, periodEnd) = ParsePeriodRange(GetByIndex(row, periodRangeIndex));
+            }
+
+            if (!periodStart.HasValue && !periodEnd.HasValue)
+            {
+                continue;
+            }
+
+            var unitCode = GetByIndex(row, unitCodeIndex);
+            var unitTitle = GetByIndex(row, unitTitleIndex);
+            var topic = GetByIndex(row, topicIndex);
+            var normalizedTopic = FirstNonEmpty(
+                NormalizeExcelTitleValue(topic),
+                NormalizeExcelTitleValue(unitTitle),
+                NormalizeExcelTitleValue(unitCode));
+
+            lessons.Add(new ParsedSyllabusLesson(
+                lessons.Count + 1,
+                periodStart,
+                periodEnd,
+                normalizedTopic,
+                ParseFirstInt(GetByIndex(row, lessonNoIndex)),
+                NormalizeExcelCell(GetByIndex(row, contentsIndex)),
+                NormalizeExcelCell(GetByIndex(row, structuresIndex)),
+                null,
+                NormalizeExcelCell(GetByIndex(row, studentBookIndex)),
+                NormalizeExcelCell(GetByIndex(row, teacherBookIndex)),
+                FirstNonEmpty(unitTitle, unitCode, normalizedTopic)));
+        }
+
+        return lessons;
+    }
+
+    private static List<ParsedSyllabusUnit> ParseUnitsFromSummarySheet(
+        IReadOnlyDictionary<string, List<string[]>> sheets,
+        List<ParsedSyllabusLesson> lessons)
+    {
+        if (!sheets.TryGetValue("Units_Summary", out var summaryRows) || summaryRows.Count < 2)
+        {
+            return BuildUnitsFromLessons(lessons);
+        }
+
+        var header = summaryRows[0].Select(Normalize).ToArray();
+        var unitCodeIndex = FindHeaderIndex(header, "unitcode");
+        var unitLabelIndex = FindHeaderIndex(header, "unitlabel");
+        var unitTitleIndex = FindHeaderIndex(header, "unittitle");
+        var plannedPeriodsIndex = FindHeaderIndex(header, "plannedperiods");
+
+        var units = new List<ParsedSyllabusUnit>();
+        foreach (var row in summaryRows.Skip(1))
+        {
+            if (row.All(string.IsNullOrWhiteSpace))
+            {
+                continue;
+            }
+
+            var unitCode = GetByIndex(row, unitCodeIndex);
+            var unitLabel = GetByIndex(row, unitLabelIndex);
+            var unitTitle = GetByIndex(row, unitTitleIndex);
+            var lessonCount = lessons.Count(lesson =>
+                string.Equals(
+                    Normalize(GetUnitCodeFromHint(lesson.ModuleHint ?? lesson.Topic)),
+                    Normalize(unitCode),
+                    StringComparison.OrdinalIgnoreCase));
+
+            units.Add(new ParsedSyllabusUnit(
+                NormalizeExcelTitleValue(FirstNonEmpty(unitTitle, unitLabel, unitCode)) ?? unitCode,
+                units.Count + 1,
+                ParseFirstInt(GetByIndex(row, plannedPeriodsIndex)),
+                lessonCount > 0 ? lessonCount : null,
+                null,
+                FirstNonEmpty(unitTitle, unitLabel, unitCode)));
+        }
+
+        return units.Count > 0 ? units : BuildUnitsFromLessons(lessons);
+    }
+
+    private static List<ParsedSyllabusResource> ParseResourcesFromMaterialsSheet(
+        IReadOnlyDictionary<string, List<string[]>> sheets)
+    {
+        if (!sheets.TryGetValue("Materials", out var materialRows) || materialRows.Count < 2)
+        {
+            return [];
+        }
+
+        var header = materialRows[0].Select(Normalize).ToArray();
+        var documentIndex = FindHeaderIndex(header, "document");
+        var abbreviationIndex = FindHeaderIndex(header, "abbreviation");
+        var teacherIndex = FindHeaderIndex(header, "teacheruser");
+        var pupilIndex = FindHeaderIndex(header, "pupiluser");
+        var notesIndex = FindHeaderIndex(header, "notes");
+
+        return materialRows
+            .Skip(1)
+            .Where(row => row.Any(cell => !string.IsNullOrWhiteSpace(cell)))
+            .Select((row, index) => new ParsedSyllabusResource(
+                index + 1,
+                GetByIndex(row, documentIndex),
+                GetByIndex(row, abbreviationIndex),
+                string.Join(", ", new[]
+                {
+                    GetByIndex(row, teacherIndex),
+                    GetByIndex(row, pupilIndex)
+                }.Where(value => !string.IsNullOrWhiteSpace(value))),
+                GetByIndex(row, notesIndex)))
+            .Where(resource =>
+                !string.IsNullOrWhiteSpace(resource.DocumentName) ||
+                !string.IsNullOrWhiteSpace(resource.Abbreviation) ||
+                !string.IsNullOrWhiteSpace(resource.IntendedUsers) ||
+                !string.IsNullOrWhiteSpace(resource.Notes))
+            .ToList();
+    }
+
+    private static List<string> ParseReadmeLines(IReadOnlyDictionary<string, List<string[]>> sheets)
+    {
+        if (!sheets.TryGetValue("README", out var readmeRows))
+        {
+            return [];
+        }
+
+        return readmeRows
+            .Select(row => string.Join(": ", row.Where(cell => !string.IsNullOrWhiteSpace(cell))))
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Take(12)
+            .ToList();
+    }
+
+    private static string ResolveExcelTitle(IReadOnlyList<string> readmeLines, string fileName)
+    {
+        var sourceLine = readmeLines.FirstOrDefault(line =>
+            line.StartsWith("Source DOCX", StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(sourceLine))
+        {
+            var sourceValue = sourceLine.Split(':', 2).ElementAtOrDefault(1)?.Trim();
+            if (!string.IsNullOrWhiteSpace(sourceValue))
+            {
+                return Path.GetFileNameWithoutExtension(sourceValue);
+            }
+        }
+
+        var firstLine = readmeLines.FirstOrDefault();
+        return !string.IsNullOrWhiteSpace(firstLine)
+            ? firstLine
+            : Path.GetFileNameWithoutExtension(fileName);
+    }
+
+    private static string? NormalizeExcelCell(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value
+            .Replace("\r", string.Empty)
+            .Replace("; ", "\n")
+            .Replace(";", "\n");
+
+        return Regex.Replace(normalized, @"[ \t]+", " ").Trim();
+    }
+
+    private static string? NormalizeExcelTitleValue(string? value)
+    {
+        var normalized = NormalizeExcelCell(value);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        return normalized.Replace("\n", " ").Trim();
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+    }
+
+    private static string? GetUnitCodeFromHint(string? hint)
+    {
+        if (string.IsNullOrWhiteSpace(hint))
+        {
+            return null;
+        }
+
+        var normalized = hint.Trim();
+        var revisionMatch = Regex.Match(normalized, @"REVISION\s*0*(\d+)", RegexOptions.IgnoreCase);
+        if (revisionMatch.Success)
+        {
+            return $"revision-{int.Parse(revisionMatch.Groups[1].Value)}";
+        }
+
+        if (normalized.Contains("starter", StringComparison.OrdinalIgnoreCase))
+        {
+            return "starter";
+        }
+
+        var unitMatch = Regex.Match(normalized, @"UNIT\s*0*(\d+)", RegexOptions.IgnoreCase);
+        return unitMatch.Success ? $"unit-{int.Parse(unitMatch.Groups[1].Value):00}" : normalized;
+    }
+
     private static List<UnitDefinition> ParseUnitDefinitions(IEnumerable<Table> tables)
     {
         var definitions = new List<UnitDefinition>();
@@ -1047,7 +1418,220 @@ internal static class CurriculumWordImportParser
         return normalized.Contains("document") && normalized.Contains("abbreviation");
     }
 
+    private static SyllabusNarrativeSections ParseSyllabusNarrativeSections(
+        IReadOnlyList<string> paragraphTexts,
+        string title,
+        string? edition)
+    {
+        var overview = new StringBuilder();
+        var overallObjectives = new StringBuilder();
+        var specificObjectives = new StringBuilder();
+        var ethicsAndAttitudes = new StringBuilder();
+        var bookOverview = new StringBuilder();
+        string? currentSection = null;
+
+        foreach (var paragraph in paragraphTexts)
+        {
+            var trimmed = paragraph.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) ||
+                trimmed.Equals(title, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(edition) &&
+                 trimmed.Equals(edition, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var normalized = Normalize(trimmed);
+            if (normalized.StartsWith("ii", StringComparison.Ordinal) &&
+                normalized.Contains("courseobjectives", StringComparison.Ordinal))
+            {
+                currentSection = null;
+                continue;
+            }
+
+            if (normalized.StartsWith("iii", StringComparison.Ordinal) &&
+                normalized.Contains("thesyllabusofgetreadyforstarters", StringComparison.Ordinal))
+            {
+                currentSection = null;
+                continue;
+            }
+
+            if (normalized.Contains("whatisgetreadyforstarters"))
+            {
+                currentSection = "overview";
+                continue;
+            }
+
+            if (normalized.Contains("overallobjectives"))
+            {
+                currentSection = "overallObjectives";
+                continue;
+            }
+
+            if (normalized.Contains("specificobjectives"))
+            {
+                currentSection = "specificObjectives";
+                continue;
+            }
+
+            if (normalized.Contains("ethicsandattitudes"))
+            {
+                currentSection = "ethicsAndAttitudes";
+                continue;
+            }
+
+            if (normalized.Contains("overallinformationaboutthisbook") ||
+                normalized.Contains("bookoverview"))
+            {
+                currentSection = "bookOverview";
+                continue;
+            }
+
+            if (normalized.Contains("totaldurationoflearningprogram"))
+            {
+                currentSection = "bookOverview";
+                continue;
+            }
+
+            if (currentSection == "specificObjectives" &&
+                (normalized.Contains("listeningspeakingskills") ||
+                 normalized.Contains("readingskill") ||
+                 normalized.Contains("writingskill")))
+            {
+                AppendLine(specificObjectives, trimmed);
+                continue;
+            }
+
+            switch (currentSection)
+            {
+                case "overview":
+                    AppendLine(overview, trimmed);
+                    break;
+                case "overallObjectives":
+                    AppendLine(overallObjectives, trimmed);
+                    break;
+                case "specificObjectives":
+                    AppendLine(specificObjectives, trimmed);
+                    break;
+                case "ethicsAndAttitudes":
+                    AppendLine(ethicsAndAttitudes, trimmed);
+                    break;
+                case "bookOverview":
+                    AppendLine(bookOverview, trimmed);
+                    break;
+            }
+        }
+
+        return new SyllabusNarrativeSections(
+            NullIfWhiteSpace(overview),
+            NullIfWhiteSpace(overallObjectives),
+            NullIfWhiteSpace(specificObjectives),
+            NullIfWhiteSpace(ethicsAndAttitudes),
+            NullIfWhiteSpace(bookOverview),
+            ParseMinutesPerPeriod(paragraphTexts));
+    }
+
+    private static bool LooksLikeSupplementalLessonHeaderRow(IReadOnlyList<string> row)
+    {
+        var normalized = row.Select(Normalize).ToArray();
+        return normalized.Any(x => x.Contains("studentbook") || x.Contains("studentsbook")) ||
+               normalized.Any(x => x.Contains("teacherbook") || x.Contains("teachersbook"));
+    }
+
+    private static bool LooksLikeSupplementalResourceHeaderRow(IReadOnlyList<string> row)
+    {
+        var normalized = row.Select(Normalize).ToArray();
+        return normalized.Any(x => x == "teachers" || x == "pupils" || x == "teacher" || x == "pupil");
+    }
+
+    private static string? ResolveResourceUsers(string[] row, int userIndex, int notesIndex)
+    {
+        if (userIndex < 0 || userIndex >= row.Length)
+        {
+            return null;
+        }
+
+        var lastUserIndex = notesIndex >= 0
+            ? Math.Min(notesIndex, row.Length - 1) - 1
+            : row.Length - 1;
+
+        if (lastUserIndex < userIndex)
+        {
+            lastUserIndex = userIndex;
+        }
+
+        var users = row
+            .Skip(userIndex)
+            .Take(lastUserIndex - userIndex + 1)
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return users.Count == 0 ? null : string.Join(", ", users);
+    }
+
+    private static string? ResolveResourceNotes(string[] row, int notesIndex)
+    {
+        if (notesIndex < 0)
+        {
+            return row.Length > 0 ? NullIfWhiteSpace(row[^1]) : null;
+        }
+
+        if (row.Length > notesIndex + 1)
+        {
+            return NullIfWhiteSpace(row[^1]);
+        }
+
+        return NullIfWhiteSpace(GetByIndex(row, notesIndex));
+    }
+
+    private static void AppendLine(StringBuilder builder, string value)
+    {
+        if (builder.Length > 0)
+        {
+            builder.AppendLine();
+        }
+
+        builder.Append(value);
+    }
+
+    private static string? NullIfWhiteSpace(StringBuilder builder)
+    {
+        return NullIfWhiteSpace(builder.ToString());
+    }
+
+    private static string? NullIfWhiteSpace(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static int? ParseMinutesPerPeriod(IReadOnlyList<string> paragraphTexts)
+    {
+        foreach (var paragraph in paragraphTexts)
+        {
+            var match = Regex.Match(
+                paragraph,
+                @"(?<periods>\d+)\s*periods?\s*x\s*(?<minutes>\d+)\s*minutes?",
+                RegexOptions.IgnoreCase);
+
+            if (match.Success && int.TryParse(match.Groups["minutes"].Value, out var minutes))
+            {
+                return minutes;
+            }
+        }
+
+        return null;
+    }
+
     private sealed record DocumentBlock(bool IsTable, string Text);
+
+    private sealed record SyllabusNarrativeSections(
+        string? Overview,
+        string? OverallObjectives,
+        string? SpecificObjectives,
+        string? EthicsAndAttitudes,
+        string? BookOverview,
+        int? MinutesPerPeriod);
 
     private sealed record UnitDefinition(
         string Key,

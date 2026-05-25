@@ -244,6 +244,16 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         {
             await context.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateException ex) when (IsLegacyModuleSessionIndexConstraintViolation(ex))
+        {
+            if (context is DbContext dbContext)
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+
+            return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
+                LessonPlanTemplateErrors.LegacyModuleSessionIndexConstraintStillActive);
+        }
         catch (DbUpdateException ex) when (TryBuildLengthViolationError(context, ex, out var error))
         {
             if (context is DbContext dbContext)
@@ -526,6 +536,23 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
 
         var sqlState = innerException.GetType().GetProperty("SqlState")?.GetValue(innerException)?.ToString();
         return string.Equals(sqlState, "22001", StringComparison.Ordinal);
+    }
+
+    private static bool IsLegacyModuleSessionIndexConstraintViolation(DbUpdateException exception)
+    {
+        if (exception.InnerException is null)
+        {
+            return false;
+        }
+
+        var message = exception.InnerException.Message;
+        if (!message.Contains("IX_LessonPlanTemplates_ModuleId_SessionIndex", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var sqlState = exception.InnerException.GetType().GetProperty("SqlState")?.GetValue(exception.InnerException)?.ToString();
+        return string.Equals(sqlState, "23505", StringComparison.Ordinal);
     }
 
     private static IEnumerable<StringLengthViolation> FindStringLengthViolations(DbContext dbContext)

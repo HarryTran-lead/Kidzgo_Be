@@ -36,6 +36,10 @@ public static class LessonPlanTemplateErrors
         "LessonPlanTemplate.DuplicateSessionOrder",
         $"More than one template is assigned to SessionOrder {sessionOrder}");
 
+    public static readonly Error LegacyModuleSessionIndexConstraintStillActive = Error.Conflict(
+        "LessonPlanTemplate.LegacyModuleSessionIndexConstraintStillActive",
+        "Database schema still enforces the old unique constraint IX_LessonPlanTemplates_ModuleId_SessionIndex. Apply the multi-syllabus schema repair migration before importing or creating parallel syllabus templates for the same module/session index.");
+
     public static Error SessionIndexOutOfRange(int sessionIndex, int totalSessions) => Error.Validation(
         "LessonPlanTemplate.SessionIndexOutOfRange",
         $"SessionIndex {sessionIndex} must be between 1 and {totalSessions}");

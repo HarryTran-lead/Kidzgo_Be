@@ -7,6 +7,7 @@ using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Text.RegularExpressions;
 
 namespace Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
@@ -16,6 +17,9 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
     IUserContext userContext)
     : ICommandHandler<ImportLessonPlanTemplateFromWordCommand, ImportLessonPlanTemplateFromWordResponse>
 {
+    private const int ActivityTitleMaxLength = 255;
+    private const int MaterialNameMaxLength = 255;
+
     public async Task<Result<ImportLessonPlanTemplateFromWordResponse>> Handle(
         ImportLessonPlanTemplateFromWordCommand command,
         CancellationToken cancellationToken)
@@ -195,7 +199,19 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             linkedSessionTemplate.UpdatedAt = now;
         }
 
-        await context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (TryBuildLengthViolationError(context, ex, out var error))
+        {
+            if (context is DbContext dbContext)
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+
+            return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(error);
+        }
 
         return new ImportLessonPlanTemplateFromWordResponse
         {
@@ -277,7 +293,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             {
                 Id = Guid.NewGuid(),
                 LessonPlanTemplateId = templateId,
-                Title = stage.Title,
+                Title = TruncateLabel(stage.Title, ActivityTitleMaxLength),
                 TeacherActivity = string.Join("\n", stage.Details),
                 StudentActivity = null,
                 Resources = null,
@@ -298,7 +314,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             {
                 Id = Guid.NewGuid(),
                 LessonPlanTemplateId = templateId,
-                Name = material,
+                Name = TruncateLabel(material, MaterialNameMaxLength),
                 MaterialType = "teacher",
                 Notes = material,
                 OrderIndex = orderIndex++,
@@ -313,7 +329,7 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             {
                 Id = Guid.NewGuid(),
                 LessonPlanTemplateId = templateId,
-                Name = material,
+                Name = TruncateLabel(material, MaterialNameMaxLength),
                 MaterialType = "student",
                 Notes = material,
                 OrderIndex = orderIndex++,
@@ -358,6 +374,14 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             .ToList();
     }
 
+    private static string TruncateLabel(string value, int maxLength)
+    {
+        var normalized = Regex.Replace(value, @"\s+", " ").Trim();
+        return normalized.Length <= maxLength
+            ? normalized
+            : normalized[..maxLength].Trim();
+    }
+
     private static List<ProcedureStage> SplitProcedureStages(string? procedure)
     {
         var lines = SplitTextItems(procedure);
@@ -398,6 +422,105 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
                    @"^(warm[\s-]?up|lead[\s-]?in|presentation|practice|production|wrap[\s-]?up|review|homework|activity\s*\d+|stage\s*\d+)",
                    RegexOptions.IgnoreCase);
     }
+
+    private static bool TryBuildLengthViolationError(
+        IDbContext context,
+        DbUpdateException exception,
+        out Error error)
+    {
+        error = Error.None;
+
+        if (!IsStringLengthViolation(exception))
+        {
+            return false;
+        }
+
+        if (context is not DbContext dbContext)
+        {
+            error = LessonPlanTemplateErrors.InvalidImportFile(
+                "Imported lesson plan contains text longer than the database allows.");
+            return true;
+        }
+
+        var offenders = FindStringLengthViolations(dbContext)
+            .Take(5)
+            .ToList();
+
+        if (offenders.Count == 0)
+        {
+            error = LessonPlanTemplateErrors.InvalidImportFile(
+                "Imported lesson plan contains text longer than the database allows, but the exact field could not be identified from the current EF model.");
+            return true;
+        }
+
+        var details = string.Join(
+            "; ",
+            offenders.Select(x => $"{x.EntityName}.{x.PropertyName} length {x.Length} > {x.MaxLength}"));
+
+        error = LessonPlanTemplateErrors.InvalidImportFile(
+            $"Imported lesson plan contains text longer than the database allows: {details}.");
+        return true;
+    }
+
+    private static bool IsStringLengthViolation(DbUpdateException exception)
+    {
+        if (exception.Message.Contains("value too long", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var innerException = exception.InnerException;
+        if (innerException is null)
+        {
+            return false;
+        }
+
+        if (innerException.Message.Contains("value too long for type character varying", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var sqlState = innerException.GetType().GetProperty("SqlState")?.GetValue(innerException)?.ToString();
+        return string.Equals(sqlState, "22001", StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<StringLengthViolation> FindStringLengthViolations(DbContext dbContext)
+    {
+        foreach (var entry in dbContext.ChangeTracker.Entries()
+                     .Where(x => x.State is EntityState.Added or EntityState.Modified))
+        {
+            foreach (var property in entry.Properties)
+            {
+                if (property.Metadata.ClrType != typeof(string))
+                {
+                    continue;
+                }
+
+                if (property.CurrentValue is not string value)
+                {
+                    continue;
+                }
+
+                var maxLength = property.Metadata.GetMaxLength();
+                if (!maxLength.HasValue || value.Length <= maxLength.Value)
+                {
+                    continue;
+                }
+
+                yield return new StringLengthViolation(
+                    entry.Metadata.ClrType.Name,
+                    property.Metadata.Name,
+                    value.Length,
+                    maxLength.Value);
+            }
+        }
+    }
+
+    private sealed record StringLengthViolation(
+        string EntityName,
+        string PropertyName,
+        int Length,
+        int MaxLength);
 
     private sealed record ProcedureStage(string Title, List<string> Details);
 }

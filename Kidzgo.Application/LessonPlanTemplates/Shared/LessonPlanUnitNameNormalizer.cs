@@ -14,14 +14,15 @@ public static class LessonPlanUnitNameNormalizer
             return string.Empty;
         }
 
-        var value = Regex.Replace(raw.Trim().ToUpperInvariant(), @"\s+", " ");
-        return Regex.Replace(
-            value,
-            @"\b0+(\d+)\b",
-            match => int.Parse(match.Groups[1].Value).ToString());
+        return ExtractUnitIdentity(raw)?.NormalizedKey ?? NormalizeLoose(raw);
     }
 
     public static string? ExtractUnitName(params string?[] hints)
+    {
+        return ExtractUnitIdentity(hints)?.CanonicalDisplayName;
+    }
+
+    public static LessonPlanUnitIdentity? ExtractUnitIdentity(params string?[] hints)
     {
         foreach (var hint in hints.Where(x => !string.IsNullOrWhiteSpace(x)))
         {
@@ -29,11 +30,15 @@ public static class LessonPlanUnitNameNormalizer
 
             var lessonSuffixMatch = Regex.Match(
                 normalizedHint,
-                @"^(?<unit>.+?)\s*(?:[-–]\s*)?Lesson\s*0*\d+\b",
+                @"^(?<unit>.+?)\s*(?:[-–]\s*)?LESSON\s*0*\d+\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (lessonSuffixMatch.Success)
             {
-                return Normalize(lessonSuffixMatch.Groups["unit"].Value);
+                var unit = ExtractUnitIdentity(lessonSuffixMatch.Groups["unit"].Value);
+                if (unit is not null)
+                {
+                    return unit;
+                }
             }
 
             var starterMatch = Regex.Match(
@@ -42,7 +47,7 @@ public static class LessonPlanUnitNameNormalizer
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (starterMatch.Success)
             {
-                return Normalize($"Unit Starter{starterMatch.Groups["name"].Value}");
+                return BuildStarterIdentity(starterMatch.Groups["name"].Value);
             }
 
             var unitMatch = Regex.Match(
@@ -51,7 +56,7 @@ public static class LessonPlanUnitNameNormalizer
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (unitMatch.Success)
             {
-                return Normalize($"Unit {unitMatch.Groups["number"].Value}{unitMatch.Groups["name"].Value}");
+                return BuildNumberedUnitIdentity(unitMatch.Groups["number"].Value, unitMatch.Groups["name"].Value);
             }
 
             var revisionMatch = Regex.Match(
@@ -60,11 +65,27 @@ public static class LessonPlanUnitNameNormalizer
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (revisionMatch.Success)
             {
-                return Normalize($"Revision {revisionMatch.Groups["number"].Value}");
+                return BuildRevisionIdentity(revisionMatch.Groups["number"].Value);
+            }
+
+            var directIdentity = TryParseUnitIdentity(normalizedHint);
+            if (directIdentity is not null)
+            {
+                return directIdentity;
             }
         }
 
         return null;
+    }
+
+    public static int? ExtractUnitNumber(params string?[] hints)
+    {
+        return ExtractUnitIdentity(hints)?.UnitNumber;
+    }
+
+    public static string? ExtractUnitTitle(params string?[] hints)
+    {
+        return ExtractUnitIdentity(hints)?.UnitTitle;
     }
 
     public static int? ExtractLessonNumber(params string?[] hints)
@@ -85,6 +106,88 @@ public static class LessonPlanUnitNameNormalizer
         return null;
     }
 
+    private static LessonPlanUnitIdentity? TryParseUnitIdentity(string raw)
+    {
+        var normalized = NormalizeLoose(raw);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        var starterMatch = Regex.Match(
+            normalized,
+            @"\bUNIT\s+STARTER\b(?<name>.*)$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (starterMatch.Success)
+        {
+            return BuildStarterIdentity(starterMatch.Groups["name"].Value);
+        }
+
+        var unitMatch = Regex.Match(
+            normalized,
+            @"\bUNIT\s*0*(?<number>\d+)\b(?<name>.*)$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (unitMatch.Success)
+        {
+            return BuildNumberedUnitIdentity(unitMatch.Groups["number"].Value, unitMatch.Groups["name"].Value);
+        }
+
+        var revisionMatch = Regex.Match(
+            normalized,
+            @"\bREVISION\s*0*(?<number>\d+)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (revisionMatch.Success)
+        {
+            return BuildRevisionIdentity(revisionMatch.Groups["number"].Value);
+        }
+
+        var cleanedTitle = CleanDisplayTitle(normalized);
+        return new LessonPlanUnitIdentity(
+            CanonicalDisplayName: cleanedTitle,
+            NormalizedKey: $"TEXT|{Regex.Replace(cleanedTitle, @"[^A-Z0-9]+", string.Empty)}",
+            UnitNumber: null,
+            UnitTitle: cleanedTitle);
+    }
+
+    private static LessonPlanUnitIdentity BuildStarterIdentity(string rawTitle)
+    {
+        var title = CleanDisplayTitle(rawTitle);
+        var displayName = string.IsNullOrWhiteSpace(title)
+            ? "UNIT STARTER"
+            : $"UNIT STARTER: {title}";
+
+        return new LessonPlanUnitIdentity(
+            CanonicalDisplayName: displayName,
+            NormalizedKey: "UNIT|STARTER",
+            UnitNumber: 0,
+            UnitTitle: string.IsNullOrWhiteSpace(title) ? "STARTER" : title);
+    }
+
+    private static LessonPlanUnitIdentity BuildNumberedUnitIdentity(string rawNumber, string rawTitle)
+    {
+        var number = int.Parse(rawNumber);
+        var title = CleanDisplayTitle(rawTitle);
+        var displayName = string.IsNullOrWhiteSpace(title)
+            ? $"UNIT {number}"
+            : $"UNIT {number}: {title}";
+
+        return new LessonPlanUnitIdentity(
+            CanonicalDisplayName: displayName,
+            NormalizedKey: $"UNIT|{number}",
+            UnitNumber: number,
+            UnitTitle: title);
+    }
+
+    private static LessonPlanUnitIdentity BuildRevisionIdentity(string rawNumber)
+    {
+        var number = int.Parse(rawNumber);
+        return new LessonPlanUnitIdentity(
+            CanonicalDisplayName: $"REVISION {number}",
+            NormalizedKey: $"REVISION|{number}",
+            UnitNumber: number,
+            UnitTitle: $"REVISION {number}");
+    }
+
     private static string NormalizeHint(string hint)
     {
         var normalized = hint.Replace('\\', '/');
@@ -92,7 +195,35 @@ public static class LessonPlanUnitNameNormalizer
         lastSegment = Regex.Replace(lastSegment, @"\.[A-Za-z0-9]+$", string.Empty);
         return Regex.Replace(lastSegment, @"\s+", " ").Trim();
     }
+
+    private static string NormalizeLoose(string raw)
+    {
+        var value = Regex.Replace(raw.Trim().ToUpperInvariant(), @"\s+", " ");
+        value = value.Replace("–", "-").Replace("—", "-");
+        value = Regex.Replace(value, @"\s+([:;,.!?])", "$1");
+        value = Regex.Replace(value, @"([:;,.!?])(?=\S)", "$1 ");
+        value = Regex.Replace(
+            value,
+            @"\b0+(\d+)\b",
+            match => int.Parse(match.Groups[1].Value).ToString());
+        value = Regex.Replace(value, @"[!?.;,]+$", string.Empty).Trim();
+        return Regex.Replace(value, @"\s+", " ").Trim();
+    }
+
+    private static string CleanDisplayTitle(string raw)
+    {
+        var title = NormalizeLoose(raw);
+        title = Regex.Replace(title, @"^(?:[:\-]\s*)+", string.Empty).Trim();
+        title = Regex.Replace(title, @"\s+", " ").Trim();
+        return title;
+    }
 }
+
+public sealed record LessonPlanUnitIdentity(
+    string CanonicalDisplayName,
+    string NormalizedKey,
+    int? UnitNumber,
+    string? UnitTitle);
 
 public static class LessonPlanUnitResolver
 {
@@ -103,27 +234,39 @@ public static class LessonPlanUnitResolver
         DateTime now,
         CancellationToken cancellationToken)
     {
-        var normalized = LessonPlanUnitNameNormalizer.Normalize(rawName);
+        var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(rawName)
+                       ?? new LessonPlanUnitIdentity(
+                           CanonicalDisplayName: LessonPlanUnitNameNormalizer.Normalize(rawName),
+                           NormalizedKey: LessonPlanUnitNameNormalizer.Normalize(rawName),
+                           UnitNumber: null,
+                           UnitTitle: null);
+
         var candidate = new LessonPlanUnit
         {
             Id = Guid.NewGuid(),
             ModuleId = moduleId,
-            Name = normalized,
-            NameNormalized = normalized,
+            Name = identity.CanonicalDisplayName,
+            NameNormalized = identity.NormalizedKey,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now
         };
         EntityStringLengthTrimmer.TrimToModelLimits(context, candidate);
-        normalized = candidate.NameNormalized;
 
         var existing = await context.LessonPlanUnits
             .FirstOrDefaultAsync(
                 x => x.ModuleId == moduleId &&
-                     x.NameNormalized == normalized,
+                     x.NameNormalized == candidate.NameNormalized,
                 cancellationToken);
         if (existing is not null)
         {
+            if (!string.Equals(existing.Name, candidate.Name, StringComparison.Ordinal) || !existing.IsActive)
+            {
+                existing.Name = candidate.Name;
+                existing.IsActive = true;
+                existing.UpdatedAt = now;
+            }
+
             return existing;
         }
 

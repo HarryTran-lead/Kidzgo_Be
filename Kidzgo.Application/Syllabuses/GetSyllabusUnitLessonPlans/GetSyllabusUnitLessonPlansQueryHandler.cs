@@ -95,6 +95,7 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
                     .ThenBy(g => g.Key.UnitName)
                     .Select(unitGroup =>
                     {
+                        var unitIdentity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(unitGroup.Key.UnitName);
                         var lessons = unitGroup
                             .OrderBy(x => x.OrderIndexInUnit)
                             .ThenBy(x => x.SessionOrder)
@@ -108,6 +109,9 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
                             UnitId = unitGroup.Key.UnitId,
                             UnitName = unitGroup.Key.UnitName,
                             OrderIndex = unitGroup.Key.UnitOrder == int.MaxValue ? 0 : unitGroup.Key.UnitOrder,
+                            UnitOrderIndex = unitGroup.Key.UnitOrder == int.MaxValue ? 0 : unitGroup.Key.UnitOrder,
+                            UnitNumber = unitIdentity?.UnitNumber,
+                            UnitTitle = unitIdentity?.UnitTitle,
                             LessonPlanCount = lessons.Count,
                             Lessons = lessons
                         };
@@ -120,6 +124,7 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
                     ModuleCode = moduleGroup.Key.ModuleCode,
                     ModuleName = moduleGroup.Key.ModuleName,
                     ModuleOrder = moduleGroup.Key.ModuleOrder,
+                    ModuleOrderIndex = moduleGroup.Key.ModuleOrder,
                     UnitCount = units.Count,
                     LessonPlanCount = units.Sum(x => x.LessonPlanCount),
                     Units = units
@@ -145,10 +150,18 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
 
     private static SyllabusUnitLessonPlanDto ToLessonDto(LessonPlanTemplateProjection template)
     {
+        var unitIdentity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(template.LessonPlanUnitName);
+
         return new SyllabusUnitLessonPlanDto
         {
             LessonPlanTemplateId = template.LessonPlanTemplateId,
+            ModuleId = template.ModuleId,
+            ModuleOrderIndex = template.ModuleOrder,
             LessonPlanUnitId = template.LessonPlanUnitId,
+            UnitId = template.LessonPlanUnitId,
+            UnitOrderIndex = template.LessonPlanUnitOrder,
+            UnitNumber = unitIdentity?.UnitNumber,
+            UnitTitle = unitIdentity?.UnitTitle,
             SessionTemplateId = template.SessionTemplateId,
             Title = template.Title,
             LessonNumber = LessonPlanUnitNameNormalizer.ExtractLessonNumber(template.SourceFileName, template.Title),
@@ -159,6 +172,7 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
             SessionTopic = template.SessionTopic,
             SourceFileName = template.SourceFileName,
             OrderIndexInUnit = template.OrderIndexInUnit,
+            LessonOrderIndexInUnit = template.OrderIndexInUnit,
             IsActive = template.IsActive,
             CreatedAt = template.CreatedAt,
             UpdatedAt = template.UpdatedAt

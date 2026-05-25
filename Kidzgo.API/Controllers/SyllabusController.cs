@@ -5,6 +5,7 @@ using Kidzgo.Application.Syllabuses.AddSyllabusSection;
 using Kidzgo.Application.Syllabuses.AddSyllabusTableRow;
 using Kidzgo.Application.Syllabuses.ArchiveSyllabusDocument;
 using Kidzgo.Application.Syllabuses.DeleteSyllabusTableRow;
+using Kidzgo.Application.Syllabuses.DeleteSyllabus;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
 using Kidzgo.Application.Syllabuses.GetSyllabusDocument;
@@ -146,6 +147,20 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> GetDocument(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetSyllabusDocumentQuery { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Hard delete one syllabus and all lesson plan templates that belong to it.
+    /// </summary>
+    [HttpDelete("{id:guid}/hard-delete")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> HardDelete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new DeleteSyllabusCommand { Id = id }, cancellationToken);
         return result.MatchOk();
     }
 

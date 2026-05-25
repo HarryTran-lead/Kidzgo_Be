@@ -15,8 +15,13 @@ public sealed class CreateLessonPlanUnitCommandHandler(IDbContext context)
         CreateLessonPlanUnitCommand command,
         CancellationToken cancellationToken)
     {
-        var normalized = LessonPlanUnitNameNormalizer.Normalize(command.Name);
-        if (string.IsNullOrWhiteSpace(normalized))
+        var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(command.Name)
+                       ?? new LessonPlanUnitIdentity(
+                           CanonicalDisplayName: LessonPlanUnitNameNormalizer.Normalize(command.Name),
+                           NormalizedKey: LessonPlanUnitNameNormalizer.Normalize(command.Name),
+                           UnitNumber: null,
+                           UnitTitle: null);
+        if (string.IsNullOrWhiteSpace(identity.NormalizedKey))
         {
             return Result.Failure<CreateLessonPlanUnitResponse>(LessonPlanUnitErrors.NameRequired);
         }
@@ -32,12 +37,12 @@ public sealed class CreateLessonPlanUnitCommandHandler(IDbContext context)
         var duplicateExists = await context.LessonPlanUnits
             .AnyAsync(
                 x => x.ModuleId == command.ModuleId &&
-                     x.NameNormalized == normalized,
+                     x.NameNormalized == identity.NormalizedKey,
                 cancellationToken);
         if (duplicateExists)
         {
             return Result.Failure<CreateLessonPlanUnitResponse>(
-                LessonPlanUnitErrors.DuplicateName(command.ModuleId, normalized));
+                LessonPlanUnitErrors.DuplicateName(command.ModuleId, identity.NormalizedKey));
         }
 
         var nextOrder = await context.LessonPlanUnits
@@ -50,8 +55,8 @@ public sealed class CreateLessonPlanUnitCommandHandler(IDbContext context)
         {
             Id = Guid.NewGuid(),
             ModuleId = command.ModuleId,
-            Name = normalized,
-            NameNormalized = normalized,
+            Name = identity.CanonicalDisplayName,
+            NameNormalized = identity.NormalizedKey,
             OrderIndex = nextOrder + 1,
             IsActive = true,
             CreatedAt = now,

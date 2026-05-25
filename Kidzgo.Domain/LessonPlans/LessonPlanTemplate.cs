@@ -7,6 +7,7 @@ namespace Kidzgo.Domain.LessonPlans;
 public class LessonPlanTemplate : Entity
 {
     public Guid Id { get; set; }
+    public Guid SyllabusId { get; set; }
     public Guid ModuleId { get; set; }
     public Guid? LessonPlanUnitId { get; set; }
     public Guid? SessionTemplateId { get; set; }
@@ -38,6 +39,7 @@ public class LessonPlanTemplate : Entity
     
     // Navigation properties
     public Module Module { get; set; } = null!;
+    public Syllabus Syllabus { get; set; } = null!;
     public LessonPlanUnit? LessonPlanUnit { get; set; }
     public SessionTemplate? SessionTemplate { get; set; }
     public User? CreatedByUser { get; set; }

@@ -4,6 +4,7 @@ using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.Sessions;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Kidzgo.Application.Services;
 
@@ -257,6 +258,7 @@ public sealed class ClassProgressionService(
         }
 
         var planResult = await classSessionPlanningService.PlanAsync(
+            classEntity.SyllabusId,
             classEntity.LevelId,
             classEntity.CurrentModuleId,
             classEntity.CurrentSessionIndex,
@@ -274,6 +276,23 @@ public sealed class ClassProgressionService(
             futureSessions[index].ModuleId = planResult.Value[index].ModuleId;
             futureSessions[index].LessonPlanTemplateId = planResult.Value[index].LessonPlanTemplateId;
             futureSessions[index].SessionIndexInModule = planResult.Value[index].SessionIndexInModule;
+            futureSessions[index].CurriculumSnapshotJson = JsonSerializer.Serialize(new
+            {
+                planResult.Value[index].SyllabusId,
+                planResult.Value[index].SyllabusCode,
+                planResult.Value[index].SyllabusVersion,
+                planResult.Value[index].SyllabusTitle,
+                planResult.Value[index].ModuleId,
+                planResult.Value[index].ModuleCode,
+                planResult.Value[index].ModuleName,
+                planResult.Value[index].LessonPlanUnitId,
+                planResult.Value[index].UnitName,
+                planResult.Value[index].LessonPlanTemplateId,
+                planResult.Value[index].SessionIndexInModule,
+                planResult.Value[index].LessonTitle,
+                planResult.Value[index].Objectives,
+                planResult.Value[index].Procedure
+            });
             futureSessions[index].UpdatedAt = now;
         }
 
@@ -434,6 +453,7 @@ public sealed class ClassProgressionService(
         classEntity.CurrentModuleId = moduleId;
         classEntity.CurrentSessionIndex = currentSessionIndex;
         classEntity.CurrentLessonPlanTemplateId = await ResolveLessonTemplateIdAsync(
+            classEntity.SyllabusId,
             moduleId,
             currentSessionIndex,
             cancellationToken);
@@ -445,12 +465,14 @@ public sealed class ClassProgressionService(
         CancellationToken cancellationToken)
     {
         classEntity.CurrentLessonPlanTemplateId = await ResolveLessonTemplateIdAsync(
+            classEntity.SyllabusId,
             classEntity.CurrentModuleId,
             classEntity.CurrentSessionIndex,
             cancellationToken);
     }
 
     private async Task<Guid?> ResolveLessonTemplateIdAsync(
+        Guid? syllabusId,
         Guid moduleId,
         int sessionIndex,
         CancellationToken cancellationToken)
@@ -458,6 +480,7 @@ public sealed class ClassProgressionService(
         return await context.LessonPlanTemplates
             .AsNoTracking()
             .Where(x => x.ModuleId == moduleId &&
+                        (!syllabusId.HasValue || x.SyllabusId == syllabusId.Value) &&
                         x.SessionIndex == sessionIndex &&
                         x.IsActive &&
                         !x.IsDeleted)

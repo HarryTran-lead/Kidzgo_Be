@@ -44,6 +44,7 @@ public class ClassController : ControllerBase
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
+            SyllabusId = request.SyllabusId,
             StartModuleId = request.StartModuleId,
             StartSessionIndex = request.StartSessionIndex,
             Code = request.Code,
@@ -73,8 +74,10 @@ public class ClassController : ControllerBase
     {
         var command = new PreviewClassSessionsCommand
         {
+            BranchId = request.BranchId,
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
+            SyllabusId = request.SyllabusId,
             StartModuleId = request.StartModuleId,
             StartSessionIndex = request.StartSessionIndex,
             StartDate = request.StartDate,
@@ -215,6 +218,7 @@ public class ClassController : ControllerBase
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
+            SyllabusId = request.SyllabusId,
             StartModuleId = request.StartModuleId,
             StartSessionIndex = request.StartSessionIndex,
             Code = request.Code,

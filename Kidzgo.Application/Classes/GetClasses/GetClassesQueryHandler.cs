@@ -21,6 +21,7 @@ public sealed class GetClassesQueryHandler(
             .Include(c => c.Branch)
             .Include(c => c.Program)
             .Include(c => c.Level)
+            .Include(c => c.Syllabus)
             .Include(c => c.StartModule)
             .Include(c => c.CurrentModule)
             .Include(c => c.CurrentLessonPlanTemplate)
@@ -96,6 +97,10 @@ public sealed class GetClassesQueryHandler(
                 ProgramName = c.Program.Name,
                 LevelId = c.LevelId,
                 LevelName = c.Level.Name,
+                SyllabusId = c.SyllabusId,
+                SyllabusCode = c.Syllabus != null ? c.Syllabus.Code : null,
+                SyllabusVersion = c.Syllabus != null ? c.Syllabus.Version : null,
+                SyllabusTitle = c.Syllabus != null ? c.Syllabus.Title : null,
                 StartModuleId = c.StartModuleId,
                 StartSessionIndex = c.StartSessionIndex,
                 StartModuleName = c.StartModule.Name,

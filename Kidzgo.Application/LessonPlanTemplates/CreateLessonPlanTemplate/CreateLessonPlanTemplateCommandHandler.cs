@@ -19,11 +19,28 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         CancellationToken cancellationToken)
     {
         var module = await context.Modules
+            .Select(x => new { x.Id, x.LevelId, x.PlannedSessionCount })
             .FirstOrDefaultAsync(x => x.Id == command.ModuleId, cancellationToken);
         if (module is null)
         {
             return Result.Failure<CreateLessonPlanTemplateResponse>(
                 LessonPlanTemplateErrors.ModuleNotFound(command.ModuleId));
+        }
+
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.LevelId, x.IsActive, x.IsDeleted })
+            .FirstOrDefaultAsync(x => x.Id == command.SyllabusId, cancellationToken);
+        if (syllabus is null || syllabus.IsDeleted || !syllabus.IsActive)
+        {
+            return Result.Failure<CreateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.SyllabusNotFound(command.SyllabusId));
+        }
+
+        if (syllabus.LevelId != module.LevelId)
+        {
+            return Result.Failure<CreateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.SyllabusModuleMismatch(command.SyllabusId, command.ModuleId));
         }
 
         if (command.SessionIndex <= 0)
@@ -41,6 +58,7 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         var duplicateExists = await context.LessonPlanTemplates
             .AnyAsync(
                 t => t.ModuleId == command.ModuleId &&
+                     t.SyllabusId == command.SyllabusId &&
                      t.SessionIndex == command.SessionIndex &&
                      !t.IsDeleted,
                 cancellationToken);
@@ -76,6 +94,7 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         var template = new LessonPlanTemplate
         {
             Id = Guid.NewGuid(),
+            SyllabusId = command.SyllabusId,
             ModuleId = command.ModuleId,
             LessonPlanUnitId = lessonPlanUnit?.Id,
             OrderIndexInUnit = lessonPlanUnit is null
@@ -115,6 +134,7 @@ public sealed class CreateLessonPlanTemplateCommandHandler(
         return new CreateLessonPlanTemplateResponse
         {
             Id = template.Id,
+            SyllabusId = template.SyllabusId,
             ModuleId = template.ModuleId,
             LessonPlanUnitId = template.LessonPlanUnitId,
             OrderIndexInUnit = template.OrderIndexInUnit,

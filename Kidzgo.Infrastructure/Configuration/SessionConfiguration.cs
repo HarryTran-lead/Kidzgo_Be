@@ -70,6 +70,8 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.Property(x => x.Color)
             .HasMaxLength(50);
 
+        builder.Property(x => x.CurriculumSnapshotJson);
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 

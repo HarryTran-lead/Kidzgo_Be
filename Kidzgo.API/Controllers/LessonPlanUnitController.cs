@@ -65,6 +65,7 @@ public class LessonPlanUnitController(ISender mediator) : ControllerBase
     public async Task<IResult> ImportLessonPlanTemplateFromWord(
         Guid id,
         IFormFile file,
+        [FromQuery] Guid syllabusId,
         [FromQuery] int? sessionIndexOverride,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)
@@ -76,6 +77,7 @@ public class LessonPlanUnitController(ISender mediator) : ControllerBase
 
         var result = await mediator.Send(new ImportLessonPlanTemplateFromWordCommand
         {
+            SyllabusId = syllabusId,
             LessonPlanUnitId = id,
             SessionIndexOverride = sessionIndexOverride,
             OverwriteExisting = overwriteExisting,

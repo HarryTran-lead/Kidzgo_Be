@@ -4,6 +4,7 @@ namespace Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWor
 
 public sealed class ImportLessonPlanTemplateFromWordCommand : ICommand<ImportLessonPlanTemplateFromWordResponse>
 {
+    public Guid? SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
     public Guid? LessonPlanUnitId { get; init; }
     public int? SessionIndexOverride { get; init; }

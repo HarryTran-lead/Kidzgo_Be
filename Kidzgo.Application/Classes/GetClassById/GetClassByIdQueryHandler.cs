@@ -19,6 +19,7 @@ public sealed class GetClassByIdQueryHandler(
             .Include(c => c.Branch)
             .Include(c => c.Program)
             .Include(c => c.Level)
+            .Include(c => c.Syllabus)
             .Include(c => c.StartModule)
             .Include(c => c.CurrentModule)
             .Include(c => c.CurrentLessonPlanTemplate)
@@ -72,6 +73,10 @@ public sealed class GetClassByIdQueryHandler(
             ProgramName = classEntity.Program.Name,
             LevelId = classEntity.LevelId,
             LevelName = classEntity.Level.Name,
+            SyllabusId = classEntity.SyllabusId,
+            SyllabusCode = classEntity.Syllabus?.Code,
+            SyllabusVersion = classEntity.Syllabus?.Version,
+            SyllabusTitle = classEntity.Syllabus?.Title,
             StartModuleId = classEntity.StartModuleId,
             StartSessionIndex = classEntity.StartSessionIndex,
             StartModuleName = classEntity.StartModule.Name,

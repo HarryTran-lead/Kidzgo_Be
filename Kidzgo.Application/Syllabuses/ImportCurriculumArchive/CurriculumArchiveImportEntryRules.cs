@@ -92,6 +92,45 @@ internal static class CurriculumArchiveImportEntryRules
         return "UnitLesson";
     }
 
+    public static int GetLessonEntryPriority(string fullName)
+    {
+        var normalized = NormalizeArchivePath(fullName);
+        var fileName = Path.GetFileNameWithoutExtension(normalized);
+        var priority = 0;
+
+        if (Regex.IsMatch(
+                fileName,
+                @"^Unit\s*starter\s*lesson\s*0*\d+$",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            priority += 1_000;
+        }
+        else if (Regex.IsMatch(
+                     fileName,
+                     @"^Unit\s*0*\d+\s*lesson\s*0*\d+$",
+                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            priority += 1_000;
+        }
+        else if (Regex.IsMatch(
+                     fileName,
+                     @"^Revision\s*0*\d+$",
+                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            priority += 1_000;
+        }
+
+        if (!fileName.Contains("done", StringComparison.OrdinalIgnoreCase))
+        {
+            priority += 100;
+        }
+
+        priority -= fileName.Length;
+        priority -= normalized.Length / 10;
+
+        return priority;
+    }
+
     public static string NormalizeArchivePath(string value)
     {
         return Regex.Replace(value.Replace('\\', '/'), @"\s+", " ").Trim();

@@ -32,6 +32,7 @@ public class Session : Entity
     public Guid? ActualTeacherId { get; set; }
     public Guid? ActualAssistantId { get; set; }
     public string? Color { get; set; }
+    public string? CurriculumSnapshotJson { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

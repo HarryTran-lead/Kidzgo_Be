@@ -36,6 +36,21 @@ public sealed class ImportLessonPlanWordsCommandHandler(
                 LessonPlanTemplateErrors.ModuleNotFound(command.ModuleId.Value));
         }
 
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.Id == command.SyllabusId &&
+                     x.ProgramId == command.ProgramId &&
+                     x.LevelId == command.LevelId &&
+                     x.IsActive &&
+                     !x.IsDeleted,
+                cancellationToken);
+        if (syllabus is null)
+        {
+            return Result.Failure<ImportLessonPlanWordsResponse>(
+                LessonPlanTemplateErrors.SyllabusNotFound(command.SyllabusId));
+        }
+
         CurriculumImportConfiguration? importConfiguration = null;
         if (!command.ModuleId.HasValue)
         {
@@ -89,6 +104,7 @@ public sealed class ImportLessonPlanWordsCommandHandler(
             var result = await sender.Send(
                 new ImportLessonPlanTemplateFromWordCommand
                 {
+                    SyllabusId = command.SyllabusId,
                     ModuleId = module.Id,
                     SessionIndexOverride = sessionIndexOverride,
                     OverwriteExisting = command.OverwriteExisting,

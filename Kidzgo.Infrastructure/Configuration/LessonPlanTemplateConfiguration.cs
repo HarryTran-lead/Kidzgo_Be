@@ -13,6 +13,9 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
         builder.Property(x => x.Id)
             .IsRequired();
 
+        builder.Property(x => x.SyllabusId)
+            .IsRequired();
+
         builder.Property(x => x.ModuleId)
             .IsRequired();
 
@@ -90,6 +93,11 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
             .HasForeignKey(x => x.ModuleId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Syllabus)
+            .WithMany()
+            .HasForeignKey(x => x.SyllabusId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasOne(x => x.LessonPlanUnit)
             .WithMany(x => x.LessonPlanTemplates)
             .HasForeignKey(x => x.LessonPlanUnitId)
@@ -115,7 +123,10 @@ public class LessonPlanTemplateConfiguration : IEntityTypeConfiguration<LessonPl
             .HasForeignKey(x => x.LessonPlanTemplateId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasIndex(x => new { x.ModuleId, x.SessionIndex })
+        builder.HasIndex(x => new { x.SyllabusId, x.ModuleId, x.SessionIndex })
+            .IsUnique();
+
+        builder.HasIndex(x => new { x.SyllabusId, x.ModuleId, x.SessionOrder })
             .IsUnique();
 
         builder.HasIndex(x => x.LessonPlanUnitId);

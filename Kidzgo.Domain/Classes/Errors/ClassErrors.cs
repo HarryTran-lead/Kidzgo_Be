@@ -48,6 +48,18 @@ public static class ClassErrors
         "Class.ProgramNotAvailableInBranch",
         "Program is not assigned to the selected branch");
 
+    public static readonly Error SyllabusNotFound = Error.NotFound(
+        "Class.SyllabusNotFound",
+        "Syllabus not found, deleted, or inactive");
+
+    public static readonly Error SyllabusProgramLevelMismatch = Error.Validation(
+        "Class.SyllabusProgramLevelMismatch",
+        "Syllabus does not belong to the selected program and level");
+
+    public static readonly Error SyllabusNotAvailableInBranch = Error.Validation(
+        "Class.SyllabusNotAvailableInBranch",
+        "Syllabus is not assigned to the selected branch for the selected program and level");
+
     public static readonly Error CodeExists = Error.Conflict(
         "Class.CodeExists",
         "Class code already exists");

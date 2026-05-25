@@ -2,12 +2,14 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Users;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Kidzgo.Application.Classes.CreateClass;
 
@@ -50,6 +52,17 @@ public sealed class CreateClassCommandHandler(
             return Result.Failure<CreateClassResponse>(ClassErrors.ProgramNotFound);
         }
 
+        var programAssignedToBranch = await context.BranchPrograms
+            .AnyAsync(
+                bp => bp.BranchId == command.BranchId &&
+                      bp.ProgramId == command.ProgramId &&
+                      bp.IsActive,
+                cancellationToken);
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.ProgramNotAvailableInBranch);
+        }
+
         var level = await context.Levels
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == command.LevelId, cancellationToken);
@@ -61,6 +74,42 @@ public sealed class CreateClassCommandHandler(
         if (level.ProgramId != command.ProgramId)
         {
             return Result.Failure<CreateClassResponse>(ClassErrors.LevelProgramMismatch);
+        }
+
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .Where(x => x.Id == command.SyllabusId && x.IsActive && !x.IsDeleted)
+            .Select(x => new
+            {
+                x.Id,
+                x.ProgramId,
+                x.LevelId,
+                x.Code,
+                x.Version,
+                x.Title
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (syllabus is null)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.SyllabusNotFound);
+        }
+
+        if (syllabus.ProgramId != command.ProgramId || syllabus.LevelId != command.LevelId)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.SyllabusProgramLevelMismatch);
+        }
+
+        var syllabusAssignedToBranch = await CurriculumAssignmentAccessHelper.IsSyllabusAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            command.LevelId,
+            command.SyllabusId,
+            command.StartDate,
+            cancellationToken);
+        if (!syllabusAssignedToBranch)
+        {
+            return Result.Failure<CreateClassResponse>(ClassErrors.SyllabusNotAvailableInBranch);
         }
 
         var modules = await context.Modules
@@ -203,6 +252,7 @@ public sealed class CreateClassCommandHandler(
             plannedOccurrences = occurrenceResult.Value;
 
             var metadataResult = await classSessionPlanningService.PlanAsync(
+                command.SyllabusId,
                 command.LevelId,
                 command.StartModuleId,
                 command.StartSessionIndex,
@@ -262,6 +312,7 @@ public sealed class CreateClassCommandHandler(
             BranchId = command.BranchId,
             ProgramId = command.ProgramId,
             LevelId = command.LevelId,
+            SyllabusId = command.SyllabusId,
             StartModuleId = command.StartModuleId,
             StartSessionIndex = command.StartSessionIndex,
             CurrentModuleId = command.StartModuleId,
@@ -332,6 +383,7 @@ public sealed class CreateClassCommandHandler(
                     ParticipationType = ParticipationType.Main,
                     SectionType = SectionType.Normal,
                     Status = SessionStatus.Scheduled,
+                    CurriculumSnapshotJson = BuildCurriculumSnapshotJson(plannedMetadata[index]),
                     CreatedAt = now,
                     UpdatedAt = now
                 })
@@ -352,6 +404,10 @@ public sealed class CreateClassCommandHandler(
             BranchId = classEntity.BranchId,
             ProgramId = classEntity.ProgramId,
             LevelId = classEntity.LevelId,
+            SyllabusId = classEntity.SyllabusId,
+            SyllabusCode = syllabus.Code,
+            SyllabusVersion = syllabus.Version,
+            SyllabusTitle = syllabus.Title,
             StartModuleId = classEntity.StartModuleId,
             StartSessionIndex = classEntity.StartSessionIndex,
             CurrentModuleId = classEntity.CurrentModuleId,
@@ -464,5 +520,26 @@ public sealed class CreateClassCommandHandler(
 
         var parseResult = patternParser.ParseScheduleSlots(weeklyScheduleJson);
         return parseResult.IsSuccess ? parseResult.Value : [];
+    }
+
+    private static string BuildCurriculumSnapshotJson(PlannedSessionMetadata metadata)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            metadata.SyllabusId,
+            metadata.SyllabusCode,
+            metadata.SyllabusVersion,
+            metadata.SyllabusTitle,
+            metadata.ModuleId,
+            metadata.ModuleCode,
+            metadata.ModuleName,
+            metadata.LessonPlanUnitId,
+            metadata.UnitName,
+            metadata.LessonPlanTemplateId,
+            metadata.SessionIndexInModule,
+            metadata.LessonTitle,
+            metadata.Objectives,
+            metadata.Procedure
+        });
     }
 }

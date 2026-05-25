@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
@@ -59,6 +60,17 @@ public sealed class UpdateClassCommandHandler(
                 ClassErrors.ProgramNotFound);
         }
 
+        bool programAssignedToBranch = await context.BranchPrograms
+            .AnyAsync(
+                bp => bp.BranchId == command.BranchId &&
+                      bp.ProgramId == command.ProgramId &&
+                      bp.IsActive,
+                cancellationToken);
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<UpdateClassResponse>(ClassErrors.ProgramNotAvailableInBranch);
+        }
+
         var level = await context.Levels
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == command.LevelId, cancellationToken);
@@ -70,6 +82,42 @@ public sealed class UpdateClassCommandHandler(
         if (level.ProgramId != command.ProgramId)
         {
             return Result.Failure<UpdateClassResponse>(ClassErrors.LevelProgramMismatch);
+        }
+
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .Where(x => x.Id == command.SyllabusId && x.IsActive && !x.IsDeleted)
+            .Select(x => new
+            {
+                x.Id,
+                x.ProgramId,
+                x.LevelId,
+                x.Code,
+                x.Version,
+                x.Title
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (syllabus is null)
+        {
+            return Result.Failure<UpdateClassResponse>(ClassErrors.SyllabusNotFound);
+        }
+
+        if (syllabus.ProgramId != command.ProgramId || syllabus.LevelId != command.LevelId)
+        {
+            return Result.Failure<UpdateClassResponse>(ClassErrors.SyllabusProgramLevelMismatch);
+        }
+
+        var syllabusAssignedToBranch = await CurriculumAssignmentAccessHelper.IsSyllabusAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            command.LevelId,
+            command.SyllabusId,
+            command.StartDate,
+            cancellationToken);
+        if (!syllabusAssignedToBranch)
+        {
+            return Result.Failure<UpdateClassResponse>(ClassErrors.SyllabusNotAvailableInBranch);
         }
 
         var modules = await context.Modules
@@ -105,6 +153,7 @@ public sealed class UpdateClassCommandHandler(
         bool branchOrProgramChanged = classEntity.BranchId != command.BranchId ||
                                       classEntity.ProgramId != command.ProgramId ||
                                       classEntity.LevelId != command.LevelId;
+        bool syllabusChanged = classEntity.SyllabusId != command.SyllabusId;
         bool startModuleChanged = classEntity.StartModuleId != command.StartModuleId;
         bool startSessionChanged = classEntity.StartSessionIndex != command.StartSessionIndex;
         bool scheduleChanged = classEntity.StartDate != command.StartDate ||
@@ -347,7 +396,9 @@ public sealed class UpdateClassCommandHandler(
             classEntity.EndDate,
             VietnamTime.ToVietnamDateOnly(classEntity.UpdatedAt));
 
-        if (startModuleChanged || startSessionChanged || branchOrProgramChanged)
+        classEntity.SyllabusId = command.SyllabusId;
+
+        if (startModuleChanged || startSessionChanged || branchOrProgramChanged || syllabusChanged)
         {
             classEntity.CurrentModuleId = command.StartModuleId;
             classEntity.CurrentSessionIndex = command.StartSessionIndex;
@@ -386,6 +437,10 @@ public sealed class UpdateClassCommandHandler(
             BranchId = classEntity.BranchId,
             ProgramId = classEntity.ProgramId,
             LevelId = classEntity.LevelId,
+            SyllabusId = classEntity.SyllabusId,
+            SyllabusCode = syllabus.Code,
+            SyllabusVersion = syllabus.Version,
+            SyllabusTitle = syllabus.Title,
             StartModuleId = classEntity.StartModuleId,
             StartSessionIndex = classEntity.StartSessionIndex,
             CurrentModuleId = classEntity.CurrentModuleId,

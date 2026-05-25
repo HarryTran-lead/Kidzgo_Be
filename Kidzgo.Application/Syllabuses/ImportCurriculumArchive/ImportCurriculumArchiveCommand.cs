@@ -15,8 +15,12 @@ public sealed class ImportCurriculumArchiveCommand : ICommand<ImportCurriculumAr
 
 public sealed class ImportCurriculumArchiveResponse
 {
+    public string ArchiveFileName { get; init; } = null!;
+    public string ArchiveParserVersion { get; init; } = null!;
     public Guid? SyllabusId { get; init; }
     public string? SelectedSyllabusEntryName { get; init; }
+    public string? SelectedSyllabusNormalizedEntryName { get; init; }
+    public string? SelectedSyllabusFileName { get; init; }
     public string? SelectedSyllabusSourceType { get; init; }
     public string? SelectedSyllabusParserVersion { get; init; }
     public int ImportedLessonPlans { get; init; }
@@ -29,6 +33,8 @@ public sealed class ImportCurriculumArchiveResponse
 public sealed class ImportedCurriculumArchiveEntryDto
 {
     public string EntryName { get; init; } = null!;
+    public string NormalizedEntryName { get; init; } = null!;
+    public string FileName { get; init; } = null!;
     public string? SourceFolder { get; init; }
     public string SourceType { get; init; } = null!;
     public string? ParserVersion { get; init; }
@@ -46,7 +52,10 @@ public sealed class ImportedCurriculumArchiveEntryDto
 public sealed class SkippedCurriculumArchiveEntryDto
 {
     public string EntryName { get; init; } = null!;
+    public string NormalizedEntryName { get; init; } = null!;
+    public string FileName { get; init; } = null!;
     public string? SourceFolder { get; init; }
     public string SourceType { get; init; } = null!;
+    public string? ParserVersion { get; init; }
     public string Reason { get; init; } = null!;
 }

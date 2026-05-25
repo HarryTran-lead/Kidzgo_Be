@@ -75,6 +75,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         Error? syllabusImportError = null;
         ZipArchiveEntry? selectedSyllabusEntry = null;
         string? selectedSyllabusParserVersion = null;
+        string? selectedSyllabusNormalizedEntryName = null;
 
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -106,13 +107,15 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                     skipped,
                     skippedItems,
                     entry.FullName,
-                    syllabusResult.Error.Description);
+                    syllabusResult.Error.Description,
+                    SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName));
                 continue;
             }
 
             syllabusId = syllabusResult.Value.SyllabusId;
             selectedSyllabusEntry = entry;
             selectedSyllabusParserVersion = SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName);
+            selectedSyllabusNormalizedEntryName = CurriculumArchiveImportEntryRules.NormalizeArchivePath(entry.FullName);
 
             var validationResult = await ValidateImportedSyllabusAsync(
                 syllabusResult.Value.SyllabusId,
@@ -134,6 +137,8 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             importedEntries.Add(new ImportedCurriculumArchiveEntryDto
             {
                 EntryName = entry.FullName,
+                NormalizedEntryName = CurriculumArchiveImportEntryRules.NormalizeArchivePath(entry.FullName),
+                FileName = Path.GetFileName(entry.FullName),
                 SourceFolder = ResolveSourceFolder(entry.FullName),
                 SourceType = CurriculumArchiveImportEntryRules.ResolveSourceType(entry.FullName),
                 ParserVersion = selectedSyllabusParserVersion,
@@ -155,57 +160,44 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 SyllabusErrors.InvalidImportFile("No syllabus Excel or Word document was found in the archive."));
         }
 
-        foreach (var entry in lessonPlanEntries)
+        foreach (var entry in syllabusEntries)
         {
-            await using var entryStream = entry.Open();
+            if (selectedSyllabusEntry is not null &&
+                !string.Equals(entry.FullName, selectedSyllabusEntry.FullName, StringComparison.OrdinalIgnoreCase) &&
+                skippedItems.All(x => !string.Equals(x.EntryName, entry.FullName, StringComparison.OrdinalIgnoreCase)))
+            {
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    "Skipped because another syllabus source was selected with higher priority.",
+                    SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName));
+            }
+        }
+
+        var resolvedLessonEntries = ResolveLessonPlanEntries(
+            modules,
+            importConfiguration,
+            lessonPlanEntries,
+            skipped,
+            skippedItems);
+
+        foreach (var resolvedEntry in resolvedLessonEntries)
+        {
+            await using var entryStream = resolvedEntry.Entry.Open();
             await using var buffer = new MemoryStream();
             await entryStream.CopyToAsync(buffer, cancellationToken);
             var entryBytes = buffer.ToArray();
-
-            var module = ResolveModuleForEntry(modules, entry.FullName);
-            if (module is null)
-            {
-                module = CurriculumImportRuleResolver.Resolve(
-                    modules,
-                    importConfiguration.ModuleRules.OrderBy(x => x.OrderIndex).ToList(),
-                    Path.GetDirectoryName(entry.FullName),
-                    Path.GetFileNameWithoutExtension(entry.FullName),
-                    entry.FullName);
-            }
-            if (module is null)
-            {
-                AddSkippedEntry(
-                    skipped,
-                    skippedItems,
-                    entry.FullName,
-                    "Could not map entry to a module.");
-                continue;
-            }
-
-            var sessionIndexOverride = ResolveSessionIndex(
-                importConfiguration,
-                module.Id,
-                Path.GetFileNameWithoutExtension(entry.FullName),
-                entry.FullName,
-                Path.GetDirectoryName(entry.FullName));
-            if (!sessionIndexOverride.HasValue)
-            {
-                AddSkippedEntry(
-                    skipped,
-                    skippedItems,
-                    entry.FullName,
-                    "Could not resolve session index from import configuration");
-                continue;
-            }
 
             await using var importStream = new MemoryStream(entryBytes, writable: false);
             var lessonResult = await sender.Send(
                 new ImportLessonPlanTemplateFromWordCommand
                 {
-                    ModuleId = module.Id,
-                    SessionIndexOverride = sessionIndexOverride,
+                    SyllabusId = syllabusId.Value,
+                    ModuleId = resolvedEntry.Module.Id,
+                    SessionIndexOverride = resolvedEntry.SessionIndex,
                     OverwriteExisting = command.OverwriteExisting,
-                    FileName = Path.GetFileName(entry.FullName),
+                    FileName = resolvedEntry.FileName,
                     FileStream = importStream
                 },
                 cancellationToken);
@@ -215,8 +207,9 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 AddSkippedEntry(
                     skipped,
                     skippedItems,
-                    entry.FullName,
-                    lessonResult.Error.Description);
+                    resolvedEntry.Entry.FullName,
+                    lessonResult.Error.Description,
+                    resolvedEntry.ParserVersion);
                 continue;
             }
 
@@ -224,18 +217,20 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             await AttachOriginalLessonPlanFileAsync(
                 fileStorage,
                 lessonResult.Value.LessonPlanTemplateId,
-                entry,
+                resolvedEntry.Entry,
                 uploadStream,
                 cancellationToken);
             importedLessonPlans++;
             importedEntries.Add(new ImportedCurriculumArchiveEntryDto
             {
-                EntryName = entry.FullName,
-                SourceFolder = ResolveSourceFolder(entry.FullName),
-                SourceType = CurriculumArchiveImportEntryRules.ResolveSourceType(entry.FullName),
-                ParserVersion = SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName),
-                ModuleId = module.Id,
-                ModuleName = module.Name,
+                EntryName = resolvedEntry.Entry.FullName,
+                NormalizedEntryName = resolvedEntry.NormalizedEntryName,
+                FileName = resolvedEntry.FileName,
+                SourceFolder = ResolveSourceFolder(resolvedEntry.Entry.FullName),
+                SourceType = resolvedEntry.SourceType,
+                ParserVersion = resolvedEntry.ParserVersion,
+                ModuleId = resolvedEntry.Module.Id,
+                ModuleName = resolvedEntry.Module.Name,
                 LessonPlanTemplateId = lessonResult.Value.LessonPlanTemplateId,
                 SessionTemplateId = lessonResult.Value.SessionTemplateId,
                 SessionIndex = lessonResult.Value.SessionIndex,
@@ -249,8 +244,12 @@ public sealed class ImportCurriculumArchiveCommandHandler(
 
         return new ImportCurriculumArchiveResponse
         {
+            ArchiveFileName = command.FileName,
+            ArchiveParserVersion = "zip-v1",
             SyllabusId = syllabusId,
             SelectedSyllabusEntryName = selectedSyllabusEntry?.FullName,
+            SelectedSyllabusNormalizedEntryName = selectedSyllabusNormalizedEntryName,
+            SelectedSyllabusFileName = selectedSyllabusEntry is null ? null : Path.GetFileName(selectedSyllabusEntry.FullName),
             SelectedSyllabusSourceType = selectedSyllabusEntry is null ? null : CurriculumArchiveImportEntryRules.ResolveSourceType(selectedSyllabusEntry.FullName),
             SelectedSyllabusParserVersion = selectedSyllabusParserVersion,
             ImportedLessonPlans = importedLessonPlans,
@@ -285,6 +284,91 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         return rule is null
             ? null
             : CurriculumImportRuleResolver.ResolveSessionIndex(configuration, rule, hints);
+    }
+
+    private static IReadOnlyList<ResolvedLessonPlanArchiveEntry> ResolveLessonPlanEntries(
+        IReadOnlyList<Domain.Programs.Module> modules,
+        Domain.LessonPlans.CurriculumImportConfiguration configuration,
+        IReadOnlyList<ZipArchiveEntry> lessonPlanEntries,
+        ICollection<string> skipped,
+        ICollection<SkippedCurriculumArchiveEntryDto> skippedItems)
+    {
+        var orderedRules = configuration.ModuleRules.OrderBy(x => x.OrderIndex).ToList();
+        var candidates = new List<ResolvedLessonPlanArchiveEntry>();
+
+        foreach (var entry in lessonPlanEntries)
+        {
+            var module = ResolveModuleForEntry(modules, entry.FullName) ??
+                         CurriculumImportRuleResolver.Resolve(
+                             modules,
+                             orderedRules,
+                             Path.GetDirectoryName(entry.FullName),
+                             Path.GetFileNameWithoutExtension(entry.FullName),
+                             entry.FullName);
+            if (module is null)
+            {
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    "Could not map entry to a module.",
+                    SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName));
+                continue;
+            }
+
+            var sessionIndexOverride = ResolveSessionIndex(
+                configuration,
+                module.Id,
+                Path.GetFileNameWithoutExtension(entry.FullName),
+                entry.FullName,
+                Path.GetDirectoryName(entry.FullName));
+            if (!sessionIndexOverride.HasValue)
+            {
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    entry.FullName,
+                    "Could not resolve session index from import configuration",
+                    SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName));
+                continue;
+            }
+
+            candidates.Add(new ResolvedLessonPlanArchiveEntry(
+                entry,
+                module,
+                sessionIndexOverride.Value,
+                CurriculumArchiveImportEntryRules.ResolveSourceType(entry.FullName),
+                SyllabusImportFileMetadata.ResolveParserVersion(entry.FullName)));
+        }
+
+        var selectedEntries = new List<ResolvedLessonPlanArchiveEntry>();
+        foreach (var group in candidates.GroupBy(x => new { x.Module.Id, x.SessionIndex }))
+        {
+            var preferred = group
+                .OrderByDescending(x => CurriculumArchiveImportEntryRules.GetLessonEntryPriority(x.Entry.FullName))
+                .ThenBy(x => x.NormalizedEntryName.Length)
+                .ThenBy(x => x.FileName.Length)
+                .ThenBy(x => x.Entry.FullName, StringComparer.OrdinalIgnoreCase)
+                .First();
+
+            selectedEntries.Add(preferred);
+
+            foreach (var duplicate in group.Where(x =>
+                         !string.Equals(x.Entry.FullName, preferred.Entry.FullName, StringComparison.OrdinalIgnoreCase)))
+            {
+                AddSkippedEntry(
+                    skipped,
+                    skippedItems,
+                    duplicate.Entry.FullName,
+                    $"Skipped duplicate archive entry for module '{preferred.Module.Name}' session {preferred.SessionIndex}. Preferred entry: {preferred.Entry.FullName}",
+                    duplicate.ParserVersion);
+            }
+        }
+
+        return selectedEntries
+            .OrderBy(x => x.Module.Order)
+            .ThenBy(x => x.SessionIndex)
+            .ToList();
     }
 
     private static void ApplyArchiveLessonPlanCounts(
@@ -362,14 +446,18 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         ICollection<string> skipped,
         ICollection<SkippedCurriculumArchiveEntryDto> skippedItems,
         string entryName,
-        string reason)
+        string reason,
+        string? parserVersion = null)
     {
         skipped.Add($"{entryName}: {reason}");
         skippedItems.Add(new SkippedCurriculumArchiveEntryDto
         {
             EntryName = entryName,
+            NormalizedEntryName = CurriculumArchiveImportEntryRules.NormalizeArchivePath(entryName),
+            FileName = Path.GetFileName(entryName),
             SourceFolder = ResolveSourceFolder(entryName),
             SourceType = CurriculumArchiveImportEntryRules.ResolveSourceType(entryName),
+            ParserVersion = parserVersion,
             Reason = reason
         });
     }
@@ -484,5 +572,16 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         }
 
         return Result.Success();
+    }
+
+    private sealed record ResolvedLessonPlanArchiveEntry(
+        ZipArchiveEntry Entry,
+        Domain.Programs.Module Module,
+        int SessionIndex,
+        string SourceType,
+        string ParserVersion)
+    {
+        public string NormalizedEntryName => CurriculumArchiveImportEntryRules.NormalizeArchivePath(Entry.FullName);
+        public string FileName => Path.GetFileName(Entry.FullName);
     }
 }

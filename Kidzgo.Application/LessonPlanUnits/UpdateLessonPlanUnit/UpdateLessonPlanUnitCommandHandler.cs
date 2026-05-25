@@ -24,8 +24,13 @@ public sealed class UpdateLessonPlanUnitCommandHandler(IDbContext context)
 
         if (command.Name is not null)
         {
-            var normalized = LessonPlanUnitNameNormalizer.Normalize(command.Name);
-            if (string.IsNullOrWhiteSpace(normalized))
+            var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(command.Name)
+                           ?? new LessonPlanUnitIdentity(
+                               CanonicalDisplayName: LessonPlanUnitNameNormalizer.Normalize(command.Name),
+                               NormalizedKey: LessonPlanUnitNameNormalizer.Normalize(command.Name),
+                               UnitNumber: null,
+                               UnitTitle: null);
+            if (string.IsNullOrWhiteSpace(identity.NormalizedKey))
             {
                 return Result.Failure<UpdateLessonPlanUnitResponse>(LessonPlanUnitErrors.NameRequired);
             }
@@ -33,17 +38,17 @@ public sealed class UpdateLessonPlanUnitCommandHandler(IDbContext context)
             var duplicateExists = await context.LessonPlanUnits
                 .AnyAsync(
                     x => x.ModuleId == unit.ModuleId &&
-                         x.NameNormalized == normalized &&
+                         x.NameNormalized == identity.NormalizedKey &&
                          x.Id != unit.Id,
                     cancellationToken);
             if (duplicateExists)
             {
                 return Result.Failure<UpdateLessonPlanUnitResponse>(
-                    LessonPlanUnitErrors.DuplicateName(unit.ModuleId, normalized));
+                    LessonPlanUnitErrors.DuplicateName(unit.ModuleId, identity.NormalizedKey));
             }
 
-            unit.Name = normalized;
-            unit.NameNormalized = normalized;
+            unit.Name = identity.CanonicalDisplayName;
+            unit.NameNormalized = identity.NormalizedKey;
         }
 
         if (command.IsActive.HasValue)

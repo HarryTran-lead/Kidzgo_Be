@@ -28,6 +28,7 @@ public sealed class SyllabusModuleUnitLessonPlanGroupDto
     public string ModuleCode { get; init; } = null!;
     public string ModuleName { get; init; } = null!;
     public int ModuleOrder { get; init; }
+    public int ModuleOrderIndex { get; init; }
     public int UnitCount { get; init; }
     public int LessonPlanCount { get; init; }
     public IReadOnlyList<SyllabusLessonPlanUnitDto> Units { get; init; } = [];
@@ -38,6 +39,9 @@ public sealed class SyllabusLessonPlanUnitDto
     public Guid UnitId { get; init; }
     public string UnitName { get; init; } = null!;
     public int OrderIndex { get; init; }
+    public int UnitOrderIndex { get; init; }
+    public int? UnitNumber { get; init; }
+    public string? UnitTitle { get; init; }
     public int LessonPlanCount { get; init; }
     public IReadOnlyList<SyllabusUnitLessonPlanDto> Lessons { get; init; } = [];
 }
@@ -45,7 +49,13 @@ public sealed class SyllabusLessonPlanUnitDto
 public sealed class SyllabusUnitLessonPlanDto
 {
     public Guid LessonPlanTemplateId { get; init; }
+    public Guid ModuleId { get; init; }
+    public int ModuleOrderIndex { get; init; }
     public Guid? LessonPlanUnitId { get; init; }
+    public Guid? UnitId { get; init; }
+    public int? UnitOrderIndex { get; init; }
+    public int? UnitNumber { get; init; }
+    public string? UnitTitle { get; init; }
     public Guid? SessionTemplateId { get; init; }
     public string? Title { get; init; }
     public int? LessonNumber { get; init; }
@@ -56,6 +66,7 @@ public sealed class SyllabusUnitLessonPlanDto
     public string? SessionTopic { get; init; }
     public string? SourceFileName { get; init; }
     public int OrderIndexInUnit { get; init; }
+    public int LessonOrderIndexInUnit { get; init; }
     public bool IsActive { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }

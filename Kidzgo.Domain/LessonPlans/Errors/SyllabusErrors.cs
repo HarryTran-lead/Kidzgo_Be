@@ -79,4 +79,12 @@ public static class SyllabusErrors
     public static Error CellNotFound(string columnKey) => Error.NotFound(
         "Syllabus.CellNotFound",
         $"Syllabus table cell '{columnKey}' was not found");
+
+    public static Error HasClasses(int classCount) => Error.Conflict(
+        "Syllabus.HasClasses",
+        $"Cannot hard delete syllabus because it is assigned to {classCount} class(es).");
+
+    public static Error HasLessonPlans(int lessonPlanCount) => Error.Conflict(
+        "Syllabus.HasLessonPlans",
+        $"Cannot hard delete syllabus because {lessonPlanCount} lesson plan(s) still reference its templates.");
 }

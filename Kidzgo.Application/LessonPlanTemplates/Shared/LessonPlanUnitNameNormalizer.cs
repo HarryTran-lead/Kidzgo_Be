@@ -104,6 +104,18 @@ public static class LessonPlanUnitResolver
         CancellationToken cancellationToken)
     {
         var normalized = LessonPlanUnitNameNormalizer.Normalize(rawName);
+        var candidate = new LessonPlanUnit
+        {
+            Id = Guid.NewGuid(),
+            ModuleId = moduleId,
+            Name = normalized,
+            NameNormalized = normalized,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        EntityStringLengthTrimmer.TrimToModelLimits(context, candidate);
+        normalized = candidate.NameNormalized;
 
         var existing = await context.LessonPlanUnits
             .FirstOrDefaultAsync(
@@ -122,14 +134,14 @@ public static class LessonPlanUnitResolver
 
         var unit = new LessonPlanUnit
         {
-            Id = Guid.NewGuid(),
+            Id = candidate.Id,
             ModuleId = moduleId,
-            Name = normalized,
-            NameNormalized = normalized,
+            Name = candidate.Name,
+            NameNormalized = candidate.NameNormalized,
             OrderIndex = nextOrder + 1,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now
+            IsActive = candidate.IsActive,
+            CreatedAt = candidate.CreatedAt,
+            UpdatedAt = candidate.UpdatedAt
         };
 
         context.LessonPlanUnits.Add(unit);

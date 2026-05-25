@@ -34,6 +34,7 @@ public class LessonPlanTemplateController : ControllerBase
     {
         var command = new CreateLessonPlanTemplateCommand
         {
+            SyllabusId = request.SyllabusId,
             ModuleId = request.ModuleId,
             LessonPlanUnitId = request.LessonPlanUnitId,
             OrderIndexInUnit = request.OrderIndexInUnit,
@@ -77,6 +78,7 @@ public class LessonPlanTemplateController : ControllerBase
     [HttpGet]
     [Authorize(Roles = "ManagementStaff,Admin")]
     public async Task<IResult> GetLessonPlanTemplates(
+        [FromQuery] Guid? syllabusId,
         [FromQuery] Guid? moduleId,
         [FromQuery] string? title,
         [FromQuery] bool? isActive,
@@ -87,6 +89,7 @@ public class LessonPlanTemplateController : ControllerBase
     {
         var query = new GetLessonPlanTemplatesQuery
         {
+            SyllabusId = syllabusId,
             ModuleId = moduleId,
             Title = title,
             IsActive = isActive,
@@ -103,6 +106,7 @@ public class LessonPlanTemplateController : ControllerBase
     [Authorize(Roles = "ManagementStaff,Admin")]
     [RequestSizeLimit(20_971_520)]
     public async Task<IResult> ImportLessonPlanTemplates(
+        [FromQuery] Guid syllabusId,
         [FromQuery] Guid? moduleId,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
@@ -115,6 +119,7 @@ public class LessonPlanTemplateController : ControllerBase
 
         var command = new ImportLessonPlanTemplatesFromFileCommand
         {
+            SyllabusId = syllabusId,
             ModuleId = moduleId,
             OverwriteExisting = overwriteExisting,
             FileName = file.FileName,
@@ -140,6 +145,7 @@ public class LessonPlanTemplateController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> ImportLessonPlanTemplateFromWord(
+        [FromQuery] Guid syllabusId,
         [FromQuery] Guid moduleId,
         [FromQuery] Guid? lessonPlanUnitId,
         [FromQuery] int? sessionIndexOverride,
@@ -154,6 +160,7 @@ public class LessonPlanTemplateController : ControllerBase
 
         var result = await _mediator.Send(new ImportLessonPlanTemplateFromWordCommand
         {
+            SyllabusId = syllabusId,
             ModuleId = moduleId,
             LessonPlanUnitId = lessonPlanUnitId,
             SessionIndexOverride = sessionIndexOverride,
@@ -175,6 +182,7 @@ public class LessonPlanTemplateController : ControllerBase
         var command = new UpdateLessonPlanTemplateCommand
         {
             Id = id,
+            SyllabusId = request.SyllabusId,
             ModuleId = request.ModuleId,
             LessonPlanUnitId = request.LessonPlanUnitId,
             OrderIndexInUnit = request.OrderIndexInUnit,

@@ -34,11 +34,29 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
 
         var targetModuleId = command.ModuleId ?? template.ModuleId;
         var module = await context.Modules
+            .Select(x => new { x.Id, x.LevelId, x.PlannedSessionCount })
             .FirstOrDefaultAsync(x => x.Id == targetModuleId, cancellationToken);
         if (module is null)
         {
             return Result.Failure<UpdateLessonPlanTemplateResponse>(
                 LessonPlanTemplateErrors.ModuleNotFound(targetModuleId));
+        }
+
+        var targetSyllabusId = command.SyllabusId ?? template.SyllabusId;
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.LevelId, x.IsActive, x.IsDeleted })
+            .FirstOrDefaultAsync(x => x.Id == targetSyllabusId, cancellationToken);
+        if (syllabus is null || syllabus.IsDeleted || !syllabus.IsActive)
+        {
+            return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.SyllabusNotFound(targetSyllabusId));
+        }
+
+        if (syllabus.LevelId != module.LevelId)
+        {
+            return Result.Failure<UpdateLessonPlanTemplateResponse>(
+                LessonPlanTemplateErrors.SyllabusModuleMismatch(targetSyllabusId, targetModuleId));
         }
 
         var targetSessionIndex = command.SessionIndex ?? template.SessionIndex;
@@ -57,6 +75,7 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         var duplicateExists = await context.LessonPlanTemplates
             .AnyAsync(
                 t => t.ModuleId == targetModuleId &&
+                     t.SyllabusId == targetSyllabusId &&
                      t.SessionIndex == targetSessionIndex &&
                      t.Id != command.Id &&
                      !t.IsDeleted,
@@ -105,6 +124,11 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         if (command.ModuleId.HasValue)
         {
             template.ModuleId = command.ModuleId.Value;
+        }
+
+        if (command.SyllabusId.HasValue)
+        {
+            template.SyllabusId = command.SyllabusId.Value;
         }
 
         if (command.Title != null)
@@ -199,6 +223,7 @@ public sealed class UpdateLessonPlanTemplateCommandHandler(
         return new UpdateLessonPlanTemplateResponse
         {
             Id = template.Id,
+            SyllabusId = template.SyllabusId,
             ModuleId = template.ModuleId,
             LessonPlanUnitId = template.LessonPlanUnitId,
             OrderIndexInUnit = template.OrderIndexInUnit,

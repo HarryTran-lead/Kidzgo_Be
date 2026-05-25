@@ -2,6 +2,7 @@ using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.Branches.CreateBranch;
 using Kidzgo.Application.Branches.DeleteBranch;
+using Kidzgo.Application.Branches.GetBranchSyllabuses;
 using Kidzgo.Application.Branches.GetBranchById;
 using Kidzgo.Application.Branches.GetAllBranches;
 using Kidzgo.Application.Branches.GetBranches;
@@ -79,6 +80,20 @@ public class BranchController : ControllerBase
         };
 
         var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("{id:guid}/syllabuses")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetBranchSyllabuses(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetBranchSyllabusesQuery
+        {
+            BranchId = id
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 

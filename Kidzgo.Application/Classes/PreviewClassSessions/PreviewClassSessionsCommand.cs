@@ -5,8 +5,10 @@ namespace Kidzgo.Application.Classes.PreviewClassSessions;
 
 public sealed class PreviewClassSessionsCommand : ICommand<PreviewClassSessionsResponse>
 {
+    public Guid BranchId { get; init; }
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
+    public Guid SyllabusId { get; init; }
     public Guid StartModuleId { get; init; }
     public int StartSessionIndex { get; init; }
     public DateOnly StartDate { get; init; }

@@ -8,6 +8,7 @@ using Kidzgo.Application.Syllabuses.DeleteSyllabusTableRow;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
 using Kidzgo.Application.Syllabuses.GetSyllabusDocument;
+using Kidzgo.Application.Syllabuses.GetSyllabusVersions;
 using Kidzgo.Application.Syllabuses.GetSyllabuses;
 using Kidzgo.Application.Syllabuses.GetSyllabusUnitLessonPlans;
 using Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
@@ -99,6 +100,27 @@ public class SyllabusController(ISender mediator) : ControllerBase
             IncludeDeleted = includeDeleted,
             PageNumber = pageNumber,
             PageSize = pageSize
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpGet("versions")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IResult> GetVersions(
+        [FromQuery] Guid? branchId,
+        [FromQuery] Guid? programId,
+        [FromQuery] Guid? levelId,
+        [FromQuery] bool activeOnly = true,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(new GetSyllabusVersionsQuery
+        {
+            BranchId = branchId,
+            ProgramId = programId,
+            LevelId = levelId,
+            ActiveOnly = activeOnly
         }, cancellationToken);
 
         return result.MatchOk();
@@ -403,6 +425,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> ImportLessonPlanWords(
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
+        [FromQuery] Guid syllabusId,
         [FromQuery] Guid? moduleId,
         [FromForm] List<IFormFile> files,
         [FromQuery] bool overwriteExisting = true,
@@ -417,6 +440,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
         {
             ProgramId = programId,
             LevelId = levelId,
+            SyllabusId = syllabusId,
             ModuleId = moduleId,
             OverwriteExisting = overwriteExisting,
             Files = files

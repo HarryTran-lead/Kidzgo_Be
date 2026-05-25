@@ -41,6 +41,12 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                 LessonPlanTemplateErrors.ImportFileRequiresModuleId);
         }
 
+        if (!command.SyllabusId.HasValue)
+        {
+            return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
+                LessonPlanTemplateErrors.SyllabusNotFound(command.SyllabusId));
+        }
+
         var requestedModule = await context.Modules
             .Where(m => m.Id == command.ModuleId.Value &&
                         m.IsActive)
@@ -51,6 +57,22 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
         {
             return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
                 LessonPlanTemplateErrors.ModuleNotFound(command.ModuleId));
+        }
+
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.LevelId, x.IsActive, x.IsDeleted })
+            .FirstOrDefaultAsync(x => x.Id == command.SyllabusId.Value, cancellationToken);
+        if (syllabus is null || syllabus.IsDeleted || !syllabus.IsActive)
+        {
+            return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
+                LessonPlanTemplateErrors.SyllabusNotFound(command.SyllabusId));
+        }
+
+        if (syllabus.LevelId != requestedModule.LevelId)
+        {
+            return Result.Failure<ImportLessonPlanTemplatesFromFileResponse>(
+                LessonPlanTemplateErrors.SyllabusModuleMismatch(command.SyllabusId.Value, requestedModule.Id));
         }
 
         var rawSheets = ReadSheets(command.FileStream, command.FileName);
@@ -101,7 +123,8 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
 
                 var template = await context.LessonPlanTemplates
                     .FirstOrDefaultAsync(
-                        t => t.ModuleId == requestedModule.Id &&
+                        t => t.SyllabusId == command.SyllabusId.Value &&
+                             t.ModuleId == requestedModule.Id &&
                              t.SessionIndex == session.SessionIndex,
                         cancellationToken);
 
@@ -114,6 +137,7 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                     template = new LessonPlanTemplate
                     {
                         Id = Guid.NewGuid(),
+                        SyllabusId = command.SyllabusId.Value,
                         ModuleId = requestedModule.Id,
                         Title = title,
                         SessionIndex = session.SessionIndex,
@@ -138,6 +162,7 @@ public sealed class ImportLessonPlanTemplatesFromFileCommandHandler(
                 }
 
                 template.Title = title;
+                template.SyllabusId = command.SyllabusId.Value;
                 template.SyllabusMetadata = metadataJson;
                 template.SyllabusContent = contentJson;
                 template.SourceFileName = command.FileName;

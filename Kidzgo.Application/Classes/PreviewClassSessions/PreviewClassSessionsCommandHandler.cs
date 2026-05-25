@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,44 @@ public sealed class PreviewClassSessionsCommandHandler(
             return Result.Failure<PreviewClassSessionsResponse>(ClassErrors.LevelProgramMismatch);
         }
 
+        var programAssignedToBranch = await context.BranchPrograms
+            .AnyAsync(
+                bp => bp.BranchId == command.BranchId &&
+                      bp.ProgramId == command.ProgramId &&
+                      bp.IsActive,
+                cancellationToken);
+        if (!programAssignedToBranch)
+        {
+            return Result.Failure<PreviewClassSessionsResponse>(ClassErrors.ProgramNotAvailableInBranch);
+        }
+
+        var syllabus = await context.Syllabuses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.Id == command.SyllabusId &&
+                     x.ProgramId == command.ProgramId &&
+                     x.LevelId == command.LevelId &&
+                     x.IsActive &&
+                     !x.IsDeleted,
+                cancellationToken);
+        if (syllabus is null)
+        {
+            return Result.Failure<PreviewClassSessionsResponse>(ClassErrors.SyllabusNotFound);
+        }
+
+        var syllabusAssignedToBranch = await CurriculumAssignmentAccessHelper.IsSyllabusAssignedToBranchAsync(
+            context,
+            command.BranchId,
+            command.ProgramId,
+            command.LevelId,
+            command.SyllabusId,
+            command.StartDate,
+            cancellationToken);
+        if (!syllabusAssignedToBranch)
+        {
+            return Result.Failure<PreviewClassSessionsResponse>(ClassErrors.SyllabusNotAvailableInBranch);
+        }
+
         var normalizedPatternResult = SchedulePatternSupport.NormalizeWeeklyScheduleJson(
             command.WeeklyScheduleSlots,
             requireValue: true);
@@ -55,6 +94,7 @@ public sealed class PreviewClassSessionsCommandHandler(
         }
 
         var plannedMetadataResult = await classSessionPlanningService.PlanAsync(
+            command.SyllabusId,
             command.LevelId,
             command.StartModuleId,
             command.StartSessionIndex,

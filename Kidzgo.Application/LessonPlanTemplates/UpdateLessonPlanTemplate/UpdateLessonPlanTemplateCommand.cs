@@ -5,6 +5,7 @@ namespace Kidzgo.Application.LessonPlanTemplates.UpdateLessonPlanTemplate;
 public sealed class UpdateLessonPlanTemplateCommand : ICommand<UpdateLessonPlanTemplateResponse>
 {
     public Guid Id { get; init; }
+    public Guid? SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
     public Guid? LessonPlanUnitId { get; init; }
     public int? OrderIndexInUnit { get; init; }

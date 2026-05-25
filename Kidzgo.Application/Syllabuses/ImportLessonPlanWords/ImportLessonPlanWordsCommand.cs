@@ -6,6 +6,7 @@ public sealed class ImportLessonPlanWordsCommand : ICommand<ImportLessonPlanWord
 {
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
+    public Guid SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
     public bool OverwriteExisting { get; init; } = true;
     public IReadOnlyList<ImportLessonPlanWordFile> Files { get; init; } = [];

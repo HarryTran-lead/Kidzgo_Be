@@ -21,6 +21,7 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
             .Include(t => t.Module)
                 .ThenInclude(t => t.Level)
                     .ThenInclude(t => t.Program)
+            .Include(t => t.Syllabus)
             .Include(t => t.LessonPlanUnit)
             .Include(t => t.CreatedByUser)
             .FirstOrDefaultAsync(t => t.Id == query.Id && !t.IsDeleted, cancellationToken);
@@ -67,6 +68,10 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
         return new GetLessonPlanTemplateByIdResponse
         {
             Id = template.Id,
+            SyllabusId = template.SyllabusId,
+            SyllabusCode = template.Syllabus.Code,
+            SyllabusVersion = template.Syllabus.Version,
+            SyllabusTitle = template.Syllabus.Title,
             ModuleId = template.ModuleId,
             ModuleCode = template.Module.Code,
             ModuleName = template.Module.Name,

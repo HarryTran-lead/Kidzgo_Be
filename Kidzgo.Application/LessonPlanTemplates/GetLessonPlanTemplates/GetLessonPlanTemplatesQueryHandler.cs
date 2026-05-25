@@ -31,6 +31,11 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
             templateQuery = templateQuery.Where(t => t.ModuleId == query.ModuleId.Value);
         }
 
+        if (query.SyllabusId.HasValue)
+        {
+            templateQuery = templateQuery.Where(t => t.SyllabusId == query.SyllabusId.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Title))
         {
             var normalizedTitle = query.Title.ToLower();
@@ -53,6 +58,10 @@ public sealed class GetLessonPlanTemplatesQueryHandler(
             .Select(t => new LessonPlanTemplateDto
             {
                 Id = t.Id,
+                SyllabusId = t.SyllabusId,
+                SyllabusCode = t.Syllabus.Code,
+                SyllabusVersion = t.Syllabus.Version,
+                SyllabusTitle = t.Syllabus.Title,
                 ModuleId = t.ModuleId,
                 ModuleCode = t.Module.Code,
                 ModuleName = t.Module.Name,

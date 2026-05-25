@@ -12,6 +12,14 @@ public static class LessonPlanTemplateErrors
         "LessonPlanTemplate.ModuleNotFound",
         $"Module with Id = '{moduleId}' was not found");
 
+    public static Error SyllabusNotFound(Guid? syllabusId) => Error.NotFound(
+        "LessonPlanTemplate.SyllabusNotFound",
+        $"Syllabus with Id = '{syllabusId}' was not found");
+
+    public static Error SyllabusModuleMismatch(Guid syllabusId, Guid moduleId) => Error.Validation(
+        "LessonPlanTemplate.SyllabusModuleMismatch",
+        $"Syllabus '{syllabusId}' does not belong to the same level as module '{moduleId}'.");
+
     public static Error LevelNotFound(Guid levelId) => Error.NotFound(
         "LessonPlanTemplate.LevelNotFound",
         $"Level with Id = '{levelId}' was not found");

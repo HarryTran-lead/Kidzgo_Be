@@ -4,6 +4,7 @@ namespace Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplates;
 
 public sealed class ImportLessonPlanTemplatesFromFileCommand : ICommand<ImportLessonPlanTemplatesFromFileResponse>
 {
+    public Guid? SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
     public bool OverwriteExisting { get; init; } = true;
     public string FileName { get; init; } = null!;

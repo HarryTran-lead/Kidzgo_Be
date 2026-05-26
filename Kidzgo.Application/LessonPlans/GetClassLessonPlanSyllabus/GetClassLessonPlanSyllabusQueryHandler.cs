@@ -81,16 +81,23 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
 
         var lessonPlanBySessionId = lessonPlans.ToDictionary(lp => lp.SessionId);
         var moduleIds = sessions
-            .Where(x => x.ModuleId.HasValue)
+            .Where(x => classEntity.SyllabusId.HasValue && x.ModuleId.HasValue)
             .Select(x => x.ModuleId!.Value)
             .Distinct()
             .ToList();
         var templates = await context.LessonPlanTemplates
             .Include(t => t.LessonPlanUnit)
-            .Where(t => moduleIds.Contains(t.ModuleId) && t.IsActive && !t.IsDeleted)
+            .Where(t =>
+                classEntity.SyllabusId.HasValue &&
+                t.SyllabusId == classEntity.SyllabusId.Value &&
+                moduleIds.Contains(t.ModuleId) &&
+                t.IsActive &&
+                !t.IsDeleted)
             .ToListAsync(cancellationToken);
         var templateById = templates.ToDictionary(t => t.Id);
-        var templateIdByModuleAndIndex = templates.ToDictionary(t => (t.ModuleId, t.SessionIndex), t => t.Id);
+        var templateIdBySyllabusModuleAndIndex = templates.ToDictionary(
+            t => (t.SyllabusId, t.ModuleId, t.SessionIndex),
+            t => t.Id);
         var titleByTemplateId = templates.ToDictionary(t => t.Id, t => t.Title);
         var metadata = templates
             .Select(t => t.SyllabusMetadata)
@@ -109,11 +116,12 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
                 session.PlannedLessonPlanTemplateId,
                 session.ActualLessonPlanTemplateId,
                 session.SessionLessonTemplateId,
+                classEntity.SyllabusId,
                 session.ModuleId,
                 session.SessionIndexInModule);
             var resolvedLinkage = SessionLessonPlanLinkageResolver.Resolve(
                 linkageSnapshot,
-                templateIdByModuleAndIndex,
+                templateIdBySyllabusModuleAndIndex,
                 titleByTemplateId);
 
             var template = resolvedLinkage.LessonPlanTemplateId.HasValue

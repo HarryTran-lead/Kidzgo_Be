@@ -122,6 +122,15 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
                      x.SessionIndex == sessionIndex,
                 cancellationToken);
 
+        if (template is null && command.OverwriteExisting)
+        {
+            template = await FindExistingTemplateBySourceFileNameAsync(
+                syllabusId.Value,
+                module.Id,
+                command.FileName,
+                cancellationToken);
+        }
+
         if (template is not null && !command.OverwriteExisting)
         {
             return Result.Failure<ImportLessonPlanTemplateFromWordResponse>(
@@ -277,6 +286,30 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         };
     }
 
+    private async Task<LessonPlanTemplate?> FindExistingTemplateBySourceFileNameAsync(
+        Guid syllabusId,
+        Guid moduleId,
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedSourceFileName = NormalizeSourceFileName(fileName);
+        if (string.IsNullOrWhiteSpace(normalizedSourceFileName))
+        {
+            return null;
+        }
+
+        var candidates = await context.LessonPlanTemplates
+            .Where(x => x.SyllabusId == syllabusId && x.ModuleId == moduleId)
+            .OrderByDescending(x => x.UpdatedAt)
+            .ToListAsync(cancellationToken);
+
+        return candidates.FirstOrDefault(x =>
+            string.Equals(
+                NormalizeSourceFileName(x.SourceFileName),
+                normalizedSourceFileName,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
     private async Task<int> ResolveNextSessionIndexInModuleAsync(
         Guid syllabusId,
         Guid moduleId,
@@ -335,6 +368,19 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
 
         return 0;
+    }
+
+    private static string? NormalizeSourceFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var trimmed = Path.GetFileName(fileName).Trim();
+        return string.IsNullOrWhiteSpace(trimmed)
+            ? null
+            : Regex.Replace(trimmed, @"\s+", " ");
     }
 
     private static List<LessonPlanTemplateActivity> BuildActivityTemplates(

@@ -60,11 +60,24 @@ public sealed class GetSessionByIdQueryHandler(
         var makeupCount = attendances.Count(a => a.AttendanceStatus == AttendanceStatus.Makeup);
         var notMarkedCount = Math.Max(totalStudents - attendances.Count, 0);
         var branchName = session.Branch?.Name ?? session.Class?.Branch?.Name ?? string.Empty;
-        var templateByModuleAndIndex = session.ModuleId.HasValue && session.ModuleId.Value != Guid.Empty && session.SessionIndexInModule.HasValue
+        var templateBySyllabusModuleAndIndex =
+            session.Class?.SyllabusId.HasValue == true &&
+            session.Class.SyllabusId.Value != Guid.Empty &&
+            session.ModuleId.HasValue &&
+            session.ModuleId.Value != Guid.Empty &&
+            session.SessionIndexInModule.HasValue
             ? await context.LessonPlanTemplates
-                .Where(t => t.ModuleId == session.ModuleId.Value && t.SessionIndex == session.SessionIndexInModule.Value && t.IsActive && !t.IsDeleted)
-                .ToDictionaryAsync(t => new ValueTuple<Guid, int>(t.ModuleId, t.SessionIndex), t => t.Id, cancellationToken)
-            : new Dictionary<(Guid ModuleId, int SessionIndex), Guid>();
+                .Where(t =>
+                    t.SyllabusId == session.Class.SyllabusId.Value &&
+                    t.ModuleId == session.ModuleId.Value &&
+                    t.SessionIndex == session.SessionIndexInModule.Value &&
+                    t.IsActive &&
+                    !t.IsDeleted)
+                .ToDictionaryAsync(
+                    t => new ValueTuple<Guid, Guid, int>(t.SyllabusId, t.ModuleId, t.SessionIndex),
+                    t => t.Id,
+                    cancellationToken)
+            : new Dictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid>();
 
         var linkageSnapshot = new SessionLessonPlanLinkageSnapshot(
             session.LessonPlanTemplateId,
@@ -75,12 +88,13 @@ public sealed class GetSessionByIdQueryHandler(
                 .OrderBy(x => x.OrderIndex)
                 .Select(x => x.LessonPlanTemplateId)
                 .FirstOrDefault(),
+            session.Class?.SyllabusId,
             session.ModuleId,
             session.SessionIndexInModule);
 
         var templateIds = SessionLessonPlanLinkageResolver.GetCandidateTemplateIds(
             new[] { linkageSnapshot },
-            templateByModuleAndIndex);
+            templateBySyllabusModuleAndIndex);
 
         var titleByTemplateId = templateIds.Count == 0
             ? new Dictionary<Guid, string?>()
@@ -91,7 +105,7 @@ public sealed class GetSessionByIdQueryHandler(
 
         var resolvedLinkage = SessionLessonPlanLinkageResolver.Resolve(
             linkageSnapshot,
-            templateByModuleAndIndex,
+            templateBySyllabusModuleAndIndex,
             titleByTemplateId);
 
         var sessionDto = new SessionDetailDto

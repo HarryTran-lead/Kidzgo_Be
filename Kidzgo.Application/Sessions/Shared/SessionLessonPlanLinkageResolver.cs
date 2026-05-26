@@ -6,6 +6,7 @@ internal sealed record SessionLessonPlanLinkageSnapshot(
     Guid? PlannedLessonPlanTemplateId,
     Guid? ActualLessonPlanTemplateId,
     Guid? SessionLessonTemplateId,
+    Guid? SyllabusId,
     Guid? ModuleId,
     int? SessionIndexInModule);
 
@@ -20,7 +21,7 @@ internal static class SessionLessonPlanLinkageResolver
 {
     public static ResolvedSessionLessonPlanLinkage Resolve(
         SessionLessonPlanLinkageSnapshot snapshot,
-        IReadOnlyDictionary<(Guid ModuleId, int SessionIndex), Guid> templateByModuleAndIndex,
+        IReadOnlyDictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid> templateBySyllabusModuleAndIndex,
         IReadOnlyDictionary<Guid, string?> titleByTemplateId)
     {
         var sessionTemplateId = NormalizeTemplateId(snapshot.SessionTemplateId);
@@ -31,12 +32,14 @@ internal static class SessionLessonPlanLinkageResolver
 
         Guid? runtimeTemplateId = null;
         if (snapshot.ModuleId.HasValue &&
+            snapshot.SyllabusId.HasValue &&
+            snapshot.SyllabusId.Value != Guid.Empty &&
             snapshot.ModuleId.Value != Guid.Empty &&
             snapshot.SessionIndexInModule.HasValue)
         {
             Guid runtimeTemplateCandidate;
-            templateByModuleAndIndex.TryGetValue(
-                (snapshot.ModuleId.Value, snapshot.SessionIndexInModule.Value),
+            templateBySyllabusModuleAndIndex.TryGetValue(
+                (snapshot.SyllabusId.Value, snapshot.ModuleId.Value, snapshot.SessionIndexInModule.Value),
                 out runtimeTemplateCandidate);
             runtimeTemplateId = runtimeTemplateCandidate;
         }
@@ -67,23 +70,28 @@ internal static class SessionLessonPlanLinkageResolver
     }
 
     public static Guid? ResolveRuntimeTemplateId(
+        Guid? syllabusId,
         Guid? moduleId,
         int? sessionIndexInModule,
-        IReadOnlyDictionary<(Guid ModuleId, int SessionIndex), Guid> templateByModuleAndIndex)
+        IReadOnlyDictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid> templateBySyllabusModuleAndIndex)
     {
-        if (!moduleId.HasValue || moduleId.Value == Guid.Empty || !sessionIndexInModule.HasValue)
+        if (!syllabusId.HasValue ||
+            syllabusId.Value == Guid.Empty ||
+            !moduleId.HasValue ||
+            moduleId.Value == Guid.Empty ||
+            !sessionIndexInModule.HasValue)
         {
             return null;
         }
 
-        return templateByModuleAndIndex.TryGetValue((moduleId.Value, sessionIndexInModule.Value), out var templateId)
+        return templateBySyllabusModuleAndIndex.TryGetValue((syllabusId.Value, moduleId.Value, sessionIndexInModule.Value), out var templateId)
             ? NormalizeTemplateId(templateId)
             : null;
     }
 
     public static IReadOnlyCollection<Guid> GetCandidateTemplateIds(
         IEnumerable<SessionLessonPlanLinkageSnapshot> snapshots,
-        IReadOnlyDictionary<(Guid ModuleId, int SessionIndex), Guid> templateByModuleAndIndex)
+        IReadOnlyDictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid> templateBySyllabusModuleAndIndex)
     {
         var ids = new HashSet<Guid>();
 
@@ -94,7 +102,7 @@ internal static class SessionLessonPlanLinkageResolver
             AddIfPresent(ids, snapshot.PlannedLessonPlanTemplateId);
             AddIfPresent(ids, snapshot.ActualLessonPlanTemplateId);
             AddIfPresent(ids, snapshot.SessionLessonTemplateId);
-            AddIfPresent(ids, ResolveRuntimeTemplateId(snapshot.ModuleId, snapshot.SessionIndexInModule, templateByModuleAndIndex));
+            AddIfPresent(ids, ResolveRuntimeTemplateId(snapshot.SyllabusId, snapshot.ModuleId, snapshot.SessionIndexInModule, templateBySyllabusModuleAndIndex));
         }
 
         return ids;
@@ -102,7 +110,7 @@ internal static class SessionLessonPlanLinkageResolver
 
     public static IReadOnlyCollection<Guid> GetConsistencyTemplateIds(
         SessionLessonPlanLinkageSnapshot snapshot,
-        IReadOnlyDictionary<(Guid ModuleId, int SessionIndex), Guid> templateByModuleAndIndex)
+        IReadOnlyDictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid> templateBySyllabusModuleAndIndex)
     {
         var ids = new HashSet<Guid>();
 
@@ -110,7 +118,7 @@ internal static class SessionLessonPlanLinkageResolver
         AddIfPresent(ids, snapshot.LessonPlanTemplateId);
         AddIfPresent(ids, snapshot.PlannedLessonPlanTemplateId);
         AddIfPresent(ids, snapshot.SessionLessonTemplateId);
-        AddIfPresent(ids, ResolveRuntimeTemplateId(snapshot.ModuleId, snapshot.SessionIndexInModule, templateByModuleAndIndex));
+        AddIfPresent(ids, ResolveRuntimeTemplateId(snapshot.SyllabusId, snapshot.ModuleId, snapshot.SessionIndexInModule, templateBySyllabusModuleAndIndex));
 
         return ids;
     }

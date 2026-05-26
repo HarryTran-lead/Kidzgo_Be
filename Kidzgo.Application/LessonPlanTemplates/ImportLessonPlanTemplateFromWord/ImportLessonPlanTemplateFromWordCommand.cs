@@ -7,6 +7,9 @@ public sealed class ImportLessonPlanTemplateFromWordCommand : ICommand<ImportLes
     public Guid? SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
     public Guid? LessonPlanUnitId { get; init; }
+    public string? LessonPlanUnitNameOverride { get; init; }
+    public int? LessonPlanUnitOrderIndexOverride { get; init; }
+    public int? LessonNumberOverride { get; init; }
     public int? SessionIndexOverride { get; init; }
     public bool OverwriteExisting { get; init; } = true;
     public string FileName { get; init; } = null!;

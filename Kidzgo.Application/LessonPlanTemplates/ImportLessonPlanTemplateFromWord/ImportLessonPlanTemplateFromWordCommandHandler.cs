@@ -150,16 +150,29 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         var lessonPlanUnit = requestedUnit;
         if (lessonPlanUnit is null)
         {
-            var unitName = LessonPlanUnitNameNormalizer.ExtractUnitName(
-                parsed.Value.Title,
-                parsed.Value.UnitTitle,
-                command.FileName);
+            var unitName = command.LessonPlanUnitNameOverride;
+            if (string.IsNullOrWhiteSpace(unitName))
+            {
+                unitName = LessonPlanUnitNameNormalizer.ExtractUnitName(
+                    parsed.Value.Title,
+                    parsed.Value.UnitTitle,
+                    command.FileName);
+            }
+
             if (!string.IsNullOrWhiteSpace(unitName))
             {
+                var unitIdentity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(unitName)
+                                   ?? new LessonPlanUnitIdentity(
+                                       CanonicalDisplayName: LessonPlanUnitNameNormalizer.Normalize(unitName),
+                                       NormalizedKey: LessonPlanUnitNameNormalizer.Normalize(unitName),
+                                       UnitNumber: null,
+                                       UnitTitle: null);
+
                 lessonPlanUnit = await LessonPlanUnitResolver.FindOrCreateAsync(
                     context,
                     module.Id,
-                    unitName,
+                    unitIdentity,
+                    command.LessonPlanUnitOrderIndexOverride,
                     now,
                     cancellationToken);
             }
@@ -205,10 +218,12 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
         else
         {
-            var lessonNumber = LessonPlanUnitNameNormalizer.ExtractLessonNumber(
-                parsed.Value.Title,
-                command.FileName,
-                parsed.Value.UnitTitle) ?? parsed.Value.LessonNumber;
+            var lessonNumber = command.LessonNumberOverride ??
+                               LessonPlanUnitNameNormalizer.ExtractLessonNumber(
+                                   parsed.Value.Title,
+                                   command.FileName,
+                                   parsed.Value.UnitTitle) ??
+                               parsed.Value.LessonNumber;
             template.OrderIndexInUnit = lessonNumber.HasValue
                 ? Math.Max(lessonNumber.Value - 1, 0)
                 : await LessonPlanUnitResolver.GetNextOrderInUnitAsync(context, lessonPlanUnit.Id, cancellationToken);

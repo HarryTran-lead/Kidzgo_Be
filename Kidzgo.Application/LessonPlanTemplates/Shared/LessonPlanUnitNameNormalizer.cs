@@ -230,17 +230,11 @@ public static class LessonPlanUnitResolver
     public static async Task<LessonPlanUnit> FindOrCreateAsync(
         IDbContext context,
         Guid moduleId,
-        string rawName,
+        LessonPlanUnitIdentity identity,
+        int? orderIndexOverride,
         DateTime now,
         CancellationToken cancellationToken)
     {
-        var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(rawName)
-                       ?? new LessonPlanUnitIdentity(
-                           CanonicalDisplayName: LessonPlanUnitNameNormalizer.Normalize(rawName),
-                           NormalizedKey: LessonPlanUnitNameNormalizer.Normalize(rawName),
-                           UnitNumber: null,
-                           UnitTitle: null);
-
         var candidate = new LessonPlanUnit
         {
             Id = Guid.NewGuid(),
@@ -260,10 +254,17 @@ public static class LessonPlanUnitResolver
                 cancellationToken);
         if (existing is not null)
         {
-            if (!string.Equals(existing.Name, candidate.Name, StringComparison.Ordinal) || !existing.IsActive)
+            if (!string.Equals(existing.Name, candidate.Name, StringComparison.Ordinal) ||
+                !existing.IsActive ||
+                (orderIndexOverride.HasValue && existing.OrderIndex != orderIndexOverride.Value))
             {
                 existing.Name = candidate.Name;
                 existing.IsActive = true;
+                if (orderIndexOverride.HasValue)
+                {
+                    existing.OrderIndex = orderIndexOverride.Value;
+                }
+
                 existing.UpdatedAt = now;
             }
 
@@ -281,7 +282,7 @@ public static class LessonPlanUnitResolver
             ModuleId = moduleId,
             Name = candidate.Name,
             NameNormalized = candidate.NameNormalized,
-            OrderIndex = nextOrder + 1,
+            OrderIndex = orderIndexOverride ?? (nextOrder + 1),
             IsActive = candidate.IsActive,
             CreatedAt = candidate.CreatedAt,
             UpdatedAt = candidate.UpdatedAt
@@ -289,6 +290,22 @@ public static class LessonPlanUnitResolver
 
         context.LessonPlanUnits.Add(unit);
         return unit;
+    }
+
+    public static async Task<LessonPlanUnit> FindOrCreateAsync(
+        IDbContext context,
+        Guid moduleId,
+        string rawName,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(rawName)
+                       ?? new LessonPlanUnitIdentity(
+                           CanonicalDisplayName: LessonPlanUnitNameNormalizer.Normalize(rawName),
+                           NormalizedKey: LessonPlanUnitNameNormalizer.Normalize(rawName),
+                           UnitNumber: null,
+                           UnitTitle: null);
+        return await FindOrCreateAsync(context, moduleId, identity, orderIndexOverride: null, now, cancellationToken);
     }
 
     public static async Task<int> GetNextOrderInUnitAsync(

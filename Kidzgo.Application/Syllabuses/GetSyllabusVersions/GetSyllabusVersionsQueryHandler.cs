@@ -34,8 +34,13 @@ public sealed class GetSyllabusVersionsQueryHandler(IDbContext context)
 
         if (query.BranchId.HasValue)
         {
+            var now = VietnamTime.UtcNow();
             var syllabusIds = context.CurriculumAssignments
-                .Where(x => x.BranchId == query.BranchId.Value && x.IsActive)
+                .Where(x => x.BranchId == query.BranchId.Value &&
+                            x.IsActive &&
+                            (!query.ActiveOnly ||
+                             ((!x.EffectiveFrom.HasValue || x.EffectiveFrom.Value <= now) &&
+                              (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= now))))
                 .Select(x => x.SyllabusId);
             syllabuses = syllabuses.Where(x => syllabusIds.Contains(x.Id));
         }

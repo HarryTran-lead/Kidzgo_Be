@@ -12,9 +12,16 @@ public sealed class GetBranchSyllabusesQueryHandler(IDbContext context)
         GetBranchSyllabusesQuery query,
         CancellationToken cancellationToken)
     {
+        var now = VietnamTime.UtcNow();
+
         var syllabuses = await context.CurriculumAssignments
             .AsNoTracking()
-            .Where(x => x.BranchId == query.BranchId && x.IsActive)
+            .Where(x => x.BranchId == query.BranchId &&
+                        x.IsActive &&
+                        x.Syllabus.IsActive &&
+                        !x.Syllabus.IsDeleted &&
+                        (!x.EffectiveFrom.HasValue || x.EffectiveFrom.Value <= now) &&
+                        (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= now))
             .OrderBy(x => x.Program.Name)
             .ThenBy(x => x.Level.Name)
             .ThenBy(x => x.Syllabus.Code)
@@ -32,7 +39,7 @@ public sealed class GetBranchSyllabusesQueryHandler(IDbContext context)
                 Title = x.Syllabus.Title,
                 EffectiveFrom = x.EffectiveFrom,
                 EffectiveTo = x.EffectiveTo,
-                IsActive = x.Syllabus.IsActive && !x.Syllabus.IsDeleted
+                IsActive = true
             })
             .ToListAsync(cancellationToken);
 

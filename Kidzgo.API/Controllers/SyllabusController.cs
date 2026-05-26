@@ -287,6 +287,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> ImportWord(
+        [FromQuery] Guid? branchId,
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
         [FromQuery] string code,
@@ -302,6 +303,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
 
         var result = await mediator.Send(new ImportSyllabusFromWordCommand
         {
+            BranchId = branchId,
             ProgramId = programId,
             LevelId = levelId,
             Code = code,
@@ -351,6 +353,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> ImportCommit(
+        [FromForm] Guid? branchId,
         [FromForm] Guid programId,
         [FromForm] Guid levelId,
         [FromForm] string code,
@@ -367,6 +370,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
 
         var result = await mediator.Send(new ImportSyllabusCommitCommand
         {
+            BranchId = branchId,
             ProgramId = programId,
             LevelId = levelId,
             Code = code,
@@ -395,6 +399,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> ImportArchive(
+        [FromQuery] Guid? branchId,
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
         [FromQuery] string code,
@@ -410,6 +415,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
 
         var result = await mediator.Send(new ImportCurriculumArchiveCommand
         {
+            BranchId = branchId,
             ProgramId = programId,
             LevelId = levelId,
             Code = code,

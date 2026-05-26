@@ -4,6 +4,7 @@ namespace Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
 
 public sealed class ImportSyllabusFromWordCommand : ICommand<ImportSyllabusFromWordResponse>
 {
+    public Guid? BranchId { get; init; }
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string Code { get; init; } = null!;

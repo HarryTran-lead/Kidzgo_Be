@@ -4,6 +4,7 @@ namespace Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
 
 public sealed class ImportCurriculumArchiveCommand : ICommand<ImportCurriculumArchiveResponse>
 {
+    public Guid? BranchId { get; init; }
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string Code { get; init; } = null!;

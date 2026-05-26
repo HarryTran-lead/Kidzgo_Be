@@ -15,6 +15,9 @@ public sealed class CreateClassCommandValidator : AbstractValidator<CreateClassC
         RuleFor(command => command.LevelId)
             .NotEmpty().WithMessage("Level ID is required");
 
+        RuleFor(command => command.SyllabusId)
+            .NotEmpty().WithMessage("Syllabus ID is required");
+
         RuleFor(command => command.StartModuleId)
             .NotEmpty().WithMessage("Start module ID is required");
 

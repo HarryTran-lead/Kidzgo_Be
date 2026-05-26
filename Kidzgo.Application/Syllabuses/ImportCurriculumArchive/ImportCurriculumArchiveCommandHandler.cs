@@ -90,6 +90,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             var syllabusResult = await sender.Send(
                 new ImportSyllabusFromWordCommand
                 {
+                    BranchId = command.BranchId,
                     ProgramId = command.ProgramId,
                     LevelId = command.LevelId,
                     Code = command.Code,

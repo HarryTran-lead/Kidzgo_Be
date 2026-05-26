@@ -36,8 +36,7 @@ public sealed class GetSyllabusUnitLessonPlansQueryHandler(IDbContext context)
         var templates = await context.LessonPlanTemplates
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
-                        t.SessionTemplate != null &&
-                        t.SessionTemplate.SyllabusId == query.SyllabusId)
+                        t.SyllabusId == query.SyllabusId)
             .Select(t => new LessonPlanTemplateProjection
             {
                 LessonPlanTemplateId = t.Id,

@@ -36,6 +36,7 @@ public sealed class ImportSyllabusCommitCommandHandler(
         var version = $"doc-{VietnamTime.UtcNow():yyyyMMddHHmmssfff}";
         var importResult = await sender.Send(new ImportSyllabusFromWordCommand
         {
+            BranchId = command.BranchId,
             ProgramId = command.ProgramId,
             LevelId = command.LevelId,
             Code = command.Code.Trim(),

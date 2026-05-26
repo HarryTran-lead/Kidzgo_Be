@@ -5,6 +5,7 @@ namespace Kidzgo.Application.Syllabuses.ImportSyllabusCommit;
 
 public sealed class ImportSyllabusCommitCommand : ICommand<SyllabusImportCommitResponse>
 {
+    public Guid? BranchId { get; init; }
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string Code { get; init; } = null!;

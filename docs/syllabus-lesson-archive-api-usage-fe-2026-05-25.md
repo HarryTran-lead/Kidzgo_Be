@@ -99,6 +99,7 @@ Dung cho 1 goi curriculum day du.
 
 Query params:
 
+- `branchId: Guid?`
 - `programId: Guid`
 - `levelId: Guid`
 - `code: string`
@@ -111,6 +112,9 @@ Multipart:
 
 Behavior moi:
 
+- Neu co `branchId`, BE se tu dong upsert mapping `CurriculumAssignment`
+  cho `branchId + programId + levelId + syllabusId`
+- Mapping nay giup syllabus vua import dung duoc ngay cho luong `Create Class`
 - BE uu tien syllabus Excel trong folder `PPCT`
 - Neu trong `PPCT` co ca `xlsx/xls` va `docx`, BE uu tien `xlsx/xls` truoc
 - BE nhan lesson plan DOCX trong `UNIT ...` va `REVISION`
@@ -561,6 +565,7 @@ Response da co them parser/debug fields moi:
 
 Behavior moi:
 
+- backend nhan them `branchId?`; neu co thi se gan syllabus vao branch ngay sau import
 - backend tu chon entry lesson uu tien hon neu archive co duplicate
 - cac entry duplicate bi dua vao `skippedItems[]` de FE debug
 
@@ -575,4 +580,5 @@ Sau thay doi nay, FE can update it nhat cac man sau:
 3. Preview Sessions: gui kem `syllabusId`
 4. Class List / Detail: render `syllabusCode`, `syllabusVersion`, `syllabusTitle`
 5. Import Lesson Plan Words: them `syllabusId`
-6. Import Archive Result: doc them parser/debug fields moi
+6. Import Archive/Import Word/Import Commit: neu muon tao class ngay sau import thi gui kem `branchId`
+7. Import Archive Result: doc them parser/debug fields moi

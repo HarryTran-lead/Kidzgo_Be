@@ -30,6 +30,31 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
                 SyllabusErrors.LevelDoesNotBelongToProgram(command.LevelId, command.ProgramId));
         }
 
+        if (command.BranchId.HasValue)
+        {
+            var branchExists = await context.Branches
+                .AnyAsync(x => x.Id == command.BranchId.Value && x.IsActive, cancellationToken);
+            if (!branchExists)
+            {
+                return Result.Failure<ImportSyllabusFromWordResponse>(Error.NotFound(
+                    "Syllabus.BranchNotFound",
+                    $"Branch with Id = '{command.BranchId.Value}' was not found or inactive."));
+            }
+
+            var programAssignedToBranch = await context.BranchPrograms
+                .AnyAsync(
+                    x => x.BranchId == command.BranchId.Value &&
+                         x.ProgramId == command.ProgramId &&
+                         x.IsActive,
+                    cancellationToken);
+            if (!programAssignedToBranch)
+            {
+                return Result.Failure<ImportSyllabusFromWordResponse>(Error.Validation(
+                    "Syllabus.ProgramNotAvailableInBranch",
+                    "Program is not assigned to the selected branch."));
+            }
+        }
+
         var modules = await context.Modules
             .Where(x => x.LevelId == command.LevelId && x.IsActive)
             .OrderBy(x => x.Order)
@@ -213,6 +238,17 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         context.SyllabusResources.AddRange(resourceEntities);
         context.SessionTemplates.AddRange(sessionTemplates);
 
+        if (command.BranchId.HasValue)
+        {
+            await UpsertCurriculumAssignmentAsync(
+                command.BranchId.Value,
+                command.ProgramId,
+                command.LevelId,
+                syllabus.Id,
+                now,
+                cancellationToken);
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         return new ImportSyllabusFromWordResponse
@@ -224,6 +260,55 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             ImportedSessionTemplates = sessionTemplates.Count
         };
     }
+
+    private async Task UpsertCurriculumAssignmentAsync(
+        Guid branchId,
+        Guid programId,
+        Guid levelId,
+        Guid syllabusId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var assignment = await context.CurriculumAssignments
+            .FirstOrDefaultAsync(
+                x => x.BranchId == branchId &&
+                     x.ProgramId == programId &&
+                     x.LevelId == levelId &&
+                     x.SyllabusId == syllabusId,
+                cancellationToken);
+
+        if (assignment is null)
+        {
+            assignment = new CurriculumAssignment
+            {
+                Id = Guid.NewGuid(),
+                BranchId = branchId,
+                ProgramId = programId,
+                LevelId = levelId,
+                SyllabusId = syllabusId,
+                EffectiveFrom = null,
+                EffectiveTo = null,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            context.CurriculumAssignments.Add(assignment);
+        }
+        else
+        {
+            assignment.BranchId = branchId;
+            assignment.ProgramId = programId;
+            assignment.LevelId = levelId;
+            assignment.SyllabusId = syllabusId;
+            assignment.EffectiveFrom = null;
+            assignment.EffectiveTo = null;
+            assignment.IsActive = true;
+            assignment.UpdatedAt = now;
+        }
+
+    }
+
     private static Guid? ResolveModuleId(
         IReadOnlyList<Domain.Programs.Module> modules,
         IEnumerable<Domain.LessonPlans.CurriculumImportModuleRule> rules,

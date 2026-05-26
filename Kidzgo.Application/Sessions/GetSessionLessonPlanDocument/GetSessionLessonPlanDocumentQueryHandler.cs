@@ -54,12 +54,25 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
             }
         }
 
-        var templateByModuleAndIndex = session.ModuleId.HasValue && session.ModuleId.Value != Guid.Empty && session.SessionIndexInModule.HasValue
+        var templateBySyllabusModuleAndIndex =
+            session.Class?.SyllabusId.HasValue == true &&
+            session.Class.SyllabusId.Value != Guid.Empty &&
+            session.ModuleId.HasValue &&
+            session.ModuleId.Value != Guid.Empty &&
+            session.SessionIndexInModule.HasValue
             ? await context.LessonPlanTemplates
-                .Where(t => t.ModuleId == session.ModuleId.Value && t.SessionIndex == session.SessionIndexInModule.Value && t.IsActive && !t.IsDeleted)
-                .Select(t => new { t.Id, t.ModuleId, t.SessionIndex })
-                .ToDictionaryAsync(t => new ValueTuple<Guid, int>(t.ModuleId, t.SessionIndex), t => t.Id, cancellationToken)
-            : new Dictionary<(Guid ModuleId, int SessionIndex), Guid>();
+                .Where(t =>
+                    t.SyllabusId == session.Class.SyllabusId.Value &&
+                    t.ModuleId == session.ModuleId.Value &&
+                    t.SessionIndex == session.SessionIndexInModule.Value &&
+                    t.IsActive &&
+                    !t.IsDeleted)
+                .Select(t => new { t.Id, t.SyllabusId, t.ModuleId, t.SessionIndex })
+                .ToDictionaryAsync(
+                    t => new ValueTuple<Guid, Guid, int>(t.SyllabusId, t.ModuleId, t.SessionIndex),
+                    t => t.Id,
+                    cancellationToken)
+            : new Dictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid>();
 
         var linkageSnapshot = new SessionLessonPlanLinkageSnapshot(
             session.LessonPlanTemplateId,
@@ -70,12 +83,13 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
                 .OrderBy(x => x.OrderIndex)
                 .Select(x => x.LessonPlanTemplateId)
                 .FirstOrDefault(),
+            session.Class?.SyllabusId,
             session.ModuleId,
             session.SessionIndexInModule);
 
         var consistencyTemplateIds = SessionLessonPlanLinkageResolver.GetConsistencyTemplateIds(
             linkageSnapshot,
-            templateByModuleAndIndex);
+            templateBySyllabusModuleAndIndex);
 
         if (consistencyTemplateIds.Count > 1)
         {
@@ -89,7 +103,7 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
 
         var candidateTemplateIds = SessionLessonPlanLinkageResolver.GetCandidateTemplateIds(
             new[] { linkageSnapshot },
-            templateByModuleAndIndex);
+            templateBySyllabusModuleAndIndex);
 
         var titleByTemplateId = candidateTemplateIds.Count == 0
             ? new Dictionary<Guid, string?>()
@@ -100,7 +114,7 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
 
         var resolvedLinkage = SessionLessonPlanLinkageResolver.Resolve(
             linkageSnapshot,
-            templateByModuleAndIndex,
+            templateBySyllabusModuleAndIndex,
             titleByTemplateId);
 
         if (!resolvedLinkage.LessonPlanTemplateId.HasValue)

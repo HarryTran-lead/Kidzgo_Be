@@ -65,6 +65,7 @@ public sealed class GetSessionsQueryHandler(
                 Id = s.Id,
                 Color = s.Color,
                 ClassId = s.ClassId,
+                SyllabusId = s.Class.SyllabusId,
                 ModuleId = s.ModuleId,
                 ModuleName = s.Module != null ? s.Module.Name : null,
                 SessionTemplateId = s.LessonPlanTemplateId,
@@ -121,17 +122,36 @@ public sealed class GetSessionsQueryHandler(
             .ToListAsync(cancellationToken);
 
         var moduleIds = sessionRows
-            .Where(s => s.ModuleId.HasValue && s.ModuleId.Value != Guid.Empty && s.SessionIndexInModule.HasValue)
+            .Where(s =>
+                s.SyllabusId.HasValue &&
+                s.SyllabusId.Value != Guid.Empty &&
+                s.ModuleId.HasValue &&
+                s.ModuleId.Value != Guid.Empty &&
+                s.SessionIndexInModule.HasValue)
             .Select(s => s.ModuleId!.Value)
             .Distinct()
             .ToList();
 
-        var templateByModuleAndIndex = moduleIds.Count == 0
-            ? new Dictionary<(Guid ModuleId, int SessionIndex), Guid>()
+        var syllabusIds = sessionRows
+            .Where(s =>
+                s.SyllabusId.HasValue &&
+                s.SyllabusId.Value != Guid.Empty &&
+                s.ModuleId.HasValue &&
+                s.ModuleId.Value != Guid.Empty &&
+                s.SessionIndexInModule.HasValue)
+            .Select(s => s.SyllabusId!.Value)
+            .Distinct()
+            .ToList();
+
+        var templateBySyllabusModuleAndIndex = moduleIds.Count == 0 || syllabusIds.Count == 0
+            ? new Dictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid>()
             : await context.LessonPlanTemplates
-                .Where(t => moduleIds.Contains(t.ModuleId) && t.IsActive && !t.IsDeleted)
-                .Select(t => new { t.Id, t.ModuleId, t.SessionIndex })
-                .ToDictionaryAsync(t => new ValueTuple<Guid, int>(t.ModuleId, t.SessionIndex), t => t.Id, cancellationToken);
+                .Where(t => syllabusIds.Contains(t.SyllabusId) && moduleIds.Contains(t.ModuleId) && t.IsActive && !t.IsDeleted)
+                .Select(t => new { t.Id, t.SyllabusId, t.ModuleId, t.SessionIndex })
+                .ToDictionaryAsync(
+                    t => new ValueTuple<Guid, Guid, int>(t.SyllabusId, t.ModuleId, t.SessionIndex),
+                    t => t.Id,
+                    cancellationToken);
 
         var linkageSnapshots = sessionRows
             .Select(s => new SessionLessonPlanLinkageSnapshot(
@@ -140,13 +160,14 @@ public sealed class GetSessionsQueryHandler(
                 s.PlannedLessonPlanTemplateId,
                 s.ActualLessonPlanTemplateId,
                 s.SessionLessonTemplateId,
+                s.SyllabusId,
                 s.ModuleId,
                 s.SessionIndexInModule))
             .ToList();
 
         var templateIds = SessionLessonPlanLinkageResolver.GetCandidateTemplateIds(
             linkageSnapshots,
-            templateByModuleAndIndex);
+            templateBySyllabusModuleAndIndex);
 
         var titleByTemplateId = templateIds.Count == 0
             ? new Dictionary<Guid, string?>()
@@ -165,9 +186,10 @@ public sealed class GetSessionsQueryHandler(
                         s.PlannedLessonPlanTemplateId,
                         s.ActualLessonPlanTemplateId,
                         s.SessionLessonTemplateId,
+                        s.SyllabusId,
                         s.ModuleId,
                         s.SessionIndexInModule),
-                    templateByModuleAndIndex,
+                    templateBySyllabusModuleAndIndex,
                     titleByTemplateId);
 
                 return new SessionListItemDto

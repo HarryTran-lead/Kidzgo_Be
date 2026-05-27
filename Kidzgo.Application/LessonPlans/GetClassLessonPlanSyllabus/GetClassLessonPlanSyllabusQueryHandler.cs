@@ -28,6 +28,7 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
 
         var classEntity = await context.Classes
             .Include(c => c.Program)
+            .Include(c => c.Syllabus)
             .FirstOrDefaultAsync(c => c.Id == query.ClassId, cancellationToken);
 
         if (classEntity is null)
@@ -136,6 +137,7 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             {
                 SessionId = session.Id,
                 SessionIndex = sessionIndex,
+                SyllabusId = classEntity.SyllabusId,
                 ModuleId = session.ModuleId,
                 SessionIndexInModule = session.SessionIndexInModule,
                 SessionDate = VietnamTime.ToVietnamDateTime(session.PlannedDatetime),
@@ -169,7 +171,12 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             ClassId = classEntity.Id,
             ClassCode = classEntity.Code,
             ClassTitle = classEntity.Title,
+            SyllabusId = classEntity.SyllabusId,
+            SyllabusCode = classEntity.Syllabus?.Code,
+            SyllabusVersion = classEntity.Syllabus?.Version,
+            SyllabusTitle = classEntity.Syllabus?.Title,
             ProgramId = classEntity.ProgramId,
+            LevelId = classEntity.LevelId,
             ProgramName = classEntity.Program.Name,
             SyllabusMetadata = metadata,
             Sessions = responseSessions

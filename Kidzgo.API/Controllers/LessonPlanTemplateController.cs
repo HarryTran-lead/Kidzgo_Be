@@ -76,7 +76,7 @@ public class LessonPlanTemplateController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     public async Task<IResult> GetLessonPlanTemplates(
         [FromQuery] Guid? syllabusId,
         [FromQuery] Guid? moduleId,

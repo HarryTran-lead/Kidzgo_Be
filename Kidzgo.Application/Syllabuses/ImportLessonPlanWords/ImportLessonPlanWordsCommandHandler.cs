@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplateFromWord;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
@@ -51,23 +52,19 @@ public sealed class ImportLessonPlanWordsCommandHandler(
                 LessonPlanTemplateErrors.SyllabusNotFound(command.SyllabusId));
         }
 
-        CurriculumImportConfiguration? importConfiguration = null;
-        if (!command.ModuleId.HasValue)
-        {
-            importConfiguration = await context.CurriculumImportConfigurations
-                .AsNoTracking()
-                .Include(x => x.ModuleRules)
-                .FirstOrDefaultAsync(
-                    x => x.ProgramId == command.ProgramId &&
-                         x.LevelId == command.LevelId &&
-                         x.IsActive,
-                    cancellationToken);
+        var importConfiguration = await context.CurriculumImportConfigurations
+            .AsNoTracking()
+            .Include(x => x.ModuleRules)
+            .FirstOrDefaultAsync(
+                x => x.ProgramId == command.ProgramId &&
+                     x.LevelId == command.LevelId &&
+                     x.IsActive,
+                cancellationToken);
 
-            if (importConfiguration is null)
-            {
-                return Result.Failure<ImportLessonPlanWordsResponse>(
-                    SyllabusErrors.ImportConfigurationNotFound(command.ProgramId, command.LevelId));
-            }
+        if (!command.ModuleId.HasValue && importConfiguration is null)
+        {
+            return Result.Failure<ImportLessonPlanWordsResponse>(
+                SyllabusErrors.ImportConfigurationNotFound(command.ProgramId, command.LevelId));
         }
 
         var imported = new List<ImportedLessonPlanWordDto>();
@@ -93,7 +90,7 @@ public sealed class ImportLessonPlanWordsCommandHandler(
             }
 
             var sessionIndexOverride = command.ModuleId.HasValue
-                ? null
+                ? ResolveModuleScopedSessionIndex(importConfiguration, module.Id, file.FileName)
                 : ResolveSessionIndex(importConfiguration!, module.Id, file.FileName);
             if (!command.ModuleId.HasValue && !sessionIndexOverride.HasValue)
             {
@@ -101,11 +98,16 @@ public sealed class ImportLessonPlanWordsCommandHandler(
                 continue;
             }
 
+            var lessonPlanUnitNameOverride = LessonPlanUnitNameNormalizer.ExtractUnitName(file.FileName);
+            var lessonNumberOverride = LessonPlanUnitNameNormalizer.ExtractLessonNumber(file.FileName);
+
             var result = await sender.Send(
                 new ImportLessonPlanTemplateFromWordCommand
                 {
                     SyllabusId = command.SyllabusId,
                     ModuleId = module.Id,
+                    LessonPlanUnitNameOverride = lessonPlanUnitNameOverride,
+                    LessonNumberOverride = lessonNumberOverride,
                     SessionIndexOverride = sessionIndexOverride,
                     OverwriteExisting = command.OverwriteExisting,
                     FileName = file.FileName,
@@ -157,6 +159,26 @@ public sealed class ImportLessonPlanWordsCommandHandler(
         Guid moduleId,
         string fileName)
     {
+        var rule = configuration.ModuleRules.FirstOrDefault(x => x.ModuleId == moduleId);
+        return rule is null
+            ? null
+            : CurriculumImportRuleResolver.ResolveSessionIndex(
+                configuration,
+                rule,
+                Path.GetFileNameWithoutExtension(fileName),
+                fileName);
+    }
+
+    private static int? ResolveModuleScopedSessionIndex(
+        CurriculumImportConfiguration? configuration,
+        Guid moduleId,
+        string fileName)
+    {
+        if (configuration is null)
+        {
+            return null;
+        }
+
         var rule = configuration.ModuleRules.FirstOrDefault(x => x.ModuleId == moduleId);
         return rule is null
             ? null

@@ -147,6 +147,12 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         var linkedSessionTemplateId = linkedSessionTemplate?.Id;
 
         var now = VietnamTime.UtcNow();
+        var canonicalLessonNumber = command.LessonNumberOverride ??
+                                    LessonPlanUnitNameNormalizer.ExtractLessonNumber(
+                                        command.FileName,
+                                        parsed.Value.Title,
+                                        parsed.Value.UnitTitle) ??
+                                    parsed.Value.LessonNumber;
         var lessonPlanUnit = requestedUnit;
         if (lessonPlanUnit is null)
         {
@@ -206,10 +212,18 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
+        var canonicalUnitName = lessonPlanUnit?.Name ??
+                                command.LessonPlanUnitNameOverride ??
+                                parsed.Value.UnitTitle;
+        var canonicalTitle = BuildCanonicalTitle(
+            canonicalUnitName,
+            canonicalLessonNumber,
+            parsed.Value.Title);
+
         template.SyllabusId = syllabusId.Value;
         template.SessionTemplateId = linkedSessionTemplateId;
         template.LessonPlanUnitId = lessonPlanUnit?.Id;
-        template.Title = parsed.Value.Title;
+        template.Title = canonicalTitle;
         template.SessionIndex = sessionIndex;
         template.SessionOrder = sessionIndex;
         if (lessonPlanUnit is null)
@@ -218,17 +232,11 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
         else
         {
-            var lessonNumber = command.LessonNumberOverride ??
-                               LessonPlanUnitNameNormalizer.ExtractLessonNumber(
-                                   parsed.Value.Title,
-                                   command.FileName,
-                                   parsed.Value.UnitTitle) ??
-                               parsed.Value.LessonNumber;
-            template.OrderIndexInUnit = lessonNumber.HasValue
-                ? Math.Max(lessonNumber.Value - 1, 0)
+            template.OrderIndexInUnit = canonicalLessonNumber.HasValue
+                ? Math.Max(canonicalLessonNumber.Value - 1, 0)
                 : await LessonPlanUnitResolver.GetNextOrderInUnitAsync(context, lessonPlanUnit.Id, cancellationToken);
         }
-        template.SyllabusMetadata = parsed.Value.UnitTitle;
+        template.SyllabusMetadata = canonicalUnitName;
         template.SyllabusContent = parsed.Value.RawText;
         template.Objectives = parsed.Value.Objectives;
         template.LanguageContent = parsed.Value.LanguageContent;
@@ -299,6 +307,24 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             Created = created,
             Title = template.Title
         };
+    }
+
+    private static string BuildCanonicalTitle(
+        string? canonicalUnitName,
+        int? canonicalLessonNumber,
+        string parsedTitle)
+    {
+        if (!string.IsNullOrWhiteSpace(canonicalUnitName) && canonicalLessonNumber.HasValue)
+        {
+            return $"{canonicalUnitName.Trim()} - Lesson {canonicalLessonNumber.Value}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(canonicalUnitName))
+        {
+            return canonicalUnitName.Trim();
+        }
+
+        return parsedTitle;
     }
 
     private async Task<LessonPlanTemplate?> FindExistingTemplateBySourceFileNameAsync(

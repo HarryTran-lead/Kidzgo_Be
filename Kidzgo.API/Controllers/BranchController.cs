@@ -7,6 +7,7 @@ using Kidzgo.Application.Branches.GetBranchById;
 using Kidzgo.Application.Branches.GetAllBranches;
 using Kidzgo.Application.Branches.GetBranches;
 using Kidzgo.Application.Branches.ToggleBranchStatus;
+using Kidzgo.Application.Branches.UpsertBranchSyllabus;
 using Kidzgo.Application.Branches.UpdateBranch;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -92,6 +93,25 @@ public class BranchController : ControllerBase
         var result = await _mediator.Send(new GetBranchSyllabusesQuery
         {
             BranchId = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPut("{id:guid}/syllabuses")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UpsertBranchSyllabus(
+        Guid id,
+        [FromBody] UpsertBranchSyllabusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new UpsertBranchSyllabusCommand
+        {
+            BranchId = id,
+            SyllabusId = request.SyllabusId,
+            EffectiveFrom = request.EffectiveFrom,
+            EffectiveTo = request.EffectiveTo,
+            IsActive = request.IsActive
         }, cancellationToken);
 
         return result.MatchOk();

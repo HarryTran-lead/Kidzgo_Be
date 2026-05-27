@@ -141,6 +141,7 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
             .Include(t => t.Module)
                 .ThenInclude(m => m.Level)
                     .ThenInclude(l => l.Program)
+            .Include(t => t.Syllabus)
             .Include(t => t.LessonPlanUnit)
             .Include(t => t.CreatedByUser)
             .FirstOrDefaultAsync(
@@ -164,6 +165,7 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
         {
             SessionId = session.Id,
             ClassId = session.ClassId,
+            SyllabusId = session.Class?.SyllabusId,
             ModuleId = session.ModuleId,
             ModuleName = session.Module?.Name,
             SessionIndexInModule = session.SessionIndexInModule,
@@ -178,6 +180,10 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
             Document = new SessionLessonPlanDocumentDto
             {
                 Id = template.Id,
+                SyllabusId = template.SyllabusId,
+                SyllabusCode = template.Syllabus.Code,
+                SyllabusVersion = template.Syllabus.Version,
+                SyllabusTitle = template.Syllabus.Title,
                 ModuleId = template.ModuleId,
                 ModuleCode = template.Module.Code,
                 ModuleName = template.Module.Name,

@@ -4,6 +4,7 @@ public sealed class GetSessionLessonPlanDocumentResponse
 {
     public Guid SessionId { get; init; }
     public Guid ClassId { get; init; }
+    public Guid? SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
     public string? ModuleName { get; init; }
     public int? SessionIndexInModule { get; init; }
@@ -21,6 +22,10 @@ public sealed class GetSessionLessonPlanDocumentResponse
 public sealed class SessionLessonPlanDocumentDto
 {
     public Guid Id { get; init; }
+    public Guid SyllabusId { get; init; }
+    public string SyllabusCode { get; init; } = null!;
+    public string SyllabusVersion { get; init; } = null!;
+    public string SyllabusTitle { get; init; } = null!;
     public Guid ModuleId { get; init; }
     public string ModuleCode { get; init; } = null!;
     public string ModuleName { get; init; } = null!;

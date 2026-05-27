@@ -54,26 +54,6 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
             }
         }
 
-        var templateBySyllabusModuleAndIndex =
-            session.Class?.SyllabusId.HasValue == true &&
-            session.Class.SyllabusId.Value != Guid.Empty &&
-            session.ModuleId.HasValue &&
-            session.ModuleId.Value != Guid.Empty &&
-            session.SessionIndexInModule.HasValue
-            ? await context.LessonPlanTemplates
-                .Where(t =>
-                    t.SyllabusId == session.Class.SyllabusId.Value &&
-                    t.ModuleId == session.ModuleId.Value &&
-                    t.SessionIndex == session.SessionIndexInModule.Value &&
-                    t.IsActive &&
-                    !t.IsDeleted)
-                .Select(t => new { t.Id, t.SyllabusId, t.ModuleId, t.SessionIndex })
-                .ToDictionaryAsync(
-                    t => new ValueTuple<Guid, Guid, int>(t.SyllabusId, t.ModuleId, t.SessionIndex),
-                    t => t.Id,
-                    cancellationToken)
-            : new Dictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid>();
-
         var linkageSnapshot = new SessionLessonPlanLinkageSnapshot(
             session.LessonPlanTemplateId,
             session.LessonPlan?.TemplateId,
@@ -87,9 +67,14 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
             session.ModuleId,
             session.SessionIndexInModule);
 
+        var canonicalResolution = await SessionLessonPlanCanonicalResolver.ResolveAsync(
+            context,
+            linkageSnapshot,
+            cancellationToken);
+
         var consistencyTemplateIds = SessionLessonPlanLinkageResolver.GetConsistencyTemplateIds(
             linkageSnapshot,
-            templateBySyllabusModuleAndIndex);
+            new Dictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid>());
 
         if (consistencyTemplateIds.Count > 1)
         {
@@ -101,21 +86,7 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
                     consistencyTemplateIds));
         }
 
-        var candidateTemplateIds = SessionLessonPlanLinkageResolver.GetCandidateTemplateIds(
-            new[] { linkageSnapshot },
-            templateBySyllabusModuleAndIndex);
-
-        var titleByTemplateId = candidateTemplateIds.Count == 0
-            ? new Dictionary<Guid, string?>()
-            : await context.LessonPlanTemplates
-                .Where(t => candidateTemplateIds.Contains(t.Id) && !t.IsDeleted)
-                .Select(t => new { t.Id, t.Title })
-                .ToDictionaryAsync(t => t.Id, t => t.Title, cancellationToken);
-
-        var resolvedLinkage = SessionLessonPlanLinkageResolver.Resolve(
-            linkageSnapshot,
-            templateBySyllabusModuleAndIndex,
-            titleByTemplateId);
+        var resolvedLinkage = canonicalResolution.Linkage;
 
         if (!resolvedLinkage.LessonPlanTemplateId.HasValue)
         {

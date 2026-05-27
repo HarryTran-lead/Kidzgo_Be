@@ -60,24 +60,6 @@ public sealed class GetSessionByIdQueryHandler(
         var makeupCount = attendances.Count(a => a.AttendanceStatus == AttendanceStatus.Makeup);
         var notMarkedCount = Math.Max(totalStudents - attendances.Count, 0);
         var branchName = session.Branch?.Name ?? session.Class?.Branch?.Name ?? string.Empty;
-        var templateBySyllabusModuleAndIndex =
-            session.Class?.SyllabusId.HasValue == true &&
-            session.Class.SyllabusId.Value != Guid.Empty &&
-            session.ModuleId.HasValue &&
-            session.ModuleId.Value != Guid.Empty &&
-            session.SessionIndexInModule.HasValue
-            ? await context.LessonPlanTemplates
-                .Where(t =>
-                    t.SyllabusId == session.Class.SyllabusId.Value &&
-                    t.ModuleId == session.ModuleId.Value &&
-                    t.SessionIndex == session.SessionIndexInModule.Value &&
-                    t.IsActive &&
-                    !t.IsDeleted)
-                .ToDictionaryAsync(
-                    t => new ValueTuple<Guid, Guid, int>(t.SyllabusId, t.ModuleId, t.SessionIndex),
-                    t => t.Id,
-                    cancellationToken)
-            : new Dictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid>();
 
         var linkageSnapshot = new SessionLessonPlanLinkageSnapshot(
             session.LessonPlanTemplateId,
@@ -92,21 +74,11 @@ public sealed class GetSessionByIdQueryHandler(
             session.ModuleId,
             session.SessionIndexInModule);
 
-        var templateIds = SessionLessonPlanLinkageResolver.GetCandidateTemplateIds(
-            new[] { linkageSnapshot },
-            templateBySyllabusModuleAndIndex);
-
-        var titleByTemplateId = templateIds.Count == 0
-            ? new Dictionary<Guid, string?>()
-            : await context.LessonPlanTemplates
-                .Where(t => templateIds.Contains(t.Id) && !t.IsDeleted)
-                .Select(t => new { t.Id, t.Title })
-                .ToDictionaryAsync(t => t.Id, t => t.Title, cancellationToken);
-
-        var resolvedLinkage = SessionLessonPlanLinkageResolver.Resolve(
+        var canonicalResolution = await SessionLessonPlanCanonicalResolver.ResolveAsync(
+            context,
             linkageSnapshot,
-            templateBySyllabusModuleAndIndex,
-            titleByTemplateId);
+            cancellationToken);
+        var resolvedLinkage = canonicalResolution.Linkage;
 
         var sessionDto = new SessionDetailDto
         {

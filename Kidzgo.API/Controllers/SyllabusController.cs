@@ -80,7 +80,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     /// List syllabuses with pagination and filters.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IResult> GetList(
         [FromQuery] Guid? programId,
@@ -107,7 +107,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     }
 
     [HttpGet("versions")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IResult> GetVersions(
         [FromQuery] Guid? branchId,
@@ -131,7 +131,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     /// View syllabus detail including units, lessons, resources, and session templates.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
@@ -141,7 +141,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     }
 
     [HttpGet("{id:guid}/document")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IResult> GetDocument(Guid id, CancellationToken cancellationToken)
@@ -168,7 +168,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     /// View imported lesson plan Word files grouped by Unit or Revision for a syllabus.
     /// </summary>
     [HttpGet("{id:guid}/unit-lesson-plans")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IResult> GetUnitLessonPlans(Guid id, CancellationToken cancellationToken)
@@ -181,7 +181,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     /// Get curriculum import rules for a program level before importing syllabus archives.
     /// </summary>
     [HttpGet("import-configuration")]
-    [Authorize(Roles = "ManagementStaff,Admin")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IResult> GetImportConfiguration(

@@ -47,10 +47,11 @@ internal static class SessionLessonPlanLinkageResolver
         runtimeTemplateId = NormalizeTemplateId(runtimeTemplateId);
 
         var plannedTemplateId = plannedLessonPlanTemplateId
+            ?? runtimeTemplateId
             ?? sessionTemplateId
             ?? lessonPlanTemplateId
             ?? sessionLessonTemplateId
-            ?? runtimeTemplateId;
+            ;
 
         var resolvedTemplateId = actualLessonPlanTemplateId ?? plannedTemplateId;
 
@@ -108,6 +109,23 @@ internal static class SessionLessonPlanLinkageResolver
         return ids;
     }
 
+    public static IReadOnlyCollection<Guid> GetStoredCandidateTemplateIds(
+        IEnumerable<SessionLessonPlanLinkageSnapshot> snapshots)
+    {
+        var ids = new HashSet<Guid>();
+
+        foreach (var snapshot in snapshots)
+        {
+            AddIfPresent(ids, snapshot.SessionTemplateId);
+            AddIfPresent(ids, snapshot.LessonPlanTemplateId);
+            AddIfPresent(ids, snapshot.PlannedLessonPlanTemplateId);
+            AddIfPresent(ids, snapshot.ActualLessonPlanTemplateId);
+            AddIfPresent(ids, snapshot.SessionLessonTemplateId);
+        }
+
+        return ids;
+    }
+
     public static IReadOnlyCollection<Guid> GetConsistencyTemplateIds(
         SessionLessonPlanLinkageSnapshot snapshot,
         IReadOnlyDictionary<(Guid SyllabusId, Guid ModuleId, int SessionIndex), Guid> templateBySyllabusModuleAndIndex)
@@ -118,7 +136,6 @@ internal static class SessionLessonPlanLinkageResolver
         AddIfPresent(ids, snapshot.LessonPlanTemplateId);
         AddIfPresent(ids, snapshot.PlannedLessonPlanTemplateId);
         AddIfPresent(ids, snapshot.SessionLessonTemplateId);
-        AddIfPresent(ids, ResolveRuntimeTemplateId(snapshot.SyllabusId, snapshot.ModuleId, snapshot.SessionIndexInModule, templateBySyllabusModuleAndIndex));
 
         return ids;
     }

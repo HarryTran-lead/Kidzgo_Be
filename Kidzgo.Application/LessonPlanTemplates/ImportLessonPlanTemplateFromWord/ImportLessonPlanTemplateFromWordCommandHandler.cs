@@ -147,6 +147,12 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         var linkedSessionTemplateId = linkedSessionTemplate?.Id;
 
         var now = VietnamTime.UtcNow();
+        var canonicalLessonNumber = command.LessonNumberOverride ??
+                                    LessonPlanUnitNameNormalizer.ExtractLessonNumber(
+                                        command.FileName,
+                                        parsed.Value.Title,
+                                        parsed.Value.UnitTitle) ??
+                                    parsed.Value.LessonNumber;
         var lessonPlanUnit = requestedUnit;
         if (lessonPlanUnit is null)
         {
@@ -206,10 +212,18 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
+        var canonicalUnitName = lessonPlanUnit?.Name ??
+                                command.LessonPlanUnitNameOverride ??
+                                parsed.Value.UnitTitle;
+        var canonicalTitle = BuildCanonicalTitle(
+            canonicalUnitName,
+            canonicalLessonNumber,
+            parsed.Value.Title);
+
         template.SyllabusId = syllabusId.Value;
         template.SessionTemplateId = linkedSessionTemplateId;
         template.LessonPlanUnitId = lessonPlanUnit?.Id;
-        template.Title = parsed.Value.Title;
+        template.Title = canonicalTitle;
         template.SessionIndex = sessionIndex;
         template.SessionOrder = sessionIndex;
         if (lessonPlanUnit is null)
@@ -218,17 +232,11 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         }
         else
         {
-            var lessonNumber = command.LessonNumberOverride ??
-                               LessonPlanUnitNameNormalizer.ExtractLessonNumber(
-                                   parsed.Value.Title,
-                                   command.FileName,
-                                   parsed.Value.UnitTitle) ??
-                               parsed.Value.LessonNumber;
-            template.OrderIndexInUnit = lessonNumber.HasValue
-                ? Math.Max(lessonNumber.Value - 1, 0)
+            template.OrderIndexInUnit = canonicalLessonNumber.HasValue
+                ? Math.Max(canonicalLessonNumber.Value - 1, 0)
                 : await LessonPlanUnitResolver.GetNextOrderInUnitAsync(context, lessonPlanUnit.Id, cancellationToken);
         }
-        template.SyllabusMetadata = parsed.Value.UnitTitle;
+        template.SyllabusMetadata = canonicalUnitName;
         template.SyllabusContent = parsed.Value.RawText;
         template.Objectives = parsed.Value.Objectives;
         template.LanguageContent = parsed.Value.LanguageContent;
@@ -267,6 +275,20 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         try
         {
             await context.SaveChangesAsync(cancellationToken);
+
+            if (command.OverwriteExisting)
+            {
+                await OverwriteDuplicateImportedTemplatesAsync(
+                    template.Id,
+                    syllabusId.Value,
+                    module.Id,
+                    linkedSessionTemplateId,
+                    NormalizeSourceFileName(command.FileName),
+                    now,
+                    cancellationToken);
+
+                await RemoveOrphanLessonPlanUnitsAsync(module.Id, cancellationToken);
+            }
         }
         catch (DbUpdateException ex) when (IsLegacyModuleSessionIndexConstraintViolation(ex))
         {
@@ -299,6 +321,168 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
             Created = created,
             Title = template.Title
         };
+    }
+
+    private async Task OverwriteDuplicateImportedTemplatesAsync(
+        Guid keptTemplateId,
+        Guid syllabusId,
+        Guid moduleId,
+        Guid? linkedSessionTemplateId,
+        string? normalizedSourceFileName,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var candidates = await context.LessonPlanTemplates
+            .Where(x => x.Id != keptTemplateId &&
+                        x.SyllabusId == syllabusId &&
+                        x.ModuleId == moduleId &&
+                        !x.IsDeleted)
+            .Select(x => new
+            {
+                x.Id,
+                x.SessionTemplateId,
+                x.SourceFileName,
+                x.AttachmentOriginalFileName
+            })
+            .ToListAsync(cancellationToken);
+
+        var duplicateIds = candidates
+            .Where(x =>
+                (linkedSessionTemplateId.HasValue && x.SessionTemplateId == linkedSessionTemplateId.Value) ||
+                HasSameImportedSourceFile(x.SourceFileName, normalizedSourceFileName) ||
+                HasSameImportedSourceFile(x.AttachmentOriginalFileName, normalizedSourceFileName))
+            .Select(x => x.Id)
+            .Distinct()
+            .ToList();
+
+        if (duplicateIds.Count == 0)
+        {
+            return;
+        }
+
+        await context.LessonPlans
+            .Where(x => x.TemplateId.HasValue && duplicateIds.Contains(x.TemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(x => x.TemplateId, keptTemplateId),
+                cancellationToken);
+
+        await context.Sessions
+            .Where(x => x.LessonPlanTemplateId.HasValue && duplicateIds.Contains(x.LessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.LessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.ClassSessionLessons
+            .Where(x => x.LessonPlanTemplateId.HasValue && duplicateIds.Contains(x.LessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.LessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.TeachingLogs
+            .Where(x => x.PlannedLessonPlanTemplateId.HasValue && duplicateIds.Contains(x.PlannedLessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.PlannedLessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.TeachingLogs
+            .Where(x => x.ActualLessonPlanTemplateId.HasValue && duplicateIds.Contains(x.ActualLessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.ActualLessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.TeachingLogLessons
+            .Where(x => x.LessonPlanTemplateId.HasValue && duplicateIds.Contains(x.LessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.LessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.Classes
+            .Where(x => x.CurrentLessonPlanTemplateId.HasValue && duplicateIds.Contains(x.CurrentLessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.CurrentLessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.StudentProgresses
+            .Where(x => x.CurrentLessonPlanTemplateId.HasValue && duplicateIds.Contains(x.CurrentLessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.CurrentLessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.SessionTemplates
+            .Where(x => x.LessonPlanTemplateId.HasValue && duplicateIds.Contains(x.LessonPlanTemplateId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.LessonPlanTemplateId, keptTemplateId)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        await context.LessonPlanTemplateActivities
+            .Where(x => duplicateIds.Contains(x.LessonPlanTemplateId))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.LessonPlanTemplateMaterials
+            .Where(x => duplicateIds.Contains(x.LessonPlanTemplateId))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.HomeworkTemplates
+            .Where(x => duplicateIds.Contains(x.LessonPlanTemplateId))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.LessonPlanTemplates
+            .Where(x => duplicateIds.Contains(x.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    private async Task RemoveOrphanLessonPlanUnitsAsync(
+        Guid moduleId,
+        CancellationToken cancellationToken)
+    {
+        var orphanUnitIds = await context.LessonPlanUnits
+            .Where(x => x.ModuleId == moduleId &&
+                        !context.LessonPlanTemplates.Any(t => t.LessonPlanUnitId == x.Id && !t.IsDeleted))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (orphanUnitIds.Count == 0)
+        {
+            return;
+        }
+
+        await context.LessonPlanUnits
+            .Where(x => orphanUnitIds.Contains(x.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    private static string BuildCanonicalTitle(
+        string? canonicalUnitName,
+        int? canonicalLessonNumber,
+        string parsedTitle)
+    {
+        if (!string.IsNullOrWhiteSpace(canonicalUnitName) && canonicalLessonNumber.HasValue)
+        {
+            return $"{canonicalUnitName.Trim()} - Lesson {canonicalLessonNumber.Value}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(canonicalUnitName))
+        {
+            return canonicalUnitName.Trim();
+        }
+
+        return parsedTitle;
     }
 
     private async Task<LessonPlanTemplate?> FindExistingTemplateBySourceFileNameAsync(
@@ -396,6 +580,19 @@ public sealed class ImportLessonPlanTemplateFromWordCommandHandler(
         return string.IsNullOrWhiteSpace(trimmed)
             ? null
             : Regex.Replace(trimmed, @"\s+", " ");
+    }
+
+    private static bool HasSameImportedSourceFile(string? candidateFileName, string? normalizedSourceFileName)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedSourceFileName))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            NormalizeSourceFileName(candidateFileName),
+            normalizedSourceFileName,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<LessonPlanTemplateActivity> BuildActivityTemplates(

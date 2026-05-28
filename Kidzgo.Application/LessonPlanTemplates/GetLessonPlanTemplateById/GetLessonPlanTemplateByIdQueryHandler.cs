@@ -53,7 +53,22 @@ public sealed class GetLessonPlanTemplateByIdQueryHandler(
                          (s.TeachingLog != null &&
                           (s.TeachingLog.PlannedLessonPlanTemplateId == template.Id ||
                            s.TeachingLog.ActualLessonPlanTemplateId == template.Id)) ||
-                         s.SessionLessons.Any(sl => sl.LessonPlanTemplateId == template.Id)),
+                         s.SessionLessons.Any(sl => sl.LessonPlanTemplateId == template.Id) ||
+                         (s.ModuleId == template.ModuleId &&
+                          s.SessionIndexInModule == template.SessionIndex &&
+                          ((s.Class.SyllabusId.HasValue && s.Class.SyllabusId.Value == template.SyllabusId) ||
+                           (s.LessonPlanTemplate != null && s.LessonPlanTemplate.SyllabusId == template.SyllabusId) ||
+                           (s.LessonPlan != null &&
+                            s.LessonPlan.Template != null &&
+                            s.LessonPlan.Template.SyllabusId == template.SyllabusId) ||
+                           (s.TeachingLog != null &&
+                            ((s.TeachingLog.PlannedLessonPlanTemplate != null &&
+                              s.TeachingLog.PlannedLessonPlanTemplate.SyllabusId == template.SyllabusId) ||
+                             (s.TeachingLog.ActualLessonPlanTemplate != null &&
+                              s.TeachingLog.ActualLessonPlanTemplate.SyllabusId == template.SyllabusId))) ||
+                           s.SessionLessons.Any(sl =>
+                               sl.LessonPlanTemplate != null &&
+                               sl.LessonPlanTemplate.SyllabusId == template.SyllabusId)))),
                     cancellationToken);
 
             if (!canAccessTemplate)

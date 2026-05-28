@@ -5330,6 +5330,41 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.ToTable("RegistrationDiscountCampaigns", "public");
                 });
 
+            modelBuilder.Entity("Kidzgo.Domain.Reports.AIInsight", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ConfidenceScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InsightType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SourceDataJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("StudentReportId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentReportId");
+
+                    b.ToTable("AIInsights", "public");
+                });
+
             modelBuilder.Entity("Kidzgo.Domain.Reports.MonthlyReportData", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5438,6 +5473,62 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.ToTable("MonthlyReportJobs", "public");
                 });
 
+            modelBuilder.Entity("Kidzgo.Domain.Reports.Recommendation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AssignedRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("ClassId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("DueAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("RecommendationType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("AssignedRole", "Status", "DueAt");
+
+                    b.HasIndex("StudentId", "Status", "DueAt");
+
+                    b.ToTable("Recommendations", "public");
+                });
+
             modelBuilder.Entity("Kidzgo.Domain.Reports.ReportComment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5472,6 +5563,44 @@ namespace Kidzgo.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_ReportComment_AtLeastOneReportId", "(\"ReportId\" IS NOT NULL OR \"SessionReportId\" IS NOT NULL)");
                         });
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("ReportPeriods", "public");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Reports.ReportRequest", b =>
@@ -5562,6 +5691,271 @@ namespace Kidzgo.Infrastructure.Migrations
                         .HasDatabaseName("report_request_type_student_month_idx");
 
                     b.ToTable("ReportRequests", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ClassId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GeneratedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ReportPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReportTemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeHash")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("StudentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("GeneratedBy");
+
+                    b.HasIndex("ReportPeriodId");
+
+                    b.HasIndex("ReportTemplateId");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("IdempotencyKey", "ScopeHash")
+                        .IsUnique();
+
+                    b.ToTable("ReportRuns", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportShareLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RecipientContact")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("StudentReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ViewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderMessageId");
+
+                    b.HasIndex("StudentReportId");
+
+                    b.ToTable("ReportShareLogs", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ContentSchema")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedBy");
+
+                    b.ToTable("ReportTemplates", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.RiskAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ClassId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RiskType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Source")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<Guid?>("StudentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("ReportPeriodId");
+
+                    b.HasIndex("StudentId", "ClassId", "BranchId", "RiskType", "ReportPeriodId", "Status")
+                        .HasDatabaseName("risk_alert_dedup_idx");
+
+                    b.ToTable("RiskAlerts", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.RiskRuleConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
+                    b.Property<string>("RiskType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RiskType")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("RiskRuleConfigs", "public");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Reports.SessionReport", b =>
@@ -5715,6 +6109,84 @@ namespace Kidzgo.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("StudentMonthlyReports", "public");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.StudentReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClassId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsParentPublished")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("ModuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ParentPublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ParentPublishedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReportPeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReportRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReportType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SummaryText")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SyllabusId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("ParentPublishedBy");
+
+                    b.HasIndex("ReportPeriodId");
+
+                    b.HasIndex("ReportRunId");
+
+                    b.HasIndex("StudentId", "ReportPeriodId", "ReportType", "CreatedAt");
+
+                    b.ToTable("StudentReports", "public");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Schools.Branch", b =>
@@ -9356,6 +9828,17 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("TuitionPlan");
                 });
 
+            modelBuilder.Entity("Kidzgo.Domain.Reports.AIInsight", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Reports.StudentReport", "StudentReport")
+                        .WithMany("AIInsights")
+                        .HasForeignKey("StudentReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StudentReport");
+                });
+
             modelBuilder.Entity("Kidzgo.Domain.Reports.MonthlyReportData", b =>
                 {
                     b.HasOne("Kidzgo.Domain.Reports.StudentMonthlyReport", "Report")
@@ -9391,6 +9874,24 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("Branch");
 
                     b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.Recommendation", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Classes.Class", "Class")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Users.Profile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Class");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Reports.ReportComment", b =>
@@ -9472,6 +9973,117 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("TargetStudentProfile");
                 });
 
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportRun", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Schools.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Classes.Class", "Class")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Users.User", "GeneratedByUser")
+                        .WithMany("GeneratedReportRuns")
+                        .HasForeignKey("GeneratedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Reports.ReportPeriod", "ReportPeriod")
+                        .WithMany("ReportRuns")
+                        .HasForeignKey("ReportPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Reports.ReportTemplate", "ReportTemplate")
+                        .WithMany("ReportRuns")
+                        .HasForeignKey("ReportTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Users.Profile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Class");
+
+                    b.Navigation("GeneratedByUser");
+
+                    b.Navigation("ReportPeriod");
+
+                    b.Navigation("ReportTemplate");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportShareLog", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Reports.StudentReport", "StudentReport")
+                        .WithMany("ShareLogs")
+                        .HasForeignKey("StudentReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StudentReport");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportTemplate", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Users.User", "CreatedByUser")
+                        .WithMany("CreatedReportTemplates")
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.RiskAlert", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Schools.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Classes.Class", "Class")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Kidzgo.Domain.Reports.ReportPeriod", "ReportPeriod")
+                        .WithMany("RiskAlerts")
+                        .HasForeignKey("ReportPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Users.Profile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Class");
+
+                    b.Navigation("ReportPeriod");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.RiskRuleConfig", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Users.User", "UpdatedByUser")
+                        .WithMany("UpdatedRiskRuleConfigs")
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("UpdatedByUser");
+                });
+
             modelBuilder.Entity("Kidzgo.Domain.Reports.SessionReport", b =>
                 {
                     b.HasOne("Kidzgo.Domain.Users.User", "ReviewedByUser")
@@ -9548,6 +10160,56 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("StudentProfile");
 
                     b.Navigation("SubmittedByUser");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.StudentReport", b =>
+                {
+                    b.HasOne("Kidzgo.Domain.Schools.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Classes.Class", "Class")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Users.User", "ParentPublishedByUser")
+                        .WithMany()
+                        .HasForeignKey("ParentPublishedBy")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Kidzgo.Domain.Reports.ReportPeriod", "ReportPeriod")
+                        .WithMany("StudentReports")
+                        .HasForeignKey("ReportPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Reports.ReportRun", "ReportRun")
+                        .WithMany("StudentReports")
+                        .HasForeignKey("ReportRunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kidzgo.Domain.Users.Profile", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Class");
+
+                    b.Navigation("ParentPublishedByUser");
+
+                    b.Navigation("ReportPeriod");
+
+                    b.Navigation("ReportRun");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Schools.Classroom", b =>
@@ -10401,6 +11063,25 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("Reports");
                 });
 
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportPeriod", b =>
+                {
+                    b.Navigation("ReportRuns");
+
+                    b.Navigation("RiskAlerts");
+
+                    b.Navigation("StudentReports");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportRun", b =>
+                {
+                    b.Navigation("StudentReports");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.ReportTemplate", b =>
+                {
+                    b.Navigation("ReportRuns");
+                });
+
             modelBuilder.Entity("Kidzgo.Domain.Reports.SessionReport", b =>
                 {
                     b.Navigation("ReportComments");
@@ -10409,6 +11090,13 @@ namespace Kidzgo.Infrastructure.Migrations
             modelBuilder.Entity("Kidzgo.Domain.Reports.StudentMonthlyReport", b =>
                 {
                     b.Navigation("ReportComments");
+                });
+
+            modelBuilder.Entity("Kidzgo.Domain.Reports.StudentReport", b =>
+                {
+                    b.Navigation("AIInsights");
+
+                    b.Navigation("ShareLogs");
                 });
 
             modelBuilder.Entity("Kidzgo.Domain.Schools.Branch", b =>
@@ -10581,9 +11269,13 @@ namespace Kidzgo.Infrastructure.Migrations
 
                     b.Navigation("CreatedMissions");
 
+                    b.Navigation("CreatedReportTemplates");
+
                     b.Navigation("CreatedStarTransactions");
 
                     b.Navigation("CreatedSyllabuses");
+
+                    b.Navigation("GeneratedReportRuns");
 
                     b.Navigation("GradedExamResults");
 
@@ -10630,6 +11322,8 @@ namespace Kidzgo.Infrastructure.Migrations
                     b.Navigation("TeachingLogs");
 
                     b.Navigation("TicketComments");
+
+                    b.Navigation("UpdatedRiskRuleConfigs");
 
                     b.Navigation("UploadedMediaAssets");
 

@@ -167,6 +167,15 @@ public sealed class ApplicationDbContext(
     public DbSet<ReportRequest> ReportRequests => Set<ReportRequest>();
     public DbSet<StudentMonthlyReport> StudentMonthlyReports => Set<StudentMonthlyReport>();
     public DbSet<SessionReport> SessionReports => Set<SessionReport>();
+    public DbSet<ReportTemplate> ReportTemplates => Set<ReportTemplate>();
+    public DbSet<ReportPeriod> ReportPeriods => Set<ReportPeriod>();
+    public DbSet<ReportRun> ReportRuns => Set<ReportRun>();
+    public DbSet<StudentReport> StudentReports => Set<StudentReport>();
+    public DbSet<AIInsight> AIInsights => Set<AIInsight>();
+    public DbSet<RiskAlert> RiskAlerts => Set<RiskAlert>();
+    public DbSet<Recommendation> Recommendations => Set<Recommendation>();
+    public DbSet<ReportShareLog> ReportShareLogs => Set<ReportShareLog>();
+    public DbSet<RiskRuleConfig> RiskRuleConfigs => Set<RiskRuleConfig>();
 
     // Sessions
     public DbSet<Attendance> Attendances => Set<Attendance>();

@@ -163,6 +163,15 @@ public interface IDbContext
     DbSet<ReportRequest> ReportRequests { get; }
     DbSet<SessionReport> SessionReports { get; }
     DbSet<StudentMonthlyReport> StudentMonthlyReports { get; }
+    DbSet<ReportTemplate> ReportTemplates { get; }
+    DbSet<ReportPeriod> ReportPeriods { get; }
+    DbSet<ReportRun> ReportRuns { get; }
+    DbSet<StudentReport> StudentReports { get; }
+    DbSet<AIInsight> AIInsights { get; }
+    DbSet<RiskAlert> RiskAlerts { get; }
+    DbSet<Recommendation> Recommendations { get; }
+    DbSet<ReportShareLog> ReportShareLogs { get; }
+    DbSet<RiskRuleConfig> RiskRuleConfigs { get; }
 
     // Sessions
     DbSet<Domain.Sessions.Attendance> Attendances { get; }

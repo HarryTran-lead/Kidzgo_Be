@@ -61,6 +61,9 @@ public class User : Entity
     public ICollection<ExamResult> GradedExamResults { get; set; } = new List<ExamResult>();
     public ICollection<StudentMonthlyReport> SubmittedReports { get; set; } = new List<StudentMonthlyReport>();
     public ICollection<StudentMonthlyReport> ReviewedReports { get; set; } = new List<StudentMonthlyReport>();
+    public ICollection<ReportTemplate> CreatedReportTemplates { get; set; } = new List<ReportTemplate>();
+    public ICollection<ReportRun> GeneratedReportRuns { get; set; } = new List<ReportRun>();
+    public ICollection<RiskRuleConfig> UpdatedRiskRuleConfigs { get; set; } = new List<RiskRuleConfig>();
     public ICollection<ReportComment> ReportComments { get; set; } = new List<ReportComment>();
     public ICollection<Mission> CreatedMissions { get; set; } = new List<Mission>();
     public ICollection<MissionProgress> VerifiedMissionProgresses { get; set; } = new List<MissionProgress>();

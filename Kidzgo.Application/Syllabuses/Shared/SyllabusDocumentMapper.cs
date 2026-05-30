@@ -30,6 +30,7 @@ internal static class SyllabusDocumentMapper
             Status = NormalizeStatus(syllabus.DocumentStatus),
             SourceType = NormalizeSourceType(syllabus.SourceType),
             SourceFileName = syllabus.SourceFileName,
+            AttachmentUrl = syllabus.AttachmentUrl,
             ParserVersion = syllabus.ParserVersion,
             Version = syllabus.DocumentVersion <= 0 ? 1 : syllabus.DocumentVersion,
             Summary = new SyllabusDocumentSummaryDto

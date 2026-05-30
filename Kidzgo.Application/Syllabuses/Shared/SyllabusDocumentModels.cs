@@ -35,6 +35,7 @@ public sealed class SyllabusDocumentResponse
     public string Status { get; init; } = null!;
     public string SourceType { get; init; } = null!;
     public string? SourceFileName { get; init; }
+    public string? AttachmentUrl { get; init; }
     public string? ParserVersion { get; init; }
     public int Version { get; init; }
     public SyllabusDocumentSummaryDto Summary { get; init; } = new();

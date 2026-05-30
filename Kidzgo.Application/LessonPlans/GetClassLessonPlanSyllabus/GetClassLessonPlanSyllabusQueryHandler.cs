@@ -175,6 +175,8 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             SyllabusCode = classEntity.Syllabus?.Code,
             SyllabusVersion = classEntity.Syllabus?.Version,
             SyllabusTitle = classEntity.Syllabus?.Title,
+            SourceFileName = classEntity.Syllabus?.SourceFileName,
+            AttachmentUrl = classEntity.Syllabus?.AttachmentUrl,
             ProgramId = classEntity.ProgramId,
             LevelId = classEntity.LevelId,
             ProgramName = classEntity.Program.Name,

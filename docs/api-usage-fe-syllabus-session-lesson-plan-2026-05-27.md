@@ -1,7 +1,7 @@
-# FE API Usage - Syllabus, Session, Lesson Plan
+# FE API Usage - Syllabus, Session, Lesson Plan, Teaching Log
 
-Updated: 2026-05-27
-Scope: cac API moi hoac da doi contract de FE dung cho flow teacher/admin quanh `syllabus`, `session`, `lesson plan`, `lesson plan template`.
+Updated: 2026-05-30
+Scope: 1 file FE doc gop cho flow `teacher/admin` quanh `syllabus`, `session`, `lesson plan document`, `lesson plan template`, va `teaching log`.
 
 Base paths:
 
@@ -15,15 +15,41 @@ Base paths:
 
 ## 1. Muc tieu FE
 
-Sau cac thay doi nay, FE co the chay chung mot flow cho admin va teacher:
+Sau cac thay doi hien tai, FE nen chay theo 1 flow don gian:
 
-1. Tim `syllabusId` tu class/session flow
-2. Goi tiep syllabus APIs de lay document/template/version
-3. Neu can, branch co the duoc assign syllabus thu cong bang API rieng
+1. Di tu `classId` hoac `sessionId`
+2. Lay `syllabusId` tu API runtime, khong tu suy dien local
+3. Render lesson plan document theo session
+4. Submit/update `teaching log`
+5. Reload session va lesson plan document vi backend co the resync runtime cua cac session tuong lai
 
 ---
 
-## 2. Branch -> Syllabus Assignment
+## 2. End-to-End Teacher Flow
+
+Flow khuyen nghi cho man teacher:
+
+1. Vao man class lesson plan
+2. Goi `GET /api/lesson-plans/classes/{classId}/syllabus`
+3. Chon session trong danh sach
+4. Goi `GET /api/sessions/{sessionId}/lesson-plan-document`
+5. Render document + teaching log state hien tai
+6. Neu chua co teaching log, goi `POST /api/sessions/{sessionId}/teaching-log`
+7. Neu da co teaching log va chua bi lock, goi `PUT /api/sessions/{sessionId}/teaching-log`
+8. Sau submit/update, reload:
+   - `GET /api/sessions/{sessionId}`
+   - `GET /api/sessions/{sessionId}/lesson-plan-document`
+   - neu dang hien session list/class progression thi reload danh sach session cua class
+
+Ly do phai reload:
+
+- Backend co `RecalculateAndResyncAsync(...)`
+- `teaching log` co the doi runtime progression
+- future sessions co the bi doi lesson/template sau khi current session duoc mark `completed`, `partial`, `skipped`
+
+---
+
+## 3. Branch -> Syllabus Assignment
 
 ### `GET /api/branches/{branchId}/syllabuses`
 
@@ -34,7 +60,7 @@ Role:
 - `Admin`
 - `ManagementStaff`
 
-Response:
+Response rut gon:
 
 ```json
 {
@@ -68,7 +94,7 @@ FE use case:
 
 ### `PUT /api/branches/{branchId}/syllabuses`
 
-API moi de assign syllabus thu cong vao branch.
+API de assign syllabus thu cong vao branch.
 
 Role:
 
@@ -92,14 +118,9 @@ Behavior:
 - Neu chua ton tai thi backend create moi
 - `programId` va `levelId` duoc backend lay tu syllabus, FE khong gui
 
-FE note:
-
-- API nay phu hop cho man admin/staff quan ly syllabus theo branch
-- Teacher khong can goi API nay
-
 ---
 
-## 3. Syllabus Discovery APIs
+## 4. Syllabus Discovery APIs
 
 ### `GET /api/syllabuses`
 
@@ -126,7 +147,7 @@ Query params:
 - `levelId: Guid?`
 - `activeOnly: boolean = true`
 
-Response:
+Response rut gon:
 
 ```json
 {
@@ -153,51 +174,27 @@ Response:
 FE use case:
 
 - preload dropdown syllabus version
-- tim syllabus theo `branch/program/level`
+- tim syllabus theo `branchId/programId/levelId`
 
 ### `GET /api/syllabuses/{id}`
-
-Role:
-
-- `Teacher`
-- `ManagementStaff`
-- `Admin`
 
 Dung de lay syllabus detail.
 
 ### `GET /api/syllabuses/{id}/document`
 
-Role:
-
-- `Teacher`
-- `ManagementStaff`
-- `Admin`
-
 Dung de lay syllabus document render JSON.
 
 ### `GET /api/syllabuses/{id}/unit-lesson-plans`
-
-Role:
-
-- `Teacher`
-- `ManagementStaff`
-- `Admin`
 
 Dung de debug/import review danh sach lesson plan Word da bind vao syllabus.
 
 ### `GET /api/syllabuses/import-configuration`
 
-Role:
-
-- `Teacher`
-- `ManagementStaff`
-- `Admin`
-
 Dung de lay import rule config cho 1 `programId + levelId`.
 
 ---
 
-## 4. Class -> Syllabus For Teacher Flow
+## 5. Class -> Syllabus For Teacher Flow
 
 ### `GET /api/lesson-plans/classes/{classId}/syllabus`
 
@@ -207,18 +204,29 @@ Role:
 - `ManagementStaff`
 - `Admin`
 
-API nay da doi contract de FE teacher lay duoc `syllabusId` ngay trong class flow.
+API nay la entry point chinh de FE teacher lay `syllabusId` ngay trong class flow.
 
-Response fields moi o root:
+Response fields FE nen dung o root:
 
 - `syllabusId`
 - `syllabusCode`
 - `syllabusVersion`
 - `syllabusTitle`
+- `sourceFileName`
+- `attachmentUrl`
 
-Response fields moi trong tung `sessions[]`:
+Response fields FE nen dung trong `sessions[]`:
 
+- `sessionId`
+- `sessionIndex`
 - `syllabusId`
+- `moduleId`
+- `sessionIndexInModule`
+- `lessonPlanId`
+- `templateId`
+- `plannedLessonTitle`
+- `plannedLessonPlanTemplateId`
+- `actualLessonPlanTemplateId`
 
 Response rut gon:
 
@@ -233,6 +241,8 @@ Response rut gon:
     "syllabusCode": "STARTERS",
     "syllabusVersion": "v3",
     "syllabusTitle": "Get Ready for Starters",
+    "sourceFileName": "The Syllabus of Get Ready for Starters full.xlsx",
+    "attachmentUrl": "https://cdn.example.com/syllabuses/get-ready-for-starters-full.xlsx",
     "programId": "uuid",
     "levelId": "uuid",
     "programName": "Starters",
@@ -258,14 +268,12 @@ FE use case:
 1. Teacher vao class lesson plan page
 2. FE goi API nay
 3. Lay `syllabusId`
-4. Goi tiep:
-   - `GET /api/syllabuses/{syllabusId}`
-   - `GET /api/syllabuses/{syllabusId}/document`
-   - `GET /api/lesson-plan-templates?...`
+4. Dung `sessions[]` de render danh sach session
+5. Khi user mo 1 session, goi `GET /api/sessions/{sessionId}/lesson-plan-document`
 
 ---
 
-## 5. Session -> Lesson Plan Document
+## 6. Session -> Lesson Plan Document
 
 ### `GET /api/sessions/{sessionId}/lesson-plan-document`
 
@@ -275,18 +283,43 @@ Role:
 - `ManagementStaff`
 - `Admin`
 
-API nay da doi contract de FE resolve duoc syllabus/template dung voi session hien tai.
+API nay resolve lesson plan document dung voi session runtime hien tai.
 
-Response fields moi o root:
+Response fields FE nen dung o root:
 
+- `sessionId`
+- `classId`
 - `syllabusId`
+- `moduleId`
+- `moduleName`
+- `sessionIndexInModule`
+- `lessonPlanTemplateId`
+- `plannedLessonPlanTemplateId`
+- `actualLessonPlanTemplateId`
+- `plannedLessonTitle`
+- `actualLessonTitle`
+- `teachingLogId`
+- `teachingLogStatus`
+- `teachingProgressStatus`
 
-Response fields moi trong `document`:
+Response fields FE nen dung trong `document`:
 
+- `id`
 - `syllabusId`
 - `syllabusCode`
 - `syllabusVersion`
 - `syllabusTitle`
+- `moduleId`
+- `moduleCode`
+- `moduleName`
+- `lessonPlanUnitId`
+- `lessonPlanUnitName`
+- `title`
+- `sessionIndex`
+- `sessionOrder`
+- `procedure`
+- `sourceFileName`
+- `attachment`
 
 Response rut gon:
 
@@ -301,7 +334,13 @@ Response rut gon:
     "moduleName": "Unit 1",
     "sessionIndexInModule": 2,
     "lessonPlanTemplateId": "uuid",
+    "plannedLessonPlanTemplateId": "uuid",
+    "actualLessonPlanTemplateId": null,
     "plannedLessonTitle": "UNIT 1: I LOVE ANIMALS! - Lesson 3",
+    "actualLessonTitle": null,
+    "teachingLogId": null,
+    "teachingLogStatus": null,
+    "teachingProgressStatus": null,
     "document": {
       "id": "uuid",
       "syllabusId": "uuid",
@@ -313,6 +352,7 @@ Response rut gon:
       "levelId": "uuid",
       "levelName": "Level 1",
       "moduleId": "uuid",
+      "moduleCode": "UNIT-1",
       "moduleName": "Unit 1",
       "title": "UNIT 1: I LOVE ANIMALS! - Lesson 3",
       "sessionIndex": 3,
@@ -326,20 +366,293 @@ Response rut gon:
 
 FE use case:
 
-- Man session detail cua teacher chi can goi API nay de render lesson plan document
-- Khong can doan `syllabusId` bang cache local hay mapping rieng
+- Day la API FE nen dung de render lesson plan document o man session detail
+- Khong can doan `syllabusId` hay `templateId` bang cache local
+- Neu `teachingLogId != null`, FE co the bat che do edit teaching log
 
 ---
 
-## 6. Lesson Plan Template APIs
+## 7. Teaching Log APIs
 
-### `GET /api/lesson-plan-templates`
+Teaching log dung base path:
+
+- `POST /api/sessions/{sessionId}/teaching-log`
+- `GET /api/sessions/{sessionId}/teaching-log`
+- `PUT /api/sessions/{sessionId}/teaching-log`
 
 Role:
 
 - `Teacher`
 - `ManagementStaff`
 - `Admin`
+
+### 7.1 Request Model
+
+Request body cho `POST` va `PUT`:
+
+```json
+{
+  "actualLessonPlanTemplateId": "uuid-or-null",
+  "actualTeachingType": "Normal",
+  "progressStatus": "completed",
+  "actualContent": "Covered warm-up, vocabulary and speaking drill.",
+  "actualHomework": "Workbook page 12",
+  "teacherNote": "Students finished as planned."
+}
+```
+
+Field meaning:
+
+- `actualLessonPlanTemplateId`
+  - optional
+  - neu `null`, backend se fallback sang planned template
+- `actualTeachingType`
+  - optional string
+  - parse khong duoc thi backend fallback `Normal`
+- `progressStatus`
+  - bat buoc
+  - valid input values:
+    - `completed`
+    - `partial`
+    - `not_started`
+    - `skipped`
+- `actualContent`
+  - noi dung thuc te da day
+- `actualHomework`
+  - bai tap duoc giao
+- `teacherNote`
+  - ghi chu giao vien
+  - bat buoc co y nghia khi `progressStatus = skipped`
+
+Valid `actualTeachingType` values tu enum:
+
+- `Normal`
+- `Review`
+- `Test`
+- `Makeup`
+- `Event`
+- `Other`
+
+### 7.2 Progress Mapping FE Can Not Ignore
+
+Request va response khong dung cung 1 naming.
+
+Request `progressStatus`:
+
+- `completed`
+- `partial`
+- `not_started`
+- `skipped`
+
+Backend map sang domain status:
+
+- `completed` -> `Completed`
+- `partial` -> `Partial`
+- `not_started` -> `Planned`
+- `skipped` -> `Skipped`
+
+Rule runtime:
+
+- `Completed` consume lesson
+- `Skipped` consume lesson
+- `Partial` khong consume lesson
+- `Planned` khong consume lesson
+
+He qua cho FE:
+
+- Neu FE luu enum local, can mapping 2 chieu
+- Khong duoc assume response se tra lai `not_started`
+- Response `teachingProgressStatus`/`progressStatus` hien tai se la `Completed|Partial|Planned|Skipped`
+
+### 7.3 `POST /api/sessions/{sessionId}/teaching-log`
+
+Dung khi session chua co teaching log.
+
+Response rut gon:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "teachingLogId": "uuid",
+    "sessionId": "uuid",
+    "plannedLessonPlanTemplateId": "uuid",
+    "actualLessonPlanTemplateId": "uuid",
+    "actualTeachingType": "Normal",
+    "progressStatus": "Completed",
+    "classId": "uuid",
+    "currentModuleId": "uuid",
+    "currentSessionIndex": 8,
+    "currentLessonPlanTemplateId": "uuid",
+    "updatedFutureSessionCount": 5
+  }
+}
+```
+
+Behavior quan trong:
+
+- Session bi set `Completed`
+- `ActualDatetime` duoc backend fill neu dang null
+- Teaching log duoc tao voi `Status = Submitted`
+- Backend resync future sessions trong class
+
+### 7.4 `GET /api/sessions/{sessionId}/teaching-log`
+
+Dung de reload teaching log detail, nhat la sau khi submit/update.
+
+Response rut gon:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "teachingLogId": "uuid",
+    "sessionId": "uuid",
+    "plannedLessonPlanTemplateId": "uuid",
+    "plannedLessonTitle": "UNIT 1: I LOVE ANIMALS! - Lesson 3",
+    "actualLessonPlanTemplateId": "uuid",
+    "actualLessonTitle": "UNIT 1: I LOVE ANIMALS! - Lesson 3",
+    "teachingLogStatus": "Submitted",
+    "progressStatus": "Completed",
+    "actualTeachingType": "Normal",
+    "actualContent": "Covered warm-up, vocabulary and speaking drill.",
+    "actualHomework": "Workbook page 12",
+    "teacherNote": "Students finished as planned.",
+    "submittedBy": "uuid",
+    "submittedAt": "2026-05-30T09:10:00Z",
+    "updatedAt": "2026-05-30T09:10:00Z"
+  }
+}
+```
+
+FE use case:
+
+- open edit modal/form teaching log
+- reload sau save
+- hien audit metadata `submittedAt`, `updatedAt`
+
+### 7.5 `PUT /api/sessions/{sessionId}/teaching-log`
+
+Dung khi teaching log da ton tai va van duoc sua.
+
+Request body giong `POST`.
+
+Response rut gon:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "teachingLogId": "uuid",
+    "sessionId": "uuid",
+    "classId": "uuid",
+    "plannedLessonPlanTemplateId": "uuid",
+    "actualLessonPlanTemplateId": "uuid",
+    "actualTeachingType": "Review",
+    "progressStatus": "Partial",
+    "currentModuleId": "uuid",
+    "currentSessionIndex": 8,
+    "currentLessonPlanTemplateId": "uuid",
+    "updatedFutureSessionCount": 4
+  }
+}
+```
+
+Behavior:
+
+- Backend update teaching log hien tai
+- Neu chua co lesson progress row thi backend tu tao
+- Backend resync future sessions lai 1 lan nua
+- Endpoint nay bi chan neu teaching log da `Approved` hoac `Locked`
+
+### 7.6 Error Cases FE Nen Map
+
+Teaching log:
+
+- `409 Session.TeachingLogAlreadyExists`
+- `404 Session.TeachingLogNotFound`
+- `409 Session.TeachingLogLocked`
+- `400 Session.InvalidTeachingProgressStatus`
+- `400 Session.MissingLessonTemplateForTeachingLog`
+- `400 Session.SkippedRequiresReason`
+
+Session/runtime lien quan:
+
+- `404 Session.NotFound`
+- `400 Session.Cancelled`
+
+FE handling goi y:
+
+- `TeachingLogAlreadyExists`
+  - doi tu mode create sang mode edit
+- `TeachingLogNotFound`
+  - doi tu mode edit sang mode create
+- `TeachingLogLocked`
+  - disable form, chi cho read-only
+- `InvalidTeachingProgressStatus`
+  - check enum mapping client
+- `SkippedRequiresReason`
+  - bat buoc user nhap `teacherNote`
+
+### 7.7 FE Submit Flow Khuyen Nghi
+
+1. Goi `GET /api/sessions/{sessionId}/lesson-plan-document`
+2. Neu `teachingLogId == null`, render form create
+3. Build request body:
+   - default `actualLessonPlanTemplateId = plannedLessonPlanTemplateId`
+   - default `actualTeachingType = Normal`
+4. Goi `POST /api/sessions/{sessionId}/teaching-log`
+5. Sau thanh cong, reload:
+   - `GET /api/sessions/{sessionId}`
+   - `GET /api/sessions/{sessionId}/teaching-log`
+   - `GET /api/sessions/{sessionId}/lesson-plan-document`
+6. Neu man hinh co session list trong class, reload list do backend co the da resync future sessions
+
+### 7.8 FE Edit Flow Khuyen Nghi
+
+1. Goi `GET /api/sessions/{sessionId}/teaching-log`
+2. Bind form tu response
+3. Neu `teachingLogStatus` la `Approved` hoac `Locked`, render read-only
+4. Goi `PUT /api/sessions/{sessionId}/teaching-log`
+5. Reload lai y nhu flow submit
+
+---
+
+## 8. Session Detail API Huu Ich Cho FE
+
+### `GET /api/sessions/{sessionId}`
+
+Action nay nam trong controller `[Authorize]`.
+
+Field FE nen dung khi debug runtime:
+
+- `session.lessonPlanId`
+- `session.lessonPlanTemplateId`
+- `session.plannedLessonPlanTemplateId`
+- `session.actualLessonPlanTemplateId`
+- `session.sessionIndexInModule`
+- `session.plannedLessonTitle`
+- `session.actualLessonTitle`
+- `session.moduleId`
+- `session.moduleName`
+- `session.teachingLogId`
+- `session.teachingLogStatus`
+- `session.teachingProgressStatus`
+- `session.actualTeachingType`
+- `session.actualContent`
+- `session.actualHomework`
+- `session.teacherNote`
+
+Use case:
+
+- Dong bo state sau submit/update teaching log
+- Debug mismatch giua lesson plan document va teaching log
+
+---
+
+## 9. Lesson Plan Template APIs
+
+### `GET /api/lesson-plan-templates`
 
 Query params chinh:
 
@@ -354,14 +667,9 @@ Query params chinh:
 FE use case:
 
 - sau khi co `syllabusId`, list template theo syllabus/module
+- cho user doi `actualLessonPlanTemplateId` neu can day khac template planned
 
 ### `GET /api/lesson-plan-templates/{id}`
-
-Role:
-
-- `Teacher`
-- `ManagementStaff`
-- `Admin`
 
 FE use case:
 
@@ -370,21 +678,15 @@ FE use case:
 
 Note:
 
-- Backend da uu tien canonical mapping o read path, nen session/lesson-plan/document flow se co xu huong tro ve template dung hon truoc
+- Read path hien tai uu tien canonical mapping, nen session/lesson-plan/document flow se on dinh hon truoc
 
 ---
 
-## 7. Lesson Plan APIs
+## 10. Lesson Plan APIs
 
 ### `GET /api/lesson-plans/{lessonPlanId}`
 
-Role:
-
-- `Teacher`
-- `ManagementStaff`
-- `Admin`
-
-Response field FE nen dung:
+Field FE nen dung:
 
 - `id`
 - `classId`
@@ -417,31 +719,16 @@ Response rut gon:
 
 Note:
 
-- Backend da co logic resolve template canonical cho cac case mapping cu bi lech
-
-### `GET /api/sessions/{sessionId}`
-
-Role:
-
-- current controller khong dat role attribute rieng tren action, nhung dang nam trong controller `[Authorize]`
-
-Field FE nen dung khi can debug:
-
-- `session.lessonPlanId`
-- `session.lessonPlanTemplateId`
-- `session.plannedLessonPlanTemplateId`
-- `session.sessionIndexInModule`
-- `session.plannedLessonTitle`
-- `session.moduleId`
-- `session.moduleName`
+- API nay huu ich cho debug va parity check
+- Man teacher session page nen uu tien `GET /api/sessions/{sessionId}/lesson-plan-document`
 
 ---
 
-## 8. Import APIs FE Can Still Use
+## 11. Import APIs FE Van Dung
 
 ### `POST /api/syllabuses/import-archive`
 
-Khong phai API moi, nhung response da co them metadata de FE debug import:
+Response da co them metadata de FE debug import:
 
 - `archiveFileName`
 - `archiveParserVersion`
@@ -469,15 +756,17 @@ Query bat buoc:
 FE note:
 
 - `syllabusId` la bat buoc
-- import mapping hien duoc uu tien theo `file name + import configuration`, khong con tin mu quang vao header loi trong file Word
+- import mapping hien duoc uu tien theo `file name + import configuration`
 
 ---
 
-## 9. Quick FE Checklist
+## 12. Quick FE Checklist
 
-1. Neu dang o flow teacher theo class/session, luon lay `syllabusId` tu API response moi, khong tu suy ra.
-2. Sau khi co `syllabusId`, goi tiep syllabus APIs hoac lesson-plan-template APIs.
-3. Neu can man assign syllabus cho branch, dung `PUT /api/branches/{branchId}/syllabuses`.
-4. Man admin/staff create class nen load danh sach syllabus branch tu `GET /api/branches/{branchId}/syllabuses` hoac `GET /api/syllabuses/versions`.
-5. Man debug import nen hien them `selectedSyllabusFileName`, `selectedSyllabusParserVersion`, `skippedItems[]`.
-
+1. Neu dang o flow teacher theo class/session, luon lay `syllabusId` tu API response moi.
+2. Uu tien `GET /api/sessions/{sessionId}/lesson-plan-document` de render man session.
+3. Xem `teachingLogId` de quyet dinh create hay edit.
+4. Mapping dung `progressStatus` input va output, vi 2 ben dang khac format.
+5. Sau moi lan submit/update teaching log, reload session + lesson-plan-document + session list neu dang hien runtime progression.
+6. Neu `updatedFutureSessionCount > 0`, FE nen coi cac session tuong lai co the da doi planned lesson/template.
+7. Neu user chon `skipped`, bat buoc cho nhap `teacherNote`.
+8. Neu teaching log `Approved` hoac `Locked`, FE chi render read-only.

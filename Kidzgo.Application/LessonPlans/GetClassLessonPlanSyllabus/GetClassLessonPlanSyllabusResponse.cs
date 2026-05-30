@@ -9,6 +9,8 @@ public sealed class GetClassLessonPlanSyllabusResponse
     public string? SyllabusCode { get; init; }
     public string? SyllabusVersion { get; init; }
     public string? SyllabusTitle { get; init; }
+    public string? SourceFileName { get; init; }
+    public string? AttachmentUrl { get; init; }
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string ProgramName { get; init; } = null!;

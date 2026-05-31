@@ -192,6 +192,7 @@ public sealed class ProgramProgressionApprovalService(
                 context,
                 sourceRegistration.BranchId,
                 targetProgramId,
+                targetLevelId.Value,
                 selectedTuitionPlan.Id,
                 OperationType.Promotion,
                 now,

@@ -458,15 +458,7 @@ public sealed class GenerateReportCommandHandler(
             .Where(l => l.TransactionType == LearningTicketTransactionType.Consume)
             .Sum(l => l.Quantity);
 
-        var remaining = ledgers.Sum(l => l.TransactionType switch
-        {
-            LearningTicketTransactionType.Grant => l.Quantity,
-            LearningTicketTransactionType.Consume => -l.Quantity,
-            LearningTicketTransactionType.Refund => l.Quantity,
-            LearningTicketTransactionType.Adjustment => l.Quantity,
-            LearningTicketTransactionType.Void => -l.Quantity,
-            _ => 0
-        });
+        var remaining = ledgers.Sum(l => l.Quantity);
 
         var studentProgress = await context.StudentProgresses
             .Where(sp =>

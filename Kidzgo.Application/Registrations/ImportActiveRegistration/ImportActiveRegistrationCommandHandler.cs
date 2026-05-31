@@ -138,6 +138,7 @@ public sealed class ImportActiveRegistrationCommandHandler(
             context,
             command.BranchId,
             command.ProgramId,
+            command.LevelId,
             tuitionPlan.Id,
             operationType,
             now,

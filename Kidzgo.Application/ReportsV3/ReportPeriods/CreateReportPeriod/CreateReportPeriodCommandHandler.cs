@@ -28,7 +28,7 @@ public sealed class CreateReportPeriodCommandHandler(
         if (!ReportPeriodAccessHelper.CanManage(currentUserResult.Value.Role))
         {
             return Result.Failure<ReportPeriodDto>(
-                Error.Unauthorized("Report.AccessDenied", "Only admin or management staff can manage report periods."));
+                Error.Unauthorized("Report.AccessDenied", "Only admin, management staff, or teacher can manage report periods."));
         }
 
         var trimmedCode = command.Code.Trim();

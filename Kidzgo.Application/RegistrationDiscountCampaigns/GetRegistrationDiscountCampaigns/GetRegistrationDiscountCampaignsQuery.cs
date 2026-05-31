@@ -6,6 +6,7 @@ public sealed class GetRegistrationDiscountCampaignsQuery : IQuery<GetRegistrati
 {
     public Guid? BranchId { get; init; }
     public Guid? ProgramId { get; init; }
+    public Guid? LevelId { get; init; }
     public Guid? TuitionPlanId { get; init; }
     public bool? IsActive { get; init; }
     public string? SearchTerm { get; init; }

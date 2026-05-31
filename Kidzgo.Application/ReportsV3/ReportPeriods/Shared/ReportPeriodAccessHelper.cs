@@ -6,6 +6,6 @@ internal static class ReportPeriodAccessHelper
 {
     public static bool CanManage(UserRole role)
     {
-        return role is UserRole.Admin or UserRole.ManagementStaff;
+        return role is UserRole.Admin or UserRole.ManagementStaff or UserRole.Teacher;
     }
 }

@@ -174,6 +174,7 @@ public sealed class UpdateRegistrationCommandHandler(
                 context,
                 registration.BranchId,
                 registration.ProgramId,
+                registration.LevelId,
                 tuitionPlan.Id,
                 operationType,
                 registration.RegistrationDate,

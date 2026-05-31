@@ -101,6 +101,7 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             context,
             registration.BranchId,
             registration.ProgramId,
+            registration.LevelId,
             newTuitionPlan.Id,
             OperationType.Upgrade,
             now,

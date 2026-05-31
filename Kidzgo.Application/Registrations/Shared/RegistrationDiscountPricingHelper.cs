@@ -29,6 +29,7 @@ internal static class RegistrationDiscountPricingHelper
         IDbContext context,
         Guid branchId,
         Guid programId,
+        Guid levelId,
         Guid tuitionPlanId,
         OperationType operationType,
         DateTime registrationDate,
@@ -46,6 +47,7 @@ internal static class RegistrationDiscountPricingHelper
             .Where(c => c.StartDate <= registrationDateOnly && c.EndDate >= registrationDateOnly)
             .Where(c => !c.BranchId.HasValue || c.BranchId == branchId)
             .Where(c => !c.ProgramId.HasValue || c.ProgramId == programId)
+            .Where(c => !c.LevelId.HasValue || c.LevelId == levelId)
             .Where(c => !c.TuitionPlanId.HasValue || c.TuitionPlanId == tuitionPlanId)
             .Where(c =>
                 operationType == OperationType.Initial && c.ApplyForInitialRegistration ||

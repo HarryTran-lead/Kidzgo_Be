@@ -34,7 +34,7 @@ public sealed class GetReportPeriodsQueryHandler(
         if (!ReportPeriodAccessHelper.CanManage(currentUserResult.Value.Role))
         {
             return Result.Failure<PagedResult<ReportPeriodDto>>(
-                Error.Unauthorized("Report.AccessDenied", "Only admin or management staff can manage report periods."));
+                Error.Unauthorized("Report.AccessDenied", "Only admin, management staff, or teacher can manage report periods."));
         }
 
         var periodsQuery = context.ReportPeriods

@@ -10,6 +10,8 @@ public sealed class RegistrationDiscountCampaignModel
     public string? BranchName { get; init; }
     public Guid? ProgramId { get; init; }
     public string? ProgramName { get; init; }
+    public Guid? LevelId { get; init; }
+    public string? LevelName { get; init; }
     public Guid? TuitionPlanId { get; init; }
     public string? TuitionPlanName { get; init; }
     public string DiscountType { get; init; } = null!;

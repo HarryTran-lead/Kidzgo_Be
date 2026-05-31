@@ -29,6 +29,11 @@ public sealed class GetRegistrationDiscountCampaignsQueryHandler(
             campaignsQuery = campaignsQuery.Where(x => x.ProgramId == query.ProgramId.Value);
         }
 
+        if (query.LevelId.HasValue)
+        {
+            campaignsQuery = campaignsQuery.Where(x => x.LevelId == query.LevelId.Value);
+        }
+
         if (query.TuitionPlanId.HasValue)
         {
             campaignsQuery = campaignsQuery.Where(x => x.TuitionPlanId == query.TuitionPlanId.Value);

@@ -35,6 +35,7 @@ public class RegistrationDiscountCampaignController : ControllerBase
             Description = request.Description,
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
             TuitionPlanId = request.TuitionPlanId,
             DiscountType = request.DiscountType,
             DiscountValue = request.DiscountValue,
@@ -55,6 +56,7 @@ public class RegistrationDiscountCampaignController : ControllerBase
     public async Task<IResult> GetRegistrationDiscountCampaigns(
         [FromQuery] Guid? branchId,
         [FromQuery] Guid? programId,
+        [FromQuery] Guid? levelId,
         [FromQuery] Guid? tuitionPlanId,
         [FromQuery] bool? isActive,
         [FromQuery] string? searchTerm,
@@ -66,6 +68,7 @@ public class RegistrationDiscountCampaignController : ControllerBase
         {
             BranchId = branchId,
             ProgramId = programId,
+            LevelId = levelId,
             TuitionPlanId = tuitionPlanId,
             IsActive = isActive,
             SearchTerm = searchTerm,
@@ -106,6 +109,7 @@ public class RegistrationDiscountCampaignController : ControllerBase
             Description = request.Description,
             BranchId = request.BranchId,
             ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
             TuitionPlanId = request.TuitionPlanId,
             DiscountType = request.DiscountType,
             DiscountValue = request.DiscountValue,

@@ -11,6 +11,7 @@ public sealed class CreateRegistrationDiscountCampaignCommand : ICommand<Registr
     public string? Description { get; init; }
     public Guid? BranchId { get; init; }
     public Guid? ProgramId { get; init; }
+    public Guid? LevelId { get; init; }
     public Guid? TuitionPlanId { get; init; }
     public RegistrationDiscountType DiscountType { get; init; }
     public decimal DiscountValue { get; init; }

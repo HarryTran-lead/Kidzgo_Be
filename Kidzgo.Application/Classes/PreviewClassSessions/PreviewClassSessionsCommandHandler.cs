@@ -100,7 +100,7 @@ public sealed class PreviewClassSessionsCommandHandler(
             command.StartSessionIndex,
             existingSessionCount: 0,
             newSessionCount: command.SessionsToGenerate,
-            strictCurriculumCoverage: true,
+            strictCurriculumCoverage: false,
             cancellationToken);
         if (plannedMetadataResult.IsFailure)
         {

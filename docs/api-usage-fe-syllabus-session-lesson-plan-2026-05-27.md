@@ -594,6 +594,17 @@ FE handling goi y:
 - `SkippedRequiresReason`
   - bat buoc user nhap `teacherNote`
 
+### 7.6.1 Backend Backfill Note Cho Case Dang Loi
+
+Neu gap case session runtime bi thieu linkage va FE khong save duoc teaching log, uu tien backend backfill theo thu tu nay:
+
+1. Toi thieu de teaching log save duoc:
+   - `session.plannedLessonPlanTemplateId` hoac `session.lessonPlanTemplateId` cua session `d5191119-39cf-4be1-bfbd-00952a832ef3` phai co gia tri hop le.
+2. Neu backend dang derive tu `lesson_plans`:
+   - `lesson_plans.templateId` cua lesson plan `ff036679-55d7-43a8-ad2f-ab841b1f8cd4` cung phai duoc set.
+3. De flow chuan chay lai hoan chinh, khong chi save duoc:
+   - runtime mapping cua session nay cung nen duoc backfill lai `syllabusId` de endpoint `GET /api/sessions/{sessionId}/lesson-plan-document` khong con tra `404`.
+
 ### 7.7 FE Submit Flow Khuyen Nghi
 
 1. Goi `GET /api/sessions/{sessionId}/lesson-plan-document`

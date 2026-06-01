@@ -131,6 +131,9 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
         var lessonProgress = session.TeachingLog?.Lessons
             .OrderBy(x => x.OrderIndex)
             .FirstOrDefault();
+        var actualContent = session.LessonPlan?.ActualContent ?? session.TeachingLog?.ActualContent;
+        var actualHomework = session.LessonPlan?.ActualHomework ?? session.TeachingLog?.ActualHomework;
+        var teacherNote = session.LessonPlan?.TeacherNotes ?? session.TeachingLog?.TeacherNote;
 
         return new GetSessionLessonPlanDocumentResponse
         {
@@ -148,6 +151,25 @@ public sealed class GetSessionLessonPlanDocumentQueryHandler(
             TeachingLogId = session.TeachingLog?.Id,
             TeachingLogStatus = session.TeachingLog?.Status.ToString(),
             TeachingProgressStatus = lessonProgress?.ProgressStatus.ToString(),
+            ActualContent = actualContent,
+            ActualHomework = actualHomework,
+            TeacherNote = teacherNote,
+            TeachingLog = session.TeachingLog is null
+                ? null
+                : new TeachingLogSnapshotDto
+                {
+                    TeachingLogId = session.TeachingLog.Id,
+                    SessionId = session.Id,
+                    TeachingLogStatus = session.TeachingLog.Status.ToString(),
+                    ProgressStatus = lessonProgress?.ProgressStatus.ToString(),
+                    ActualTeachingType = session.TeachingLog.ActualTeachingType.ToString(),
+                    ActualContent = session.TeachingLog.ActualContent,
+                    ActualHomework = session.TeachingLog.ActualHomework,
+                    TeacherNote = session.TeachingLog.TeacherNote,
+                    SubmittedBy = session.TeachingLog.SubmittedBy,
+                    SubmittedAt = session.TeachingLog.SubmittedAt,
+                    UpdatedAt = session.TeachingLog.UpdatedAt
+                },
             Document = new SessionLessonPlanDocumentDto
             {
                 Id = template.Id,

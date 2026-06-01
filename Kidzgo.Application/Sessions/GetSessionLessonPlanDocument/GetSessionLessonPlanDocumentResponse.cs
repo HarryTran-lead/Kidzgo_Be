@@ -1,3 +1,5 @@
+using Kidzgo.Application.Sessions.Shared;
+
 namespace Kidzgo.Application.Sessions.GetSessionLessonPlanDocument;
 
 public sealed class GetSessionLessonPlanDocumentResponse
@@ -16,6 +18,11 @@ public sealed class GetSessionLessonPlanDocumentResponse
     public Guid? TeachingLogId { get; init; }
     public string? TeachingLogStatus { get; init; }
     public string? TeachingProgressStatus { get; init; }
+    public string? ActualContent { get; init; }
+    public string? ActualHomework { get; init; }
+    public string? TeacherNote { get; init; }
+    public string? TeacherNotes => TeacherNote;
+    public TeachingLogSnapshotDto? TeachingLog { get; init; }
     public SessionLessonPlanDocumentDto Document { get; init; } = null!;
 }
 

@@ -67,8 +67,23 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
                 PlannedTeacherName = s.PlannedTeacher != null ? s.PlannedTeacher.Name : null,
                 s.ActualTeacherId,
                 ActualTeacherName = s.ActualTeacher != null ? s.ActualTeacher.Name : null,
+                TeachingLogId = s.TeachingLog != null ? (Guid?)s.TeachingLog.Id : null,
+                TeachingLogStatus = s.TeachingLog != null ? s.TeachingLog.Status.ToString() : null,
                 PlannedLessonPlanTemplateId = s.TeachingLog != null ? s.TeachingLog.PlannedLessonPlanTemplateId : null,
                 ActualLessonPlanTemplateId = s.TeachingLog != null ? s.TeachingLog.ActualLessonPlanTemplateId : null,
+                TeachingLogProgressStatus = s.TeachingLog != null
+                    ? s.TeachingLog.Lessons
+                        .OrderBy(l => l.OrderIndex)
+                        .Select(l => l.ProgressStatus.ToString())
+                        .FirstOrDefault()
+                    : null,
+                TeachingLogActualTeachingType = s.TeachingLog != null ? s.TeachingLog.ActualTeachingType.ToString() : null,
+                TeachingLogActualContent = s.TeachingLog != null ? s.TeachingLog.ActualContent : null,
+                TeachingLogActualHomework = s.TeachingLog != null ? s.TeachingLog.ActualHomework : null,
+                TeachingLogTeacherNote = s.TeachingLog != null ? s.TeachingLog.TeacherNote : null,
+                TeachingLogSubmittedBy = s.TeachingLog != null ? s.TeachingLog.SubmittedBy : null,
+                TeachingLogSubmittedAt = s.TeachingLog != null ? s.TeachingLog.SubmittedAt : null,
+                TeachingLogUpdatedAt = s.TeachingLog != null ? (DateTime?)s.TeachingLog.UpdatedAt : null,
                 SessionLessonTemplateId = s.SessionLessons
                     .OrderBy(l => l.OrderIndex)
                     .Select(l => l.LessonPlanTemplateId)
@@ -132,6 +147,9 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
             var canEdit = currentUser.Role != UserRole.Teacher ||
                           session.PlannedTeacherId == currentUser.Id ||
                           session.ActualTeacherId == currentUser.Id;
+            var actualContent = lessonPlan?.ActualContent ?? session.TeachingLogActualContent;
+            var actualHomework = lessonPlan?.ActualHomework ?? session.TeachingLogActualHomework;
+            var teacherNotes = lessonPlan?.TeacherNotes ?? session.TeachingLogTeacherNote;
 
             responseSessions.Add(new ClassLessonPlanSyllabusSessionDto
             {
@@ -159,9 +177,25 @@ public sealed class GetClassLessonPlanSyllabusQueryHandler(
                 ActualLessonTitle = resolvedLinkage.ActualLessonTitle,
                 TemplateSyllabusContent = template?.SyllabusContent,
                 PlannedContent = lessonPlan?.PlannedContent ?? template?.SyllabusContent,
-                ActualContent = lessonPlan?.ActualContent,
-                ActualHomework = lessonPlan?.ActualHomework,
-                TeacherNotes = lessonPlan?.TeacherNotes,
+                ActualContent = actualContent,
+                ActualHomework = actualHomework,
+                TeacherNotes = teacherNotes,
+                TeachingLog = session.TeachingLogId.HasValue
+                    ? new TeachingLogSnapshotDto
+                    {
+                        TeachingLogId = session.TeachingLogId.Value,
+                        SessionId = session.Id,
+                        TeachingLogStatus = session.TeachingLogStatus,
+                        ProgressStatus = session.TeachingLogProgressStatus,
+                        ActualTeachingType = session.TeachingLogActualTeachingType,
+                        ActualContent = session.TeachingLogActualContent,
+                        ActualHomework = session.TeachingLogActualHomework,
+                        TeacherNote = session.TeachingLogTeacherNote,
+                        SubmittedBy = session.TeachingLogSubmittedBy,
+                        SubmittedAt = session.TeachingLogSubmittedAt,
+                        UpdatedAt = session.TeachingLogUpdatedAt
+                    }
+                    : null,
                 CanEdit = canEdit
             });
         }

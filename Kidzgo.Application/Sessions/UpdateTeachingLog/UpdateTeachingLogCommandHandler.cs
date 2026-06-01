@@ -22,6 +22,7 @@ public sealed class UpdateTeachingLogCommandHandler(
     {
         var session = await context.Sessions
             .Include(x => x.Class)
+            .Include(x => x.LessonPlan)
             .Include(x => x.TeachingLog)
                 .ThenInclude(x => x!.Lessons)
             .FirstOrDefaultAsync(x => x.Id == command.SessionId, cancellationToken);
@@ -62,6 +63,7 @@ public sealed class UpdateTeachingLogCommandHandler(
         var now = VietnamTime.UtcNow();
 
         session.TeachingLog.PlannedLessonPlanTemplateId = plannedLessonPlanTemplateId;
+        session.TeachingLog.LessonPlanId = session.LessonPlan?.Id;
         session.TeachingLog.ActualLessonPlanTemplateId = actualLessonPlanTemplateId;
         session.TeachingLog.ActualTeachingType = command.ActualTeachingType;
         session.TeachingLog.ActualContent = command.ActualContent;
@@ -103,6 +105,9 @@ public sealed class UpdateTeachingLogCommandHandler(
         session.Status = SessionStatus.Completed;
         session.ActualDatetime ??= now;
         session.UpdatedAt = now;
+        SyncLessonPlanFromTeachingLog(session.LessonPlan, session.TeachingLog, coveragePercent, consumeLesson);
+
+        await context.SaveChangesAsync(cancellationToken);
 
         var syncResult = await classProgressionService.RecalculateAndResyncAsync(
             session.ClassId,
@@ -120,10 +125,34 @@ public sealed class UpdateTeachingLogCommandHandler(
             ActualLessonPlanTemplateId = actualLessonPlanTemplateId,
             ActualTeachingType = command.ActualTeachingType.ToString(),
             ProgressStatus = coverageStatus.ToString(),
-            CurrentModuleId = session.Class.CurrentModuleId,
-            CurrentSessionIndex = session.Class.CurrentSessionIndex,
-            CurrentLessonPlanTemplateId = session.Class.CurrentLessonPlanTemplateId,
+            ActualContent = command.ActualContent,
+            ActualHomework = command.ActualHomework,
+            TeacherNote = command.TeacherNote,
+            CurrentModuleId = syncResult?.CurrentModuleId ?? session.Class.CurrentModuleId,
+            CurrentSessionIndex = syncResult?.CurrentSessionIndex ?? session.Class.CurrentSessionIndex,
+            CurrentLessonPlanTemplateId = syncResult?.CurrentLessonPlanTemplateId ?? session.Class.CurrentLessonPlanTemplateId,
             UpdatedFutureSessionCount = syncResult?.UpdatedFutureSessionCount ?? 0
         };
+    }
+
+    private static void SyncLessonPlanFromTeachingLog(
+        Domain.LessonPlans.LessonPlan? lessonPlan,
+        TeachingLog teachingLog,
+        decimal coveragePercent,
+        bool consumeLesson)
+    {
+        if (lessonPlan is null)
+        {
+            return;
+        }
+
+        lessonPlan.TemplateId = teachingLog.ActualLessonPlanTemplateId ?? lessonPlan.TemplateId;
+        lessonPlan.ActualContent = teachingLog.ActualContent;
+        lessonPlan.ActualHomework = teachingLog.ActualHomework;
+        lessonPlan.TeacherNotes = teachingLog.TeacherNote;
+        lessonPlan.CompletionPercent = coveragePercent;
+        lessonPlan.CarryForwardContent = consumeLesson ? null : teachingLog.ActualContent;
+        lessonPlan.SubmittedBy = teachingLog.SubmittedBy;
+        lessonPlan.SubmittedAt = teachingLog.SubmittedAt;
     }
 }

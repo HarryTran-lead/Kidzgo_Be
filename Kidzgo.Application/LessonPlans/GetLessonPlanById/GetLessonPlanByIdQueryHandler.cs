@@ -100,6 +100,12 @@ public sealed class GetLessonPlanByIdQueryHandler(
                              !string.IsNullOrWhiteSpace(resolvedTemplate?.SyllabusContent)
             ? resolvedTemplate.SyllabusContent
             : lessonPlan.PlannedContent;
+        var lessonProgress = lessonPlan.Session?.TeachingLog?.Lessons
+            .OrderBy(x => x.OrderIndex)
+            .FirstOrDefault();
+        var actualContent = lessonPlan.ActualContent ?? lessonPlan.Session?.TeachingLog?.ActualContent;
+        var actualHomework = lessonPlan.ActualHomework ?? lessonPlan.Session?.TeachingLog?.ActualHomework;
+        var teacherNotes = lessonPlan.TeacherNotes ?? lessonPlan.Session?.TeachingLog?.TeacherNote;
 
         return new GetLessonPlanByIdResponse
         {
@@ -117,14 +123,30 @@ public sealed class GetLessonPlanByIdQueryHandler(
             TemplateLevel = resolvedTemplate?.Module?.Level?.Name,
             TemplateSessionIndex = resolvedTemplate?.SessionIndex,
             PlannedContent = plannedContent,
-            ActualContent = lessonPlan.ActualContent,
-            ActualHomework = lessonPlan.ActualHomework,
-            TeacherNotes = lessonPlan.TeacherNotes,
+            ActualContent = actualContent,
+            ActualHomework = actualHomework,
+            TeacherNotes = teacherNotes,
             CompletionPercent = lessonPlan.CompletionPercent,
             CarryForwardContent = lessonPlan.CarryForwardContent,
             SubmittedBy = lessonPlan.SubmittedBy,
             SubmittedByName = lessonPlan.SubmittedByUser?.Name,
             SubmittedAt = lessonPlan.SubmittedAt,
+            TeachingLog = lessonPlan.Session?.TeachingLog is null
+                ? null
+                : new TeachingLogSnapshotDto
+                {
+                    TeachingLogId = lessonPlan.Session.TeachingLog.Id,
+                    SessionId = lessonPlan.Session.Id,
+                    TeachingLogStatus = lessonPlan.Session.TeachingLog.Status.ToString(),
+                    ProgressStatus = lessonProgress?.ProgressStatus.ToString(),
+                    ActualTeachingType = lessonPlan.Session.TeachingLog.ActualTeachingType.ToString(),
+                    ActualContent = lessonPlan.Session.TeachingLog.ActualContent,
+                    ActualHomework = lessonPlan.Session.TeachingLog.ActualHomework,
+                    TeacherNote = lessonPlan.Session.TeachingLog.TeacherNote,
+                    SubmittedBy = lessonPlan.Session.TeachingLog.SubmittedBy,
+                    SubmittedAt = lessonPlan.Session.TeachingLog.SubmittedAt,
+                    UpdatedAt = lessonPlan.Session.TeachingLog.UpdatedAt
+                },
         };
     }
 }

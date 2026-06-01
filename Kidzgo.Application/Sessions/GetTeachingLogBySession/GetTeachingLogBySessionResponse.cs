@@ -1,3 +1,5 @@
+using Kidzgo.Application.Sessions.Shared;
+
 namespace Kidzgo.Application.Sessions.GetTeachingLogBySession;
 
 public sealed class GetTeachingLogBySessionResponse
@@ -14,7 +16,9 @@ public sealed class GetTeachingLogBySessionResponse
     public string? ActualContent { get; init; }
     public string? ActualHomework { get; init; }
     public string? TeacherNote { get; init; }
+    public string? TeacherNotes => TeacherNote;
     public Guid? SubmittedBy { get; init; }
     public DateTime? SubmittedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public TeachingLogSnapshotDto TeachingLog { get; init; } = null!;
 }

@@ -1,3 +1,5 @@
+using Kidzgo.Application.Sessions.Shared;
+
 namespace Kidzgo.Application.LessonPlans.GetClassLessonPlanSyllabus;
 
 public sealed class GetClassLessonPlanSyllabusResponse
@@ -46,5 +48,7 @@ public sealed class ClassLessonPlanSyllabusSessionDto
     public string? ActualContent { get; init; }
     public string? ActualHomework { get; init; }
     public string? TeacherNotes { get; init; }
+    public string? TeacherNote => TeacherNotes;
+    public TeachingLogSnapshotDto? TeachingLog { get; init; }
     public bool CanEdit { get; init; }
 }

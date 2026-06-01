@@ -9,6 +9,10 @@ public sealed class UpdateTeachingLogResponse
     public Guid? ActualLessonPlanTemplateId { get; init; }
     public string ActualTeachingType { get; init; } = null!;
     public string ProgressStatus { get; init; } = null!;
+    public string? ActualContent { get; init; }
+    public string? ActualHomework { get; init; }
+    public string? TeacherNote { get; init; }
+    public string? TeacherNotes => TeacherNote;
     public Guid? CurrentModuleId { get; init; }
     public int CurrentSessionIndex { get; init; }
     public Guid? CurrentLessonPlanTemplateId { get; init; }

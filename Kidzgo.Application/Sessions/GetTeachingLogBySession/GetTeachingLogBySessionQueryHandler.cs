@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,21 @@ public sealed class GetTeachingLogBySessionQueryHandler(
             TeacherNote = session.TeachingLog.TeacherNote,
             SubmittedBy = session.TeachingLog.SubmittedBy,
             SubmittedAt = session.TeachingLog.SubmittedAt,
-            UpdatedAt = session.TeachingLog.UpdatedAt
+            UpdatedAt = session.TeachingLog.UpdatedAt,
+            TeachingLog = new TeachingLogSnapshotDto
+            {
+                TeachingLogId = session.TeachingLog.Id,
+                SessionId = session.Id,
+                TeachingLogStatus = session.TeachingLog.Status.ToString(),
+                ProgressStatus = lessonProgress?.ProgressStatus.ToString(),
+                ActualTeachingType = session.TeachingLog.ActualTeachingType.ToString(),
+                ActualContent = session.TeachingLog.ActualContent,
+                ActualHomework = session.TeachingLog.ActualHomework,
+                TeacherNote = session.TeachingLog.TeacherNote,
+                SubmittedBy = session.TeachingLog.SubmittedBy,
+                SubmittedAt = session.TeachingLog.SubmittedAt,
+                UpdatedAt = session.TeachingLog.UpdatedAt
+            }
         };
     }
 }

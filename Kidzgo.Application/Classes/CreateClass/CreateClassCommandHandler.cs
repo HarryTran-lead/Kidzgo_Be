@@ -258,7 +258,7 @@ public sealed class CreateClassCommandHandler(
                 command.StartSessionIndex,
                 existingSessionCount: 0,
                 newSessionCount: sessionsToGenerate,
-                strictCurriculumCoverage: true,
+                strictCurriculumCoverage: false,
                 cancellationToken);
             if (metadataResult.IsFailure)
             {

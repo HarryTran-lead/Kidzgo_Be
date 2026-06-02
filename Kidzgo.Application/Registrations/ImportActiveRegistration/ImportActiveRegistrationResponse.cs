@@ -17,6 +17,9 @@ public sealed class ImportActiveRegistrationResponse
     public string? PreferredSchedule { get; init; }
     public string? Note { get; init; }
     public string Status { get; init; } = null!;
+    public Guid? StudentHomeBranchId { get; init; }
+    public Guid? StudentActiveBranchId { get; init; }
+    public bool IsCrossBranchRegistration { get; init; }
     public string? OperationType { get; init; }
     public int TotalSessions { get; init; }
     public int UsedSessions { get; init; }

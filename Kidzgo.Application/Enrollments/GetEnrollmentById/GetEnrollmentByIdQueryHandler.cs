@@ -29,6 +29,10 @@ public sealed class GetEnrollmentByIdQueryHandler(
                 EnrollmentErrors.NotFound(query.Id));
         }
 
+        var studentBranchState = await context.StudentBranchStates
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.StudentProfileId == enrollment.StudentProfileId, cancellationToken);
+
         return new GetEnrollmentByIdResponse
         {
             Id = enrollment.Id,
@@ -41,6 +45,9 @@ public sealed class GetEnrollmentByIdQueryHandler(
             BranchName = enrollment.Class.Branch.Name,
             StudentProfileId = enrollment.StudentProfileId,
             StudentName = enrollment.StudentProfile.DisplayName,
+            StudentHomeBranchId = studentBranchState?.HomeBranchId,
+            StudentActiveBranchId = studentBranchState?.ActiveBranchId,
+            IsCrossBranchEnrollment = studentBranchState is not null && studentBranchState.ActiveBranchId != enrollment.Class.BranchId,
             EnrollDate = enrollment.EnrollDate,
             Status = enrollment.Status.ToString(),
             TuitionPlanId = enrollment.TuitionPlanId,

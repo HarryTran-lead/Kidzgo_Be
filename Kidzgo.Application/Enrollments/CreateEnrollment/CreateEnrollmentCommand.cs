@@ -11,5 +11,6 @@ public sealed class CreateEnrollmentCommand : ICommand<CreateEnrollmentResponse>
     public Guid? TuitionPlanId { get; init; }
     public string? Track { get; init; }
     public IReadOnlyCollection<WeeklyPatternEntry>? WeeklyPattern { get; init; }
+    public bool AllowCrossBranchEnrollment { get; init; }
 }
 

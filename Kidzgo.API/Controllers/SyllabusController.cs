@@ -4,11 +4,13 @@ using Kidzgo.Application.Syllabuses.CreateSyllabus;
 using Kidzgo.Application.Syllabuses.AddSyllabusSection;
 using Kidzgo.Application.Syllabuses.AddSyllabusTableRow;
 using Kidzgo.Application.Syllabuses.ArchiveSyllabusDocument;
+using Kidzgo.Application.Syllabuses.CreateSyllabusVersion;
 using Kidzgo.Application.Syllabuses.DeleteSyllabusTableRow;
 using Kidzgo.Application.Syllabuses.DeleteSyllabus;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.GetSyllabusById;
 using Kidzgo.Application.Syllabuses.GetSyllabusDocument;
+using Kidzgo.Application.Syllabuses.GetSyllabusVersionHistory;
 using Kidzgo.Application.Syllabuses.GetSyllabusVersions;
 using Kidzgo.Application.Syllabuses.GetSyllabuses;
 using Kidzgo.Application.Syllabuses.GetSyllabusUnitLessonPlans;
@@ -18,6 +20,7 @@ using Kidzgo.Application.Syllabuses.ImportSyllabusPreview;
 using Kidzgo.Application.Syllabuses.ImportLessonPlanWords;
 using Kidzgo.Application.Syllabuses.ImportSyllabusFromWord;
 using Kidzgo.Application.Syllabuses.PublishSyllabusDocument;
+using Kidzgo.Application.Syllabuses.PromoteSyllabusVersion;
 using Kidzgo.Application.Syllabuses.ReorderSyllabusSections;
 using Kidzgo.Application.Syllabuses.UpsertCurriculumImportConfiguration;
 using Kidzgo.Application.Syllabuses.UpdateSyllabusDocumentMetadata;
@@ -137,6 +140,63 @@ public class SyllabusController(ISender mediator) : ControllerBase
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetSyllabusByIdQuery { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("{id:guid}/versions")]
+    [Authorize(Roles = "Teacher,ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetVersionHistory(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new GetSyllabusVersionHistoryQuery
+        {
+            SyllabusId = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/versions")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> CreateVersion(
+        Guid id,
+        [FromBody] CreateSyllabusVersionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new CreateSyllabusVersionCommand
+        {
+            SourceSyllabusId = id,
+            Version = request.Version,
+            Title = request.Title,
+            Edition = request.Edition,
+            EffectiveFrom = request.EffectiveFrom,
+            EffectiveTo = request.EffectiveTo,
+            PromoteNow = request.PromoteNow
+        }, cancellationToken);
+
+        return result.MatchCreated(x => $"/api/syllabuses/{x.SyllabusId}");
+    }
+
+    [HttpPost("{id:guid}/versions/{versionId:guid}/promote")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IResult> PromoteVersion(
+        Guid id,
+        Guid versionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new PromoteSyllabusVersionCommand
+        {
+            SourceSyllabusId = id,
+            TargetSyllabusId = versionId
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 

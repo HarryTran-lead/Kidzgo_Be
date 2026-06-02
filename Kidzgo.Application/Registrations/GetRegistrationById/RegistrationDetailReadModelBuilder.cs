@@ -39,6 +39,12 @@ internal static class RegistrationDetailReadModelBuilder
             .Where(e => e.RegistrationId == registration.Id)
             .ToListAsync(cancellationToken);
 
+        var studentBranchState = await context.StudentBranchStates
+            .AsNoTracking()
+            .Include(x => x.HomeBranch)
+            .Include(x => x.ActiveBranch)
+            .FirstOrDefaultAsync(x => x.StudentProfileId == registration.StudentProfileId, cancellationToken);
+
         var firstStudySessionRow = await context.StudentSessionAssignments
             .AsNoTracking()
             .Where(a => a.RegistrationId == registration.Id &&
@@ -73,6 +79,11 @@ internal static class RegistrationDetailReadModelBuilder
             Id = registration.Id,
             StudentProfileId = registration.StudentProfileId,
             StudentName = registration.StudentProfile.DisplayName,
+            StudentHomeBranchId = studentBranchState?.HomeBranchId,
+            StudentHomeBranchName = studentBranchState?.HomeBranch.Name,
+            StudentActiveBranchId = studentBranchState?.ActiveBranchId,
+            StudentActiveBranchName = studentBranchState?.ActiveBranch.Name,
+            IsCrossBranchRegistration = studentBranchState is not null && studentBranchState.ActiveBranchId != registration.BranchId,
             BranchId = registration.BranchId,
             BranchName = registration.Branch.Name,
             ProgramId = registration.ProgramId,

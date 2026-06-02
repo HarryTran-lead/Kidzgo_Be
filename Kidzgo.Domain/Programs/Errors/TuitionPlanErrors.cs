@@ -36,6 +36,26 @@ public static class TuitionPlanErrors
         "TuitionPlan.ProgramNotAvailableInBranch",
         "Program is not assigned to the selected branch");
 
+    public static readonly Error SyllabusNotFound = Error.NotFound(
+        "TuitionPlan.SyllabusNotFound",
+        "Syllabus not found or deleted");
+
+    public static readonly Error SyllabusInactive = Error.Validation(
+        "TuitionPlan.SyllabusInactive",
+        "Syllabus is inactive and cannot be mapped to package");
+
+    public static readonly Error SyllabusProgramMismatch = Error.Validation(
+        "TuitionPlan.SyllabusProgramMismatch",
+        "Syllabus must belong to the same program as the package");
+
+    public static readonly Error SyllabusLevelMismatch = Error.Validation(
+        "TuitionPlan.SyllabusLevelMismatch",
+        "Syllabus must belong to the same level as the package");
+
+    public static Error CurriculumAlreadyMapped(Guid tuitionPlanId, Guid syllabusId) => Error.Conflict(
+        "TuitionPlan.CurriculumAlreadyMapped",
+        $"Package '{tuitionPlanId}' is already mapped to syllabus '{syllabusId}'");
+
     public static readonly Error HasActiveEnrollments = Error.Conflict(
         "TuitionPlan.HasActiveEnrollments",
         "Cannot delete tuition plan with active enrollments");

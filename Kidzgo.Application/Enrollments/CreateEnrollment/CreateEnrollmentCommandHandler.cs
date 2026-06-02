@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
@@ -47,6 +48,17 @@ public sealed class CreateEnrollmentCommandHandler(
         {
             return Result.Failure<CreateEnrollmentResponse>(
                 EnrollmentErrors.StudentNotFound);
+        }
+
+        var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
+            context,
+            command.StudentProfileId,
+            classEntity.BranchId,
+            command.AllowCrossBranchEnrollment,
+            cancellationToken);
+        if (branchAccessResult.IsFailure)
+        {
+            return Result.Failure<CreateEnrollmentResponse>(branchAccessResult.Error);
         }
 
         bool alreadyEnrolled = await context.ClassEnrollments
@@ -195,6 +207,9 @@ public sealed class CreateEnrollmentCommandHandler(
             ClassTitle = enrollmentWithNav.Class.Title,
             StudentProfileId = enrollmentWithNav.StudentProfileId,
             StudentName = enrollmentWithNav.StudentProfile.DisplayName,
+            StudentHomeBranchId = branchAccessResult.Value.State.HomeBranchId,
+            StudentActiveBranchId = branchAccessResult.Value.State.ActiveBranchId,
+            IsCrossBranchEnrollment = branchAccessResult.Value.IsCrossBranch,
             EnrollDate = enrollmentWithNav.EnrollDate,
             Status = enrollmentWithNav.Status,
             TuitionPlanId = enrollmentWithNav.TuitionPlanId,

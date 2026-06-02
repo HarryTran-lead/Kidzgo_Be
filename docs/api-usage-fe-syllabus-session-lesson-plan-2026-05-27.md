@@ -6,6 +6,8 @@ Scope: 1 file FE doc gop cho flow `teacher/admin` quanh `syllabus`, `session`, `
 Base paths:
 
 - `/api/branches`
+- `/api/packages`
+- `/api/package-curriculum-mappings`
 - `/api/syllabuses`
 - `/api/lesson-plans`
 - `/api/lesson-plan-templates`
@@ -118,9 +120,136 @@ Behavior:
 - Neu chua ton tai thi backend create moi
 - `programId` va `levelId` duoc backend lay tu syllabus, FE khong gui
 
+### `DELETE /api/branches/{branchId}/syllabuses/{assignmentId}`
+
+Xoa 1 branch-syllabus assignment theo `curriculumAssignmentId`.
+
+Role:
+
+- `Admin`
+- `ManagementStaff`
+
+Behavior:
+
+- Chi xoa duoc khi syllabus do khong con bi class operational tai branch su dung
+- Neu con class `Planned`, `Recruiting`, `Active`, `Full` hoac `Suspended`, backend tra conflict
+
 ---
 
-## 4. Syllabus Discovery APIs
+## 4. Branch -> Program Assignment
+
+### `GET /api/branches/{branchId}/programs`
+
+Lay danh sach program dang active tai branch.
+
+Role:
+
+- `Admin`
+- `ManagementStaff`
+
+Response rut gon:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "programs": [
+      {
+        "branchProgramId": "uuid",
+        "programId": "uuid",
+        "programName": "Starters",
+        "programCode": "STARTERS",
+        "isActive": true,
+        "defaultMakeupClassId": null
+      }
+    ]
+  }
+}
+```
+
+### `DELETE /api/branches/{branchId}/programs/{programId}`
+
+Go assignment program ra khoi branch.
+
+Role:
+
+- `Admin`
+- `ManagementStaff`
+
+Behavior:
+
+- Backend block neu branch/program van con class operational
+- Backend block neu branch/program van con registration active/chua ket thuc
+- Neu qua validate, assignment bi remove khoi `BranchPrograms`
+
+---
+
+## 5. Package -> Curriculum Mapping
+
+Package hien tai duoc backend map voi `TuitionPlan`.
+
+### `POST /api/package-curriculum-mappings`
+
+Tao mapping giua package va syllabus.
+
+Role:
+
+- `Admin`
+- `ManagementStaff`
+
+Request body:
+
+```json
+{
+  "packageId": "uuid",
+  "syllabusId": "uuid"
+}
+```
+
+Validation:
+
+- `packageId` phai la `tuition plan` ton tai, chua bi delete
+- `syllabusId` phai ton tai, active, chua bi delete
+- syllabus phai cung `programId` va `levelId` voi package
+
+### `GET /api/packages/{packageId}/syllabuses`
+
+Lay danh sach syllabus dang duoc map vao package.
+
+Role:
+
+- `Admin`
+- `ManagementStaff`
+
+Response rut gon:
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "tuitionPlanId": "uuid",
+    "tuitionPlanName": "Starters 24 sessions",
+    "syllabuses": [
+      {
+        "mappingId": "uuid",
+        "syllabusId": "uuid",
+        "programId": "uuid",
+        "programName": "Starters",
+        "levelId": "uuid",
+        "levelName": "Level 1",
+        "code": "STARTERS",
+        "version": "v4",
+        "title": "Get Ready for Starters",
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 6. Syllabus Discovery APIs
 
 ### `GET /api/syllabuses`
 
@@ -180,6 +309,65 @@ FE use case:
 
 Dung de lay syllabus detail.
 
+### `GET /api/syllabuses/{id}/versions`
+
+Lay tat ca versions trong cung family cua 1 syllabus.
+
+Role:
+
+- `Teacher`
+- `ManagementStaff`
+- `Admin`
+
+Family duoc xac dinh theo:
+
+- `programId`
+- `levelId`
+- `code`
+
+### `POST /api/syllabuses/{id}/versions`
+
+Clone 1 syllabus thanh version moi.
+
+Role:
+
+- `ManagementStaff`
+- `Admin`
+
+Request body:
+
+```json
+{
+  "version": "v4",
+  "title": "Get Ready for Starters",
+  "edition": "2nd Edition",
+  "effectiveFrom": "2026-06-01T00:00:00Z",
+  "effectiveTo": null,
+  "promoteNow": false
+}
+```
+
+Behavior:
+
+- Backend clone metadata + units + lessons + resources + session templates tu syllabus goc
+- Syllabus moi bat dau o `documentStatus = Draft`
+- Neu `promoteNow = true`, backend se promote version moi ngay sau khi clone
+
+### `POST /api/syllabuses/{id}/versions/{versionId}/promote`
+
+Promote 1 version thanh active version cua ca family.
+
+Role:
+
+- `ManagementStaff`
+- `Admin`
+
+Behavior:
+
+- Tat ca sibling versions cung family bi `IsActive = false`
+- Target version duoc `IsActive = true`
+- Backend repoint active `BranchSyllabusAssignment` va active `PackageCurriculumMapping` tu active version cu sang version moi
+
 ### `GET /api/syllabuses/{id}/document`
 
 Dung de lay syllabus document render JSON.
@@ -194,7 +382,7 @@ Dung de lay import rule config cho 1 `programId + levelId`.
 
 ---
 
-## 5. Class -> Syllabus For Teacher Flow
+## 7. Class -> Syllabus For Teacher Flow
 
 ### `GET /api/lesson-plans/classes/{classId}/syllabus`
 
@@ -273,7 +461,7 @@ FE use case:
 
 ---
 
-## 6. Session -> Lesson Plan Document
+## 8. Session -> Lesson Plan Document
 
 ### `GET /api/sessions/{sessionId}/lesson-plan-document`
 
@@ -372,7 +560,7 @@ FE use case:
 
 ---
 
-## 7. Teaching Log APIs
+## 9. Teaching Log APIs
 
 Teaching log dung base path:
 
@@ -629,7 +817,7 @@ Neu gap case session runtime bi thieu linkage va FE khong save duoc teaching log
 
 ---
 
-## 8. Session Detail API Huu Ich Cho FE
+## 10. Session Detail API Huu Ich Cho FE
 
 ### `GET /api/sessions/{sessionId}`
 
@@ -661,7 +849,7 @@ Use case:
 
 ---
 
-## 9. Lesson Plan Template APIs
+## 11. Lesson Plan Template APIs
 
 ### `GET /api/lesson-plan-templates`
 
@@ -693,7 +881,7 @@ Note:
 
 ---
 
-## 10. Lesson Plan APIs
+## 12. Lesson Plan APIs
 
 ### `GET /api/lesson-plans/{lessonPlanId}`
 
@@ -735,7 +923,7 @@ Note:
 
 ---
 
-## 11. Import APIs FE Van Dung
+## 13. Import APIs FE Van Dung
 
 ### `POST /api/syllabuses/import-archive`
 
@@ -771,7 +959,24 @@ FE note:
 
 ---
 
-## 12. Quick FE Checklist
+## 14. Audit Notes
+
+Nhung diem audit FE co the xem la da duoc backend ho tro o thoi diem update doc nay:
+
+- `GET /api/classes/{id}/capacity`
+- `GET /api/sessions?branchId=...`
+- `GET /api/classes/{id}` da co:
+  - `scheduleText`
+  - `completedSessions`
+  - `progressPercent`
+- Lesson plan units da co controller rieng: `LessonPlanUnitController`
+- Migration cho lesson plan units da ton tai trong repo: `20260520165014_AddLessonPlanUnits`
+- Student branch management da duoc tach thanh doc rieng:
+  - `docs/student-branch-management-plan-2026-06-02.md`
+
+---
+
+## 15. Quick FE Checklist
 
 1. Neu dang o flow teacher theo class/session, luon lay `syllabusId` tu API response moi.
 2. Uu tien `GET /api/sessions/{sessionId}/lesson-plan-document` de render man session.

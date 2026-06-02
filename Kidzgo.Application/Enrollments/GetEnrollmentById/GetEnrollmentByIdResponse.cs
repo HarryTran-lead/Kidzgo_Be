@@ -15,6 +15,9 @@ public sealed class GetEnrollmentByIdResponse
     public string BranchName { get; init; } = null!;
     public Guid StudentProfileId { get; init; }
     public string StudentName { get; init; } = null!;
+    public Guid? StudentHomeBranchId { get; init; }
+    public Guid? StudentActiveBranchId { get; init; }
+    public bool IsCrossBranchEnrollment { get; init; }
     public DateOnly EnrollDate { get; init; }
     public string Status { get; init; } = null!;
     public Guid? TuitionPlanId { get; init; }

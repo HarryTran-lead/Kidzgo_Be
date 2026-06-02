@@ -7,6 +7,11 @@ public sealed class GetRegistrationByIdResponse
     public Guid Id { get; init; }
     public Guid StudentProfileId { get; init; }
     public string StudentName { get; init; } = null!;
+    public Guid? StudentHomeBranchId { get; init; }
+    public string? StudentHomeBranchName { get; init; }
+    public Guid? StudentActiveBranchId { get; init; }
+    public string? StudentActiveBranchName { get; init; }
+    public bool IsCrossBranchRegistration { get; init; }
     public Guid BranchId { get; init; }
     public string BranchName { get; init; } = null!;
     public Guid ProgramId { get; init; }

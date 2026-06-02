@@ -19,6 +19,9 @@ public sealed class CreateRegistrationResponse
     public string? PreferredSchedule { get; init; }
     public string? Note { get; init; }
     public string Status { get; init; } = null!;
+    public Guid? StudentHomeBranchId { get; init; }
+    public Guid? StudentActiveBranchId { get; init; }
+    public bool IsCrossBranchRegistration { get; init; }
     public string? OperationType { get; init; }
     public Guid? ClassId { get; init; }
     public string? ClassName { get; init; }

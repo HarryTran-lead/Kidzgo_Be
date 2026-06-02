@@ -16,6 +16,18 @@ public static class ProgramErrors
         "Program.AlreadyAssignedToBranch",
         $"Program '{programId}' is already assigned to branch '{branchId}'");
 
+    public static Error BranchAssignmentNotFound(Guid programId, Guid branchId) => Error.NotFound(
+        "Program.BranchAssignmentNotFound",
+        $"Program '{programId}' is not assigned to branch '{branchId}'");
+
+    public static Error BranchAssignmentHasOperationalClasses(Guid programId, Guid branchId) => Error.Conflict(
+        "Program.BranchAssignmentHasOperationalClasses",
+        $"Program '{programId}' cannot be removed from branch '{branchId}' because operational classes still exist");
+
+    public static Error BranchAssignmentHasActiveRegistrations(Guid programId, Guid branchId) => Error.Conflict(
+        "Program.BranchAssignmentHasActiveRegistrations",
+        $"Program '{programId}' cannot be removed from branch '{branchId}' because active registrations still exist");
+
     public static readonly Error HasActiveClasses = Error.Conflict(
         "Program.HasActiveClasses",
         "Cannot delete program with active or planned classes");

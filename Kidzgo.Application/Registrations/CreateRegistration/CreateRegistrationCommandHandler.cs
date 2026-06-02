@@ -4,6 +4,7 @@ using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LearningTickets;
 using Kidzgo.Domain.Registrations;
@@ -35,6 +36,17 @@ public sealed class CreateRegistrationCommandHandler(
         if (!branchExists)
         {
             return Result.Failure<CreateRegistrationResponse>(RegistrationErrors.BranchNotFound(command.BranchId));
+        }
+
+        var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
+            context,
+            command.StudentProfileId,
+            command.BranchId,
+            allowCrossBranchEnrollment: false,
+            cancellationToken);
+        if (branchAccessResult.IsFailure)
+        {
+            return Result.Failure<CreateRegistrationResponse>(branchAccessResult.Error);
         }
 
         var program = await context.Programs
@@ -110,7 +122,7 @@ public sealed class CreateRegistrationCommandHandler(
             .FirstOrDefaultAsync(
                 tp => tp.Id == command.TuitionPlanId &&
                       tp.ProgramId == command.ProgramId &&
-                      (tp.LevelId == command.LevelId || tp.LevelId == null) &&
+                      tp.LevelId == command.LevelId &&
                       tp.IsActive &&
                       !tp.IsDeleted,
                 cancellationToken);
@@ -208,6 +220,9 @@ public sealed class CreateRegistrationCommandHandler(
             PreferredSchedule = registration.PreferredSchedule,
             Note = registration.Note,
             Status = registration.Status.ToString(),
+            StudentHomeBranchId = branchAccessResult.Value.State.HomeBranchId,
+            StudentActiveBranchId = branchAccessResult.Value.State.ActiveBranchId,
+            IsCrossBranchRegistration = branchAccessResult.Value.IsCrossBranch,
             OperationType = registration.OperationType?.ToString(),
             ClassId = null,
             ClassName = null,

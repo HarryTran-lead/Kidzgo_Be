@@ -16,6 +16,10 @@ public static class RegistrationDiscountCampaignErrors
         "RegistrationDiscountCampaign.ProgramNotFound",
         $"Program with Id = '{id}' was not found");
 
+    public static Error LevelNotFound(Guid id) => Error.NotFound(
+        "RegistrationDiscountCampaign.LevelNotFound",
+        $"Level with Id = '{id}' was not found");
+
     public static Error TuitionPlanNotFound(Guid id) => Error.NotFound(
         "RegistrationDiscountCampaign.TuitionPlanNotFound",
         $"Tuition plan with Id = '{id}' was not found");
@@ -39,6 +43,14 @@ public static class RegistrationDiscountCampaignErrors
     public static readonly Error TuitionPlanProgramMismatch = Error.Validation(
         "RegistrationDiscountCampaign.TuitionPlanProgramMismatch",
         "Selected tuition plan must belong to the selected program");
+
+    public static readonly Error LevelProgramMismatch = Error.Validation(
+        "RegistrationDiscountCampaign.LevelProgramMismatch",
+        "Selected level must belong to the selected program");
+
+    public static readonly Error TuitionPlanLevelMismatch = Error.Validation(
+        "RegistrationDiscountCampaign.TuitionPlanLevelMismatch",
+        "Selected tuition plan must belong to the selected level");
 
     public static readonly Error TuitionPlanBranchMismatch = Error.Validation(
         "RegistrationDiscountCampaign.TuitionPlanBranchMismatch",

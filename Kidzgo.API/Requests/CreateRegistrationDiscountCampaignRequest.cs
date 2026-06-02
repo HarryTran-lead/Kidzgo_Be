@@ -9,6 +9,7 @@ public sealed class CreateRegistrationDiscountCampaignRequest
     public string? Description { get; set; }
     public Guid? BranchId { get; set; }
     public Guid? ProgramId { get; set; }
+    public Guid? LevelId { get; set; }
     public Guid? TuitionPlanId { get; set; }
     public RegistrationDiscountType DiscountType { get; set; }
     public decimal DiscountValue { get; set; }

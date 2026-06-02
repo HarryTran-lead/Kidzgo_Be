@@ -157,6 +157,7 @@ public sealed class CreateRegistrationCommandHandler(
             context,
             command.BranchId,
             command.ProgramId,
+            command.LevelId,
             tuitionPlan.Id,
             operationType,
             now,

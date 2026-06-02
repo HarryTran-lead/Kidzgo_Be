@@ -14,12 +14,15 @@ internal static class RegistrationDiscountCampaignValidationHelper
         IDbContext context,
         Guid? branchId,
         Guid? programId,
+        Guid? levelId,
         Guid? tuitionPlanId,
         CancellationToken cancellationToken)
     {
         Branch? branch = null;
         Program? program = null;
+        Level? level = null;
         TuitionPlan? tuitionPlan = null;
+        var resolvedProgramId = programId;
 
         if (branchId.HasValue)
         {
@@ -47,6 +50,40 @@ internal static class RegistrationDiscountCampaignValidationHelper
             }
         }
 
+        if (levelId.HasValue)
+        {
+            level = await context.Levels
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == levelId.Value && x.IsActive, cancellationToken);
+
+            if (level is null)
+            {
+                return Result.Failure<RegistrationDiscountCampaignScopeValidationResult>(
+                    RegistrationDiscountCampaignErrors.LevelNotFound(levelId.Value));
+            }
+
+            if (resolvedProgramId.HasValue && level.ProgramId != resolvedProgramId.Value)
+            {
+                return Result.Failure<RegistrationDiscountCampaignScopeValidationResult>(
+                    RegistrationDiscountCampaignErrors.LevelProgramMismatch);
+            }
+
+            if (!resolvedProgramId.HasValue)
+            {
+                program = await context.Programs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == level.ProgramId && !x.IsDeleted, cancellationToken);
+
+                if (program is null)
+                {
+                    return Result.Failure<RegistrationDiscountCampaignScopeValidationResult>(
+                        RegistrationDiscountCampaignErrors.ProgramNotFound(level.ProgramId));
+                }
+
+                resolvedProgramId = program.Id;
+            }
+        }
+
         if (tuitionPlanId.HasValue)
         {
             tuitionPlan = await context.TuitionPlans
@@ -59,15 +96,21 @@ internal static class RegistrationDiscountCampaignValidationHelper
                     RegistrationDiscountCampaignErrors.TuitionPlanNotFound(tuitionPlanId.Value));
             }
 
-            if (programId.HasValue && tuitionPlan.ProgramId != programId.Value)
+            if (resolvedProgramId.HasValue && tuitionPlan.ProgramId != resolvedProgramId.Value)
             {
                 return Result.Failure<RegistrationDiscountCampaignScopeValidationResult>(
                     RegistrationDiscountCampaignErrors.TuitionPlanProgramMismatch);
             }
 
+            if (levelId.HasValue && tuitionPlan.LevelId != levelId.Value)
+            {
+                return Result.Failure<RegistrationDiscountCampaignScopeValidationResult>(
+                    RegistrationDiscountCampaignErrors.TuitionPlanLevelMismatch);
+            }
+
         }
 
-        return Result.Success(new RegistrationDiscountCampaignScopeValidationResult(branch, program, tuitionPlan));
+        return Result.Success(new RegistrationDiscountCampaignScopeValidationResult(branch, program, level, tuitionPlan));
     }
 
     internal static Result ValidateFixedAmountAgainstTuitionPlan(
@@ -91,4 +134,5 @@ internal static class RegistrationDiscountCampaignValidationHelper
 internal sealed record RegistrationDiscountCampaignScopeValidationResult(
     Branch? Branch,
     Program? Program,
+    Level? Level,
     TuitionPlan? TuitionPlan);

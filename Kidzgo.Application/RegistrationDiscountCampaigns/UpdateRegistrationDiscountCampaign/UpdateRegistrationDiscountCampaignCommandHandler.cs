@@ -56,6 +56,7 @@ public sealed class UpdateRegistrationDiscountCampaignCommandHandler(
             context,
             command.BranchId,
             command.ProgramId,
+            command.LevelId,
             command.TuitionPlanId,
             cancellationToken);
 
@@ -78,7 +79,8 @@ public sealed class UpdateRegistrationDiscountCampaignCommandHandler(
         campaign.Code = string.IsNullOrWhiteSpace(command.Code) ? null : command.Code.Trim();
         campaign.Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim();
         campaign.BranchId = command.BranchId;
-        campaign.ProgramId = command.ProgramId;
+        campaign.ProgramId = scopeValidation.Value.Program?.Id;
+        campaign.LevelId = command.LevelId;
         campaign.TuitionPlanId = command.TuitionPlanId;
         campaign.DiscountType = command.DiscountType;
         campaign.DiscountValue = Math.Round(command.DiscountValue, 2, MidpointRounding.AwayFromZero);
@@ -98,6 +100,7 @@ public sealed class UpdateRegistrationDiscountCampaignCommandHandler(
             campaign,
             scopeValidation.Value.Branch?.Name,
             scopeValidation.Value.Program?.Name,
+            scopeValidation.Value.Level?.Name,
             scopeValidation.Value.TuitionPlan?.Name,
             today);
     }

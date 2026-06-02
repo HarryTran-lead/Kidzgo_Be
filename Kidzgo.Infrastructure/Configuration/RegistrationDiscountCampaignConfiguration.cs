@@ -56,6 +56,11 @@ public class RegistrationDiscountCampaignConfiguration : IEntityTypeConfiguratio
             .HasForeignKey(x => x.ProgramId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Level)
+            .WithMany()
+            .HasForeignKey(x => x.LevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(x => x.TuitionPlan)
             .WithMany()
             .HasForeignKey(x => x.TuitionPlanId)
@@ -63,6 +68,7 @@ public class RegistrationDiscountCampaignConfiguration : IEntityTypeConfiguratio
 
         builder.HasIndex(x => x.BranchId);
         builder.HasIndex(x => x.ProgramId);
+        builder.HasIndex(x => x.LevelId);
         builder.HasIndex(x => x.TuitionPlanId);
         builder.HasIndex(x => new { x.IsActive, x.StartDate, x.EndDate, x.Priority });
     }

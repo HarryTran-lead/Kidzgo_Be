@@ -75,6 +75,8 @@ public sealed class ReportSnapshotLearningProgress
     public decimal CompletionPercent { get; set; }
     public string CurrentStatus { get; set; } = string.Empty;
     public string PromotionStatus { get; set; } = string.Empty;
+    public string CurrentLevel { get; set; } = string.Empty;
+    public string CurrentModule { get; set; } = string.Empty;
     public string CurrentLesson { get; set; } = string.Empty;
 }
 

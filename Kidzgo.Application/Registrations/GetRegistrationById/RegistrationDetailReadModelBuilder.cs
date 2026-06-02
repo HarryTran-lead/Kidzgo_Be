@@ -22,6 +22,7 @@ internal static class RegistrationDetailReadModelBuilder
             .Include(r => r.Level)
             .Include(r => r.SecondaryLevel)
             .Include(r => r.TuitionPlan)
+                .ThenInclude(tp => tp.Module)
             .Include(r => r.Class)
             .Include(r => r.SecondaryClass)
             .FirstOrDefaultAsync(r => r.Id == registrationId, cancellationToken);
@@ -90,6 +91,8 @@ internal static class RegistrationDetailReadModelBuilder
             ProgramName = registration.Program.Name,
             LevelId = registration.LevelId,
             LevelName = registration.Level.Name,
+            ModuleId = registration.TuitionPlan.ModuleId,
+            ModuleName = registration.TuitionPlan.Module?.Name,
             SecondaryLevelId = registration.SecondaryLevelId,
             SecondaryLevelName = registration.SecondaryLevel?.Name,
             SecondaryLevelSkillFocus = registration.SecondaryProgramSkillFocus,

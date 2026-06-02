@@ -17,6 +17,8 @@ internal static class RegistrationDiscountCampaignReadModelProjector
             BranchName = campaign.Branch != null ? campaign.Branch.Name : null,
             ProgramId = campaign.ProgramId,
             ProgramName = campaign.Program != null ? campaign.Program.Name : null,
+            LevelId = campaign.LevelId,
+            LevelName = campaign.Level != null ? campaign.Level.Name : null,
             TuitionPlanId = campaign.TuitionPlanId,
             TuitionPlanName = campaign.TuitionPlan != null ? campaign.TuitionPlan.Name : null,
             DiscountType = campaign.DiscountType.ToString(),
@@ -39,6 +41,7 @@ internal static class RegistrationDiscountCampaignReadModelProjector
         RegistrationDiscountCampaign campaign,
         string? branchName,
         string? programName,
+        string? levelName,
         string? tuitionPlanName,
         DateOnly today)
         => new()
@@ -51,6 +54,8 @@ internal static class RegistrationDiscountCampaignReadModelProjector
             BranchName = branchName,
             ProgramId = campaign.ProgramId,
             ProgramName = programName,
+            LevelId = campaign.LevelId,
+            LevelName = levelName,
             TuitionPlanId = campaign.TuitionPlanId,
             TuitionPlanName = tuitionPlanName,
             DiscountType = campaign.DiscountType.ToString(),

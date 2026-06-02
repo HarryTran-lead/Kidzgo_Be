@@ -225,7 +225,7 @@ public sealed class ReportsV3Controller : ControllerBase
     }
 
     [HttpGet("reports/periods")]
-    [Authorize(Roles = "Admin,ManagementStaff")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
     public async Task<IResult> GetReportPeriods(
         [FromQuery] string? type,
         [FromQuery] DateOnly? from,
@@ -261,7 +261,7 @@ public sealed class ReportsV3Controller : ControllerBase
     }
 
     [HttpGet("reports/periods/{id:guid}")]
-    [Authorize(Roles = "Admin,ManagementStaff")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
     public async Task<IResult> GetReportPeriodById(
         [FromRoute] Guid id,
         CancellationToken cancellationToken)
@@ -271,7 +271,7 @@ public sealed class ReportsV3Controller : ControllerBase
     }
 
     [HttpPost("reports/periods")]
-    [Authorize(Roles = "Admin,ManagementStaff")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
     public async Task<IResult> CreateReportPeriod(
         [FromBody] CreateReportPeriodRequest request,
         CancellationToken cancellationToken)
@@ -298,7 +298,7 @@ public sealed class ReportsV3Controller : ControllerBase
     }
 
     [HttpPut("reports/periods/{id:guid}")]
-    [Authorize(Roles = "Admin,ManagementStaff")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
     public async Task<IResult> UpdateReportPeriod(
         [FromRoute] Guid id,
         [FromBody] UpdateReportPeriodRequest request,

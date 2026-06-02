@@ -73,7 +73,11 @@ public sealed class GetLatestStudentReportQueryHandler(
             .ToListAsync(cancellationToken);
 
         var risks = await context.RiskAlerts
-            .Where(r => r.StudentId == latestReport.StudentId && r.ReportPeriodId == latestReport.ReportPeriodId)
+            .Where(r =>
+                r.StudentId == latestReport.StudentId &&
+                r.ClassId == latestReport.ClassId &&
+                r.ReportPeriodId == latestReport.ReportPeriodId &&
+                r.Status == RiskAlertStatus.Open)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 

@@ -76,7 +76,11 @@ public sealed class GetReportByIdQueryHandler(
             .ToListAsync(cancellationToken);
 
         var risks = await context.RiskAlerts
-            .Where(r => r.StudentId == report.StudentId && r.ReportPeriodId == report.ReportPeriodId)
+            .Where(r =>
+                r.StudentId == report.StudentId &&
+                r.ClassId == report.ClassId &&
+                r.ReportPeriodId == report.ReportPeriodId &&
+                r.Status == RiskAlertStatus.Open)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 

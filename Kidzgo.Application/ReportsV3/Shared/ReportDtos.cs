@@ -78,7 +78,7 @@ public sealed class RecommendationDto
     public string RecommendationType { get; init; } = string.Empty;
     public string Content { get; init; } = string.Empty;
     public string Priority { get; init; } = string.Empty;
-    public UserRole AssignedRole { get; init; }
+    public string AssignedRole { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
     public DateTime DueAt { get; init; }
     public bool IsOverdue { get; init; }

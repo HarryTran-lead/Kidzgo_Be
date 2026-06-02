@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Kidzgo.Domain.Reports;
 
 namespace Kidzgo.Application.ReportsV3.Shared;
@@ -98,7 +99,7 @@ internal static class ReportDtoMapper
             RecommendationType = recommendation.RecommendationType.ToString(),
             Content = recommendation.Content,
             Priority = recommendation.Priority.ToString(),
-            AssignedRole = recommendation.AssignedRole,
+            AssignedRole = recommendation.AssignedRole.ToString(),
             Status = recommendation.Status.ToString(),
             DueAt = recommendation.DueAt,
             IsOverdue = recommendation.Status != RecommendationStatus.Done &&
@@ -134,6 +135,44 @@ internal static class ReportDtoMapper
         }
 
         using var document = JsonDocument.Parse(snapshotJson);
-        return document.RootElement.Clone();
+        if (!NeedsLearningProgressBackfill(document.RootElement))
+        {
+            return document.RootElement.Clone();
+        }
+
+        var snapshotNode = JsonNode.Parse(snapshotJson) as JsonObject;
+        if (snapshotNode is null)
+        {
+            return document.RootElement.Clone();
+        }
+
+        var learningProgress = snapshotNode["learning_progress"] as JsonObject ?? [];
+        var academicContext = snapshotNode["academic_context"] as JsonObject;
+
+        if (learningProgress["current_module"] is null)
+        {
+            learningProgress["current_module"] = academicContext?["module"]?.GetValue<string>() ?? string.Empty;
+        }
+
+        if (learningProgress["current_level"] is null)
+        {
+            learningProgress["current_level"] = academicContext?["level"]?.GetValue<string>() ?? string.Empty;
+        }
+
+        snapshotNode["learning_progress"] = learningProgress;
+
+        using var patchedDocument = JsonDocument.Parse(snapshotNode.ToJsonString());
+        return patchedDocument.RootElement.Clone();
+    }
+
+    private static bool NeedsLearningProgressBackfill(JsonElement snapshot)
+    {
+        if (!snapshot.TryGetProperty("learning_progress", out var learningProgress))
+        {
+            return false;
+        }
+
+        return !learningProgress.TryGetProperty("current_module", out _) ||
+               !learningProgress.TryGetProperty("current_level", out _);
     }
 }

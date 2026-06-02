@@ -37,6 +37,10 @@ public sealed class EnrollmentConfirmationPdfPreviewDto
     public string? BranchPhoneNumber { get; init; }
     public string ProgramName { get; init; } = null!;
     public string ProgramCode { get; init; } = null!;
+    public Guid LevelId { get; init; }
+    public string LevelName { get; init; } = null!;
+    public Guid? ModuleId { get; init; }
+    public string? ModuleName { get; init; }
     public string ClassCode { get; init; } = null!;
     public string ClassTitle { get; init; } = null!;
     public string? TeacherName { get; init; }

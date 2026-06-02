@@ -13,7 +13,8 @@ namespace Kidzgo.Application.Sessions.SubmitTeachingLog;
 public sealed class SubmitTeachingLogCommandHandler(
     IDbContext context,
     IUserContext userContext,
-    ClassProgressionService classProgressionService
+    ClassProgressionService classProgressionService,
+    ProgressionService progressionService
 ) : ICommandHandler<SubmitTeachingLogCommand, SubmitTeachingLogResponse>
 {
     public async Task<Result<SubmitTeachingLogResponse>> Handle(
@@ -106,6 +107,11 @@ public sealed class SubmitTeachingLogCommandHandler(
 
         await context.SaveChangesAsync(cancellationToken);
 
+        await RecalculateStudentProgressAsync(
+            session.Id,
+            actualLessonPlanTemplateId,
+            cancellationToken);
+
         var syncResult = await classProgressionService.RecalculateAndResyncAsync(
             session.ClassId,
             resyncFutureSessions: true,
@@ -151,5 +157,48 @@ public sealed class SubmitTeachingLogCommandHandler(
         lessonPlan.CarryForwardContent = consumeLesson ? null : teachingLog.ActualContent;
         lessonPlan.SubmittedBy = teachingLog.SubmittedBy;
         lessonPlan.SubmittedAt = teachingLog.SubmittedAt;
+    }
+
+    private async Task RecalculateStudentProgressAsync(
+        Guid sessionId,
+        Guid? templateId,
+        CancellationToken cancellationToken)
+    {
+        if (!templateId.HasValue)
+        {
+            return;
+        }
+
+        var moduleId = await context.LessonPlanTemplates
+            .AsNoTracking()
+            .Where(x => x.Id == templateId.Value)
+            .Select(x => x.ModuleId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (moduleId == Guid.Empty)
+        {
+            return;
+        }
+
+        var studentIds = await context.Attendances
+            .AsNoTracking()
+            .Where(x => x.SessionId == sessionId
+                        && (x.AttendanceStatus == Domain.Sessions.AttendanceStatus.Present
+                            || x.AttendanceStatus == Domain.Sessions.AttendanceStatus.Makeup))
+            .Select(x => x.StudentProfileId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var studentId in studentIds)
+        {
+            await progressionService.UpsertStudentProgressAsync(
+                studentId,
+                moduleId,
+                templateId,
+                null,
+                cancellationToken);
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

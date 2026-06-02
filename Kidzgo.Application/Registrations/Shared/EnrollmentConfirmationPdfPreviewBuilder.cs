@@ -50,6 +50,10 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
             .Include(e => e.Class)
                 .ThenInclude(c => c.Program)
             .Include(e => e.Class)
+                .ThenInclude(c => c.Level)
+            .Include(e => e.Class)
+                .ThenInclude(c => c.CurrentModule)
+            .Include(e => e.Class)
                 .ThenInclude(c => c.MainTeacher)
             .Include(e => e.TuitionPlan)
             .Include(e => e.ScheduleSegments)
@@ -175,6 +179,10 @@ internal static class EnrollmentConfirmationPdfPreviewBuilder
             BranchPhoneNumber = registration.Branch.ContactPhone,
             ProgramName = enrollment.Class.Program.Name,
             ProgramCode = enrollment.Class.Program.Code,
+            LevelId = enrollment.Class.LevelId,
+            LevelName = enrollment.Class.Level.Name,
+            ModuleId = enrollment.Class.CurrentModuleId,
+            ModuleName = enrollment.Class.CurrentModule?.Name,
             ClassCode = enrollment.Class.Code,
             ClassTitle = enrollment.Class.Title,
             TeacherName = enrollment.Class.MainTeacher?.Name ?? enrollment.Class.MainTeacher?.Email,

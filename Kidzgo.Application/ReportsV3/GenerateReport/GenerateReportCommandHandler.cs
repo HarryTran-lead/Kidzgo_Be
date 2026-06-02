@@ -6,6 +6,7 @@ using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.ReportsV3.Shared;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.AcademicProgression;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
@@ -21,7 +22,8 @@ namespace Kidzgo.Application.ReportsV3.GenerateReport;
 
 public sealed class GenerateReportCommandHandler(
     IDbContext context,
-    IUserContext userContext)
+    IUserContext userContext,
+    ProgressionService progressionService)
     : ICommandHandler<GenerateReportCommand, GenerateReportResponse>
 {
     public async Task<Result<GenerateReportResponse>> Handle(
@@ -211,6 +213,31 @@ public sealed class GenerateReportCommandHandler(
             }
 
             await context.SaveChangesAsync(cancellationToken);
+
+            var detectedRiskTypes = detectedRisks
+                .Select(r => r.RiskType)
+                .ToHashSet();
+            await ResolveStaleRiskAlertsAsync(
+                student.Id,
+                reportClass.Id,
+                reportClass.BranchId,
+                period.Id,
+                detectedRiskTypes,
+                now,
+                cancellationToken);
+
+            var detectedClassRiskTypes = detectedRisks
+                .Where(r => r.RiskType is RiskType.ClassCurriculumDelay or RiskType.HighReviewRatio)
+                .Select(r => r.RiskType)
+                .ToHashSet();
+            await ResolveStaleRiskAlertsAsync(
+                null,
+                reportClass.Id,
+                reportClass.BranchId,
+                period.Id,
+                detectedClassRiskTypes,
+                now,
+                cancellationToken);
 
             foreach (var risk in detectedRisks)
             {
@@ -467,6 +494,21 @@ public sealed class GenerateReportCommandHandler(
             .OrderByDescending(sp => sp.UpdatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
+        var calculatedCompletionPercent = await progressionService.CalculateCompletionPercentAsync(
+            student.Id,
+            reportClass.CurrentModuleId,
+            cancellationToken);
+        var storedCompletionPercent = studentProgress?.CompletionPercent;
+        var storedCompletionValue = storedCompletionPercent.GetValueOrDefault();
+        var useCalculatedProgress = !storedCompletionPercent.HasValue ||
+                                    (storedCompletionValue <= 0 && calculatedCompletionPercent > 0);
+        var resolvedCompletionPercent = useCalculatedProgress
+            ? decimal.Round(Math.Clamp(calculatedCompletionPercent, 0, 100), 2)
+            : storedCompletionValue;
+        var resolvedStatus = useCalculatedProgress
+            ? ResolveStudentProgressStatus(studentProgress, resolvedCompletionPercent)
+            : studentProgress!.Status;
+
         var latestAssessment = await context.Assessments
             .Where(a =>
                 a.StudentProfileId == student.Id &&
@@ -528,7 +570,9 @@ public sealed class GenerateReportCommandHandler(
             TicketConsumed = consumed,
             TicketRemaining = remaining,
             RuntimeSummary = runtimeSummary,
-            StudentProgress = studentProgress,
+            CompletionPercent = resolvedCompletionPercent,
+            CurrentStatus = resolvedStatus,
+            PromotionStatus = studentProgress?.PromotionStatus ?? PromotionStatus.Pending,
             LatestAssessment = latestAssessment,
             LatestEvaluation = latestEvaluation,
             ExpectedCompletionPercent = expectedCompletionPercent,
@@ -603,9 +647,11 @@ public sealed class GenerateReportCommandHandler(
             },
             LearningProgress = new ReportSnapshotLearningProgress
             {
-                CompletionPercent = data.StudentProgress?.CompletionPercent ?? 0,
-                CurrentStatus = data.StudentProgress?.Status.ToString() ?? StudentProgressStatus.NotStarted.ToString(),
-                PromotionStatus = data.StudentProgress?.PromotionStatus.ToString() ?? PromotionStatus.Pending.ToString(),
+                CompletionPercent = data.CompletionPercent,
+                CurrentStatus = data.CurrentStatus.ToString(),
+                PromotionStatus = data.PromotionStatus.ToString(),
+                CurrentLevel = reportClass.Level?.Name ?? string.Empty,
+                CurrentModule = reportClass.CurrentModule?.Name ?? string.Empty,
                 CurrentLesson = reportClass.CurrentLessonPlanTemplate?.Title ?? string.Empty
             },
             AssessmentSummary = new ReportSnapshotAssessmentSummary
@@ -755,7 +801,7 @@ public sealed class GenerateReportCommandHandler(
 
         var learningDelayRule = runtimeRiskRules[RiskType.LearningDelay];
         var delayBufferPercent = learningDelayRule.GetDecimal("delayBufferPercent", 10m);
-        var actualCompletion = data.StudentProgress?.CompletionPercent ?? 0;
+        var actualCompletion = data.CompletionPercent;
         if (learningDelayRule.IsActive &&
             actualCompletion < data.ExpectedCompletionPercent - delayBufferPercent)
         {
@@ -905,6 +951,28 @@ public sealed class GenerateReportCommandHandler(
         return value.ToString("0.##", CultureInfo.InvariantCulture);
     }
 
+    private static StudentProgressStatus ResolveStudentProgressStatus(
+        StudentProgress? studentProgress,
+        decimal completionPercent)
+    {
+        if (completionPercent <= 0)
+        {
+            return StudentProgressStatus.NotStarted;
+        }
+
+        if ((studentProgress?.PromotionStatus ?? PromotionStatus.Pending) == PromotionStatus.RemedialRequired)
+        {
+            return StudentProgressStatus.RemedialRequired;
+        }
+
+        if (completionPercent >= ProgressionService.DefaultCompletionThreshold)
+        {
+            return StudentProgressStatus.Completed;
+        }
+
+        return StudentProgressStatus.InProgress;
+    }
+
     private async Task UpsertRiskAlertAsync(
         Guid? studentId,
         Guid classId,
@@ -948,11 +1016,36 @@ public sealed class GenerateReportCommandHandler(
             return;
         }
 
-        if (newSeverity > existingOpenAlert.Severity)
+        existingOpenAlert.Severity = newSeverity;
+        existingOpenAlert.Reason = reason;
+        existingOpenAlert.Source = source;
+        existingOpenAlert.Status = RiskAlertStatus.Open;
+        existingOpenAlert.ResolvedAt = null;
+    }
+
+    private async Task ResolveStaleRiskAlertsAsync(
+        Guid? studentId,
+        Guid classId,
+        Guid branchId,
+        Guid periodId,
+        IReadOnlySet<RiskType> activeRiskTypes,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var staleOpenAlerts = await context.RiskAlerts
+            .Where(x =>
+                x.StudentId == studentId &&
+                x.ClassId == classId &&
+                x.BranchId == branchId &&
+                x.ReportPeriodId == periodId &&
+                x.Status == RiskAlertStatus.Open)
+            .Where(x => !activeRiskTypes.Contains(x.RiskType))
+            .ToListAsync(cancellationToken);
+
+        foreach (var alert in staleOpenAlerts)
         {
-            existingOpenAlert.Severity = newSeverity;
-            existingOpenAlert.Reason = reason;
-            existingOpenAlert.Source = source;
+            alert.Status = RiskAlertStatus.Resolved;
+            alert.ResolvedAt = now;
         }
     }
 
@@ -1063,7 +1156,9 @@ public sealed class GenerateReportCommandHandler(
         public int TicketConsumed { get; init; }
         public int TicketRemaining { get; init; }
         public RuntimeSummaryData RuntimeSummary { get; init; } = new();
-        public StudentProgress? StudentProgress { get; init; }
+        public decimal CompletionPercent { get; init; }
+        public StudentProgressStatus CurrentStatus { get; init; }
+        public PromotionStatus PromotionStatus { get; init; }
         public Assessment? LatestAssessment { get; init; }
         public TeacherEvaluation? LatestEvaluation { get; init; }
         public decimal ExpectedCompletionPercent { get; init; }

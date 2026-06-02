@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LearningTickets;
 using Kidzgo.Domain.Registrations;
@@ -39,6 +40,17 @@ public sealed class ImportActiveRegistrationCommandHandler(
         {
             return Result.Failure<ImportActiveRegistrationResponse>(
                 RegistrationErrors.BranchNotFound(command.BranchId));
+        }
+
+        var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
+            context,
+            command.StudentProfileId,
+            command.BranchId,
+            allowCrossBranchEnrollment: false,
+            cancellationToken);
+        if (branchAccessResult.IsFailure)
+        {
+            return Result.Failure<ImportActiveRegistrationResponse>(branchAccessResult.Error);
         }
 
         var program = await context.Programs
@@ -83,7 +95,7 @@ public sealed class ImportActiveRegistrationCommandHandler(
             .FirstOrDefaultAsync(
                 tp => tp.Id == command.TuitionPlanId &&
                       tp.ProgramId == command.ProgramId &&
-                      (tp.LevelId == command.LevelId || tp.LevelId == null) &&
+                      tp.LevelId == command.LevelId &&
                       tp.IsActive &&
                       !tp.IsDeleted,
                 cancellationToken);
@@ -226,6 +238,9 @@ public sealed class ImportActiveRegistrationCommandHandler(
             PreferredSchedule = registration.PreferredSchedule,
             Note = registration.Note,
             Status = registration.Status.ToString(),
+            StudentHomeBranchId = branchAccessResult.Value.State.HomeBranchId,
+            StudentActiveBranchId = branchAccessResult.Value.State.ActiveBranchId,
+            IsCrossBranchRegistration = branchAccessResult.Value.IsCrossBranch,
             OperationType = registration.OperationType?.ToString(),
             TotalSessions = registration.TotalSessions,
             UsedSessions = registration.UsedSessions,

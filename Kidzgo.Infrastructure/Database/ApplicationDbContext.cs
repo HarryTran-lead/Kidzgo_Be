@@ -45,6 +45,8 @@ public sealed class ApplicationDbContext(
     public DbSet<Profile> Profiles => Set<Profile>();
     public DbSet<ParentStudentLink> ParentStudentLinks => Set<ParentStudentLink>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<StudentBranchState> StudentBranchStates => Set<StudentBranchState>();
+    public DbSet<StudentBranchTransfer> StudentBranchTransfers => Set<StudentBranchTransfer>();
 
     // Schools
     public DbSet<Branch> Branches => Set<Branch>();
@@ -142,6 +144,7 @@ public sealed class ApplicationDbContext(
     public DbSet<Level> Levels => Set<Level>();
     public DbSet<Module> Modules => Set<Module>();
     public DbSet<BranchProgram> BranchPrograms => Set<BranchProgram>();
+    public DbSet<PackageCurriculumMapping> PackageCurriculumMappings => Set<PackageCurriculumMapping>();
     public DbSet<ExtracurricularProgram> ExtracurricularPrograms => Set<ExtracurricularProgram>();
     public DbSet<ProgramLeavePolicy> ProgramLeavePolicies => Set<ProgramLeavePolicy>();
     public DbSet<TuitionPlan> TuitionPlans => Set<TuitionPlan>();

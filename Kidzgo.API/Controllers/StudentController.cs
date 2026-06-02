@@ -16,6 +16,10 @@ using Kidzgo.Application.Homework.SubmitMultipleChoiceHomework;
 using Kidzgo.Application.LearningHistory.GetLearningHistory;
 using Kidzgo.Application.ProgramProgressions.GetStudentProgressionAssessments;
 using Kidzgo.Application.Sessions.GetStudentTimetable;
+using Kidzgo.Application.Students.GetStudentBranchState;
+using Kidzgo.Application.Students.TransferStudentBranch;
+using Kidzgo.Application.Students.UpdateStudentActiveBranch;
+using Kidzgo.Application.Students.UpdateStudentHomeBranch;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Homework;
 using Kidzgo.Domain.Media;
@@ -44,6 +48,72 @@ public class StudentController : ControllerBase
         _mediator = mediator;
         _context = context;
         _userContext = userContext;
+    }
+
+    [HttpGet("{id:guid}/branches")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetStudentBranches(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetStudentBranchStateQuery
+        {
+            StudentProfileId = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPut("{id:guid}/home-branch")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UpdateStudentHomeBranch(
+        Guid id,
+        [FromBody] UpdateStudentHomeBranchRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new UpdateStudentHomeBranchCommand
+        {
+            StudentProfileId = id,
+            BranchId = request.BranchId
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPut("{id:guid}/active-branch")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> UpdateStudentActiveBranch(
+        Guid id,
+        [FromBody] UpdateStudentActiveBranchRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new UpdateStudentActiveBranchCommand
+        {
+            StudentProfileId = id,
+            BranchId = request.BranchId,
+            AllowCrossBranchEnrollment = request.AllowCrossBranchEnrollment
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPost("{id:guid}/branch-transfer")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> TransferStudentBranch(
+        Guid id,
+        [FromBody] TransferStudentBranchRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new TransferStudentBranchCommand
+        {
+            StudentProfileId = id,
+            FromBranchId = request.FromBranchId,
+            ToBranchId = request.ToBranchId,
+            EffectiveDate = request.EffectiveDate,
+            Reason = request.Reason,
+            KeepCurrentClass = request.KeepCurrentClass,
+            AllowCrossBranchEnrollment = request.AllowCrossBranchEnrollment
+        }, cancellationToken);
+
+        return result.MatchOk();
     }
 
     [HttpGet("classes")]

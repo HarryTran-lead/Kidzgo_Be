@@ -24,6 +24,10 @@ public static class SyllabusErrors
         "Syllabus.DuplicateVersion",
         $"Syllabus '{code}' version '{version}' already exists for Program '{programId}' and Level '{levelId}'");
 
+    public static Error VersionFamilyMismatch(Guid sourceSyllabusId, Guid targetSyllabusId) => Error.Validation(
+        "Syllabus.VersionFamilyMismatch",
+        $"Syllabus '{targetSyllabusId}' does not belong to the same version family as '{sourceSyllabusId}'.");
+
     public static Error UnsupportedImportFileType(string extension) => Error.Validation(
         "Syllabus.UnsupportedImportFileType",
         $"Unsupported syllabus import file type '{extension}'. Only .docx and .zip are supported");

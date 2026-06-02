@@ -28,4 +28,5 @@ public class TuitionPlan : Entity
     public Module? Module { get; set; }
     public LearningTicketType? LearningTicketType { get; set; }
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
+    public ICollection<PackageCurriculumMapping> CurriculumMappings { get; set; } = new List<PackageCurriculumMapping>();
 }

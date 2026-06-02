@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
@@ -100,6 +101,17 @@ public sealed class TransferClassCommandHandler(
                 RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
                     registration.TuitionPlan?.LearningTicketTypeId,
                     newClass.SlotTypeId));
+        }
+
+        var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
+            context,
+            registration.StudentProfileId,
+            newClass.BranchId,
+            allowCrossBranchEnrollment: false,
+            cancellationToken);
+        if (branchAccessResult.IsFailure)
+        {
+            return Result.Failure<TransferClassResponse>(branchAccessResult.Error);
         }
 
         if (newClass.BranchId != registration.BranchId)

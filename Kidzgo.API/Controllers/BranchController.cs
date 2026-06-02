@@ -1,5 +1,6 @@
 using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
+using Kidzgo.Application.Branches.DeleteBranchSyllabusAssignment;
 using Kidzgo.Application.Branches.CreateBranch;
 using Kidzgo.Application.Branches.DeleteBranch;
 using Kidzgo.Application.Branches.GetBranchSyllabuses;
@@ -9,6 +10,8 @@ using Kidzgo.Application.Branches.GetBranches;
 using Kidzgo.Application.Branches.ToggleBranchStatus;
 using Kidzgo.Application.Branches.UpsertBranchSyllabus;
 using Kidzgo.Application.Branches.UpdateBranch;
+using Kidzgo.Application.Programs.GetBranchPrograms;
+using Kidzgo.Application.Programs.RemoveProgramFromBranch;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -84,6 +87,20 @@ public class BranchController : ControllerBase
         return result.MatchOk();
     }
 
+    [HttpGet("{id:guid}/programs")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetBranchPrograms(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetBranchProgramsQuery
+        {
+            BranchId = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
     [HttpGet("{id:guid}/syllabuses")]
     [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> GetBranchSyllabuses(
@@ -93,6 +110,22 @@ public class BranchController : ControllerBase
         var result = await _mediator.Send(new GetBranchSyllabusesQuery
         {
             BranchId = id
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpDelete("{id:guid}/syllabuses/{assignmentId:guid}")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> DeleteBranchSyllabusAssignment(
+        Guid id,
+        Guid assignmentId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DeleteBranchSyllabusAssignmentCommand
+        {
+            BranchId = id,
+            AssignmentId = assignmentId
         }, cancellationToken);
 
         return result.MatchOk();
@@ -139,7 +172,23 @@ public class BranchController : ControllerBase
         return result.MatchOk();
     }
 
-   
+    [HttpDelete("{id:guid}/programs/{programId:guid}")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> RemoveProgramFromBranch(
+        Guid id,
+        Guid programId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new RemoveProgramFromBranchCommand
+        {
+            BranchId = id,
+            ProgramId = programId
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    
     [HttpDelete("{id:guid}")]
     [Authorize]
     public async Task<IResult> DeleteBranch(

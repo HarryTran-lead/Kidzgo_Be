@@ -43,7 +43,8 @@ public class EnrollmentController : ControllerBase
             EnrollDate = request.EnrollDate,
             TuitionPlanId = request.TuitionPlanId,
             Track = request.Track,
-            WeeklyPattern = request.WeeklyPattern
+            WeeklyPattern = request.WeeklyPattern,
+            AllowCrossBranchEnrollment = request.AllowCrossBranchEnrollment
         };
 
         var result = await _mediator.Send(command, cancellationToken);

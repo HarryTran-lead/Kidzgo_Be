@@ -14,5 +14,8 @@ public sealed class CreateEnrollmentResponse
     public EnrollmentStatus Status { get; init; }
     public Guid? TuitionPlanId { get; init; }
     public string? TuitionPlanName { get; init; }
+    public Guid? StudentHomeBranchId { get; init; }
+    public Guid? StudentActiveBranchId { get; init; }
+    public bool IsCrossBranchEnrollment { get; init; }
 }
 

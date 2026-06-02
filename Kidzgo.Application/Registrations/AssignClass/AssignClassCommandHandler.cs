@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
@@ -129,6 +130,20 @@ public sealed class AssignClassCommandHandler(
                 RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
                     registration.TuitionPlan?.LearningTicketTypeId,
                     classEntity.SlotTypeId));
+        }
+
+        if (classEntity != null)
+        {
+            var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
+                context,
+                registration.StudentProfileId,
+                classEntity.BranchId,
+                allowCrossBranchEnrollment: false,
+                cancellationToken);
+            if (branchAccessResult.IsFailure)
+            {
+                return Result.Failure<AssignClassResponse>(branchAccessResult.Error);
+            }
         }
 
         if (classEntity != null && classEntity.BranchId != registration.BranchId)

@@ -10,5 +10,6 @@ public sealed class CreateEnrollmentRequest
     public Guid? TuitionPlanId { get; set; }
     public string? Track { get; set; }
     public List<WeeklyPatternEntry>? WeeklyPattern { get; set; }
+    public bool AllowCrossBranchEnrollment { get; set; }
 }
 

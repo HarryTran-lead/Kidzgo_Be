@@ -40,6 +40,8 @@ public interface IDbContext
     DbSet<Profile> Profiles { get; }
     DbSet<ParentStudentLink> ParentStudentLinks { get; }
     DbSet<DeviceToken> DeviceTokens { get; }
+    DbSet<StudentBranchState> StudentBranchStates { get; }
+    DbSet<StudentBranchTransfer> StudentBranchTransfers { get; }
 
     // Schools
     DbSet<Branch> Branches { get; }
@@ -138,6 +140,7 @@ public interface IDbContext
     DbSet<Level> Levels { get; }
     DbSet<Module> Modules { get; }
     DbSet<BranchProgram> BranchPrograms { get; }
+    DbSet<PackageCurriculumMapping> PackageCurriculumMappings { get; }
     DbSet<ExtracurricularProgram> ExtracurricularPrograms { get; }
     DbSet<ProgramLeavePolicy> ProgramLeavePolicies { get; }
     DbSet<TuitionPlan> TuitionPlans { get; }

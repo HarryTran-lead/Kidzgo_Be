@@ -22,6 +22,9 @@ public sealed class GetPlacementTestByIdQueryHandler(
             .Include(pt => pt.LeadChild)
             .Include(pt => pt.StudentProfile)
             .Include(pt => pt.Class)
+                .ThenInclude(c => c!.Level)
+            .Include(pt => pt.Class)
+                .ThenInclude(c => c!.CurrentModule)
             .Include(pt => pt.PlacementRoom)
             .Include(pt => pt.InvigilatorUser)
             .Include(pt => pt.ProgramRecommendationProgram)
@@ -48,6 +51,10 @@ public sealed class GetPlacementTestByIdQueryHandler(
             StudentName = placementTest.StudentProfile?.DisplayName,
             ClassId = placementTest.ClassId,
             ClassName = placementTest.Class?.Title,
+            LevelId = placementTest.Class?.LevelId,
+            LevelName = placementTest.Class?.Level?.Name,
+            CurrentModuleId = placementTest.Class?.CurrentModuleId,
+            CurrentModuleName = placementTest.Class?.CurrentModule?.Name,
             ScheduledAt = placementTest.ScheduledAt,
             DurationMinutes = placementTest.DurationMinutes,
             Status = placementTest.Status.ToString(),

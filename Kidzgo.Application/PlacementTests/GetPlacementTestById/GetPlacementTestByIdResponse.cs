@@ -11,6 +11,10 @@ public sealed class GetPlacementTestByIdResponse
     public string? StudentName { get; init; }
     public Guid? ClassId { get; init; }
     public string? ClassName { get; init; }
+    public Guid? LevelId { get; init; }
+    public string? LevelName { get; init; }
+    public Guid? CurrentModuleId { get; init; }
+    public string? CurrentModuleName { get; init; }
     public DateTime? ScheduledAt { get; init; }
     public int DurationMinutes { get; init; }
     public string Status { get; init; } = null!;

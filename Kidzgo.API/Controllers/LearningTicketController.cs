@@ -10,7 +10,7 @@ namespace Kidzgo.API.Controllers;
 
 [Route("api/students/{studentProfileId:guid}/tickets")]
 [ApiController]
-[Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+[Authorize(Roles = "Admin,ManagementStaff,Teacher,Parent")]
 public class LearningTicketController : ControllerBase
 {
     private readonly ISender _mediator;

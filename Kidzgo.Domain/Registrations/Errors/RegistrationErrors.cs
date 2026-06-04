@@ -28,6 +28,10 @@ public static class RegistrationErrors
         "Registration.ClassNotMatchingProgram",
         $"Class does not match the registered program");
 
+    public static Error ClassNotMatchingLevel(Guid classId, Guid levelId) => Error.Validation(
+        "Registration.ClassNotMatchingLevel",
+        $"Class with ID {classId} does not belong to level {levelId}");
+
     public static Error TuitionPlanLevelMismatch(Guid tuitionPlanId, Guid classId) => Error.Validation(
         "Registration.TuitionPlanLevelMismatch",
         $"Tuition plan '{tuitionPlanId}' does not match class '{classId}' level.");
@@ -67,6 +71,14 @@ public static class RegistrationErrors
     public static Error CannotTransferToSameClass() => Error.Validation(
         "Registration.CannotTransferToSameClass",
         "Cannot transfer to the same class");
+
+    public static Error CannotTransferToSameBranch() => Error.Validation(
+        "Registration.CannotTransferToSameBranch",
+        "Cannot transfer registration to the same branch");
+
+    public static Error CannotTransferBranchWithSecondaryClass() => Error.Validation(
+        "Registration.CannotTransferBranchWithSecondaryClass",
+        "Cannot transfer branch while the registration still has a secondary class assigned.");
 
     public static Error CannotCancelWhenStudying() => Error.Validation(
         "Registration.CannotCancelWhenStudying",

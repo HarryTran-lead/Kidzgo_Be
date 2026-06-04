@@ -166,7 +166,9 @@ public sealed class AssignClassCommandHandler(
                     RegistrationErrors.TuitionPlanLevelMismatch(registration.TuitionPlanId, classEntity.Id));
             }
 
-            if (registration.TuitionPlan.ModuleId.HasValue &&
+            var shouldEnforceModuleMatch = registration.OperationType != OperationType.TransferBranch;
+            if (shouldEnforceModuleMatch &&
+                registration.TuitionPlan.ModuleId.HasValue &&
                 registration.TuitionPlan.ModuleId != classEntity.StartModuleId)
             {
                 return Result.Failure<AssignClassResponse>(

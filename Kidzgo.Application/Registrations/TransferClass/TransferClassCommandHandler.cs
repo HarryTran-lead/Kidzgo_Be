@@ -58,6 +58,9 @@ public sealed class TransferClassCommandHandler(
 
         var currentClassId = isSecondaryTrack ? registration.SecondaryClassId : registration.ClassId;
         var targetProgramId = registration.ProgramId;
+        var targetLevelId = isSecondaryTrack
+            ? registration.SecondaryLevelId
+            : registration.LevelId;
 
         if (isSecondaryTrack && !registration.SecondaryLevelId.HasValue)
         {
@@ -124,6 +127,12 @@ public sealed class TransferClassCommandHandler(
         {
             return Result.Failure<TransferClassResponse>(
                 RegistrationErrors.ClassNotMatchingProgram(command.NewClassId, targetProgramId));
+        }
+
+        if (!targetLevelId.HasValue || newClass.LevelId != targetLevelId.Value)
+        {
+            return Result.Failure<TransferClassResponse>(
+                RegistrationErrors.ClassNotMatchingLevel(command.NewClassId, targetLevelId ?? Guid.Empty));
         }
 
         var selectionPatternValidation = await studentSessionAssignmentService

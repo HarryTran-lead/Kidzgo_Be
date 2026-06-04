@@ -74,7 +74,10 @@ internal static class CurriculumImportRuleResolver
             if (unitMatch.Success)
             {
                 var lessonIndex = ExtractLessonIndex(text) ?? 1;
-                if (unitMatch.Groups[1].Value.Equals("STARTER", StringComparison.OrdinalIgnoreCase))
+                var isStarterUnit = unitMatch.Groups[1].Value.Equals("STARTER", StringComparison.OrdinalIgnoreCase) ||
+                                    (int.TryParse(unitMatch.Groups[1].Value, out var parsedUnitNumber) &&
+                                     parsedUnitNumber == 0);
+                if (isStarterUnit)
                 {
                     if (!rule.IncludeStarterUnit ||
                         lessonIndex < 1 ||
@@ -148,6 +151,7 @@ internal static class CurriculumImportRuleResolver
         }
 
         if (text.Contains("unit starter", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(text, @"\bUNIT\s*0+\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) ||
             text.Contains("unit hello", StringComparison.OrdinalIgnoreCase) ||
             text.Equals("starter", StringComparison.OrdinalIgnoreCase) ||
             text.Contains("hello", StringComparison.OrdinalIgnoreCase))

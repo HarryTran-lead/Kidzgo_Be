@@ -15,7 +15,6 @@ public class SyllabusConfiguration : IEntityTypeConfiguration<Syllabus>
             .IsRequired();
 
         builder.Property(x => x.Version)
-            .HasMaxLength(50)
             .IsRequired();
 
         builder.Property(x => x.Title)

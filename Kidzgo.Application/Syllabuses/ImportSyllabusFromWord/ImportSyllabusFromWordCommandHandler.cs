@@ -14,6 +14,11 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
 {
     public async Task<Result<ImportSyllabusFromWordResponse>> Handle(ImportSyllabusFromWordCommand command, CancellationToken cancellationToken)
     {
+        if (command.Version <= 0)
+        {
+            return Result.Failure<ImportSyllabusFromWordResponse>(SyllabusErrors.InvalidVersion(command.Version));
+        }
+
         var level = await context.Levels
             .Where(x => x.Id == command.LevelId && x.IsActive)
             .Select(x => new { x.Id, x.ProgramId })
@@ -111,7 +116,7 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
                 ProgramId = command.ProgramId,
                 LevelId = command.LevelId,
                 Code = command.Code.Trim(),
-                Version = command.Version.Trim(),
+                Version = command.Version,
                 CreatedAt = now
             };
             context.Syllabuses.Add(syllabus);

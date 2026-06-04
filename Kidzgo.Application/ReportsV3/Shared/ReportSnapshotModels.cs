@@ -33,7 +33,7 @@ public sealed class ReportSnapshotAcademicContext
     public string Level { get; set; } = string.Empty;
     public string Module { get; set; } = string.Empty;
     public string Syllabus { get; set; } = string.Empty;
-    public string SyllabusVersion { get; set; } = string.Empty;
+    public int? SyllabusVersion { get; set; }
 }
 
 public sealed class ReportSnapshotPeriod

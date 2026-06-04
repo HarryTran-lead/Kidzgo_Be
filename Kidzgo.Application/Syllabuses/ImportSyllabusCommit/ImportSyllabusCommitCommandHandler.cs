@@ -33,7 +33,12 @@ public sealed class ImportSyllabusCommitCommandHandler(
             return Result.Failure<SyllabusImportCommitResponse>(ex.Error);
         }
 
-        var version = $"doc-{VietnamTime.UtcNow():yyyyMMddHHmmssfff}";
+        var version = await SyllabusDocumentRules.GetNextVersionAsync(
+            context,
+            command.ProgramId,
+            command.LevelId,
+            command.Code.Trim(),
+            cancellationToken);
         var importResult = await sender.Send(new ImportSyllabusFromWordCommand
         {
             BranchId = command.BranchId,

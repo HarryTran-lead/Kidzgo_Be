@@ -8,7 +8,7 @@ public sealed class ImportCurriculumArchiveCommand : ICommand<ImportCurriculumAr
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public bool OverwriteExisting { get; init; } = true;
     public string FileName { get; init; } = null!;
     public Stream FileStream { get; init; } = null!;

@@ -21,9 +21,9 @@ public sealed class CreateSyllabusRequest
     public string Code { get; init; } = null!;
 
     /// <summary>
-    /// Optional legacy version label. When omitted, backend generates an internal document version key.
+    /// Optional business version number. When omitted, backend picks the next available positive integer.
     /// </summary>
-    public string? Version { get; init; }
+    public int? Version { get; init; }
 
     /// <summary>
     /// Display title.

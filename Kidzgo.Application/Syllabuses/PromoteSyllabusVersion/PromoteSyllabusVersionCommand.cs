@@ -11,6 +11,6 @@ public sealed class PromoteSyllabusVersionCommand : ICommand<PromoteSyllabusVers
 public sealed class PromoteSyllabusVersionResponse
 {
     public Guid SyllabusId { get; init; }
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public bool IsActive { get; init; }
 }

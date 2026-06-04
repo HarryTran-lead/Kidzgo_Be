@@ -15,7 +15,7 @@ public sealed class GetClassByIdResponse
     public string LevelName { get; init; } = null!;
     public Guid? SyllabusId { get; init; }
     public string? SyllabusCode { get; init; }
-    public string? SyllabusVersion { get; init; }
+    public int? SyllabusVersion { get; init; }
     public string? SyllabusTitle { get; init; }
     public Guid StartModuleId { get; init; }
     public int StartSessionIndex { get; init; }

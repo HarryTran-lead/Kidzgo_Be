@@ -10,7 +10,7 @@ public class Syllabus : Entity
     public Guid ProgramId { get; set; }
     public Guid LevelId { get; set; }
     public string Code { get; set; } = null!;
-    public string Version { get; set; } = null!;
+    public int Version { get; set; }
     public string Title { get; set; } = null!;
     public string? Edition { get; set; }
     public DateTime? EffectiveFrom { get; set; }

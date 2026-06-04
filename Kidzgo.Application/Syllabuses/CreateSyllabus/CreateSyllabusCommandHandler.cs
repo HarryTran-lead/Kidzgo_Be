@@ -45,12 +45,20 @@ public sealed class CreateSyllabusCommandHandler(IDbContext context)
             return Result.Failure<SyllabusDocumentResponse>(ex.Error);
         }
 
+        if (command.Version.HasValue && command.Version.Value <= 0)
+        {
+            return Result.Failure<SyllabusDocumentResponse>(SyllabusErrors.InvalidVersion(command.Version));
+        }
+
         var now = VietnamTime.UtcNow();
         var status = SyllabusDocumentMapper.NormalizeStatus(command.Status);
         var sourceType = SyllabusDocumentMapper.NormalizeSourceType(command.SourceType);
-        var version = string.IsNullOrWhiteSpace(command.Version)
-            ? $"doc-{now:yyyyMMddHHmmssfff}"
-            : command.Version.Trim();
+        var version = command.Version ?? await SyllabusDocumentRules.GetNextVersionAsync(
+            context,
+            command.ProgramId,
+            command.LevelId,
+            normalizedCode,
+            cancellationToken);
         var sections = SyllabusDocumentMapper.BuildInitialManualSections();
         var warnings = new List<SyllabusDocumentWarningDto>();
         var syllabus = new Syllabus

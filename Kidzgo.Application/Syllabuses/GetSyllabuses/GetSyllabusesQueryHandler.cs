@@ -35,10 +35,14 @@ public sealed class GetSyllabusesQueryHandler(IDbContext context)
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
+            var parsedVersion = int.TryParse(query.SearchTerm, out var versionValue)
+                ? versionValue
+                : (int?)null;
+
             syllabusesQuery = syllabusesQuery.Where(x =>
                 x.Title.Contains(query.SearchTerm) ||
                 x.Code.Contains(query.SearchTerm) ||
-                x.Version.Contains(query.SearchTerm));
+                (parsedVersion.HasValue && x.Version == parsedVersion.Value));
         }
 
         var totalCount = await syllabusesQuery.CountAsync(cancellationToken);

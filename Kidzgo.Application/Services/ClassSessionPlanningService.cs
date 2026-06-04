@@ -439,7 +439,7 @@ public sealed class PlannedSessionMetadata
     public string? LessonTitle { get; init; }
     public Guid? SyllabusId { get; init; }
     public string? SyllabusCode { get; init; }
-    public string? SyllabusVersion { get; init; }
+    public int? SyllabusVersion { get; init; }
     public string? SyllabusTitle { get; init; }
     public string? Objectives { get; init; }
     public string? Procedure { get; init; }

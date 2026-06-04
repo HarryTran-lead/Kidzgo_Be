@@ -2,7 +2,7 @@ namespace Kidzgo.API.Requests;
 
 public sealed class CreateSyllabusVersionRequest
 {
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string? Title { get; init; }
     public string? Edition { get; init; }
     public DateTime? EffectiveFrom { get; init; }

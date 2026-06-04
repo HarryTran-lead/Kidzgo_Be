@@ -21,7 +21,7 @@ public sealed class GetSyllabusVersionHistoryResponse
 public sealed class SyllabusVersionHistoryItemDto
 {
     public Guid SyllabusId { get; init; }
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public string DocumentStatus { get; init; } = null!;

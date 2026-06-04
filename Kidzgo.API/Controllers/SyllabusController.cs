@@ -211,7 +211,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
     }
 
     /// <summary>
-    /// Hard delete one syllabus and all lesson plan templates that belong to it.
+    /// Hard delete one syllabus together with its lesson plan templates and actual lesson plans.
     /// </summary>
     [HttpDelete("{id:guid}/hard-delete")]
     [Authorize(Roles = "ManagementStaff,Admin")]
@@ -351,7 +351,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
         [FromQuery] string code,
-        [FromQuery] string version,
+        [FromQuery] int version,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)
@@ -463,7 +463,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
         [FromQuery] string code,
-        [FromQuery] string version,
+        [FromQuery] int version,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)

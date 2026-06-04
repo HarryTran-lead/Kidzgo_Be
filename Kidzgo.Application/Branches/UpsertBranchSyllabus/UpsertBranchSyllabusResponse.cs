@@ -10,10 +10,9 @@ public sealed class UpsertBranchSyllabusResponse
     public Guid LevelId { get; init; }
     public string LevelName { get; init; } = null!;
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string Title { get; init; } = null!;
     public DateTime? EffectiveFrom { get; init; }
     public DateTime? EffectiveTo { get; init; }
     public bool IsActive { get; init; }
 }
-

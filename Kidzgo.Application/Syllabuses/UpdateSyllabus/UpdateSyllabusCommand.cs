@@ -6,7 +6,7 @@ public sealed class UpdateSyllabusCommand : ICommand<UpdateSyllabusResponse>
 {
     public Guid Id { get; init; }
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public DateTime? EffectiveFrom { get; init; }
@@ -30,7 +30,7 @@ public sealed class UpdateSyllabusResponse
 {
     public Guid Id { get; init; }
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string Title { get; init; } = null!;
     public bool IsActive { get; init; }
 }

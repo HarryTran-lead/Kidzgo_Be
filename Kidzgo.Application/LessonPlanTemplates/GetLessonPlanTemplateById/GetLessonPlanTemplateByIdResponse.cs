@@ -5,7 +5,7 @@ public sealed class GetLessonPlanTemplateByIdResponse
     public Guid Id { get; init; }
     public Guid SyllabusId { get; init; }
     public string SyllabusCode { get; init; } = null!;
-    public string SyllabusVersion { get; init; } = null!;
+    public int SyllabusVersion { get; init; }
     public string SyllabusTitle { get; init; } = null!;
     public Guid ModuleId { get; init; }
     public string ModuleCode { get; init; } = null!;

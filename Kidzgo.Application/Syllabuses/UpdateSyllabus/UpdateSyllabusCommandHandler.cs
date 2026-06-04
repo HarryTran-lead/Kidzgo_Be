@@ -19,6 +19,11 @@ public sealed class UpdateSyllabusCommandHandler(IDbContext context)
             return Result.Failure<UpdateSyllabusResponse>(SyllabusErrors.NotFound(command.Id));
         }
 
+        if (command.Version <= 0)
+        {
+            return Result.Failure<UpdateSyllabusResponse>(SyllabusErrors.InvalidVersion(command.Version));
+        }
+
         var duplicate = await context.Syllabuses.AnyAsync(
             x => x.Id != command.Id &&
                  x.ProgramId == syllabus.ProgramId &&
@@ -35,7 +40,7 @@ public sealed class UpdateSyllabusCommandHandler(IDbContext context)
         }
 
         syllabus.Code = command.Code.Trim();
-        syllabus.Version = command.Version.Trim();
+        syllabus.Version = command.Version;
         syllabus.Title = command.Title.Trim();
         syllabus.Edition = command.Edition?.Trim();
         syllabus.EffectiveFrom = command.EffectiveFrom;

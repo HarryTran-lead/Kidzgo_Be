@@ -613,7 +613,7 @@ public sealed class GenerateReportCommandHandler(
                 Level = reportClass.Level?.Name ?? string.Empty,
                 Module = reportClass.CurrentModule?.Name ?? string.Empty,
                 Syllabus = reportClass.Syllabus?.Title ?? string.Empty,
-                SyllabusVersion = reportClass.Syllabus?.Version ?? string.Empty
+                SyllabusVersion = reportClass.Syllabus?.Version
             },
             Period = new ReportSnapshotPeriod
             {

@@ -6,7 +6,7 @@ namespace Kidzgo.API.Requests;
 public sealed class UpdateSyllabusRequest
 {
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public DateTime? EffectiveFrom { get; init; }

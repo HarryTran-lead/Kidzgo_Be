@@ -27,7 +27,12 @@ public sealed class CreateSyllabusVersionCommandHandler(IDbContext context)
             return Result.Failure<CreateSyllabusVersionResponse>(SyllabusErrors.NotFound(command.SourceSyllabusId));
         }
 
-        var version = command.Version.Trim();
+        if (command.Version <= 0)
+        {
+            return Result.Failure<CreateSyllabusVersionResponse>(SyllabusErrors.InvalidVersion(command.Version));
+        }
+
+        var version = command.Version;
         var duplicateExists = await context.Syllabuses.AnyAsync(
             x => !x.IsDeleted &&
                  x.ProgramId == source.ProgramId &&

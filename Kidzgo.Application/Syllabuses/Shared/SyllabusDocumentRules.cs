@@ -61,6 +61,24 @@ internal static class SyllabusDocumentRules
         }
     }
 
+    public static async Task<int> GetNextVersionAsync(
+        IDbContext context,
+        Guid programId,
+        Guid levelId,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        var currentMax = await context.Syllabuses
+            .Where(x => x.ProgramId == programId &&
+                        x.LevelId == levelId &&
+                        x.Code == code &&
+                        !x.IsDeleted)
+            .Select(x => (int?)x.Version)
+            .MaxAsync(cancellationToken);
+
+        return Math.Max(currentMax ?? 0, 0) + 1;
+    }
+
     public static void MarkDocumentChanged(
         Syllabus syllabus,
         IReadOnlyList<SyllabusDocumentSectionDto> sections,

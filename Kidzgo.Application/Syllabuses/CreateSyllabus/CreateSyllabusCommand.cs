@@ -8,7 +8,7 @@ public sealed class CreateSyllabusCommand : ICommand<SyllabusDocumentResponse>
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string Code { get; init; } = null!;
-    public string? Version { get; init; }
+    public int? Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public DateTime? EffectiveFrom { get; init; }

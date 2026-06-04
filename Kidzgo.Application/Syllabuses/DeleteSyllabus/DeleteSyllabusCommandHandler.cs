@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -27,45 +28,31 @@ public sealed class DeleteSyllabusCommandHandler(IDbContext context)
             return Result.Failure<DeleteSyllabusResponse>(SyllabusErrors.HasClasses(classCount));
         }
 
-        var templateIdsQuery = context.LessonPlanTemplates
+        var templateIds = await context.LessonPlanTemplates
             .Where(x => x.SyllabusId == command.Id)
-            .Select(x => x.Id);
-
-        var lessonPlanCount = await context.LessonPlans
-            .CountAsync(
-                x => x.TemplateId.HasValue && templateIdsQuery.Contains(x.TemplateId.Value),
-                cancellationToken);
-        if (lessonPlanCount > 0)
-        {
-            return Result.Failure<DeleteSyllabusResponse>(SyllabusErrors.HasLessonPlans(lessonPlanCount));
-        }
-
-        var templateCount = await context.LessonPlanTemplates
-            .CountAsync(x => x.SyllabusId == command.Id, cancellationToken);
-
-        var candidateUnitIds = await context.LessonPlanTemplates
-            .Where(x => x.SyllabusId == command.Id && x.LessonPlanUnitId.HasValue)
-            .Select(x => x.LessonPlanUnitId!.Value)
-            .Distinct()
+            .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
-        var orphanUnits = candidateUnitIds.Count == 0
-            ? []
-            : await context.LessonPlanUnits
-                .Where(x => candidateUnitIds.Contains(x.Id))
-                .Where(x => !context.LessonPlanTemplates.Any(
-                    t => t.LessonPlanUnitId == x.Id && t.SyllabusId != command.Id))
-                .ToListAsync(cancellationToken);
+        var now = VietnamTime.UtcNow();
 
-        context.LessonPlanUnits.RemoveRange(orphanUnits);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        var deleteResult = await LessonPlanTemplateHardDeleteHelper.HardDeleteAsync(
+            context,
+            templateIds,
+            now,
+            cancellationToken);
+
         context.Syllabuses.Remove(syllabus);
         await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return new DeleteSyllabusResponse
         {
             Id = command.Id,
-            DeletedLessonPlanTemplateCount = templateCount,
-            DeletedLessonPlanUnitCount = orphanUnits.Count
+            DeletedLessonPlanCount = deleteResult.DeletedLessonPlanCount,
+            DeletedLessonPlanTemplateCount = deleteResult.DeletedLessonPlanTemplateCount,
+            DeletedLessonPlanUnitCount = deleteResult.DeletedLessonPlanUnitCount
         };
     }
 }

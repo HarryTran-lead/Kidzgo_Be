@@ -1,5 +1,7 @@
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Application.Syllabuses.ImportCurriculumArchive;
 using Kidzgo.Application.Syllabuses.Shared;
+using Kidzgo.Domain.LessonPlans;
 using Xunit;
 
 namespace Kidzgo.Application.Tests;
@@ -86,5 +88,55 @@ public sealed class SyllabusArchiveImportTests
         Assert.Equal(6, summary.TotalSessions);
         Assert.Equal(2, summary.TotalUnits);
         Assert.Equal(6, summary.TotalPeriods);
+    }
+
+    [Fact]
+    public void LessonPlanUnitNameNormalizer_treats_unit_0_as_starter_alias()
+    {
+        var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity("unit 0 lesson 1.docx");
+
+        Assert.NotNull(identity);
+        Assert.Equal("UNIT|STARTER", identity!.NormalizedKey);
+        Assert.Equal(0, identity.UnitNumber);
+        Assert.Equal("UNIT STARTER", identity.CanonicalDisplayName);
+    }
+
+    [Fact]
+    public void CurriculumImportRuleResolver_maps_unit_0_to_starter_rule()
+    {
+        var starterModuleId = Guid.NewGuid();
+        var regularModuleId = Guid.NewGuid();
+        var rules = new List<CurriculumImportModuleRule>
+        {
+            new()
+            {
+                ModuleId = starterModuleId,
+                IncludeStarterUnit = true,
+                UnitFrom = 1,
+                UnitTo = 2,
+                OrderIndex = 1
+            },
+            new()
+            {
+                ModuleId = regularModuleId,
+                IncludeStarterUnit = false,
+                UnitFrom = 3,
+                UnitTo = 5,
+                OrderIndex = 2
+            }
+        };
+        var configuration = new CurriculumImportConfiguration
+        {
+            StarterUnitLessonPlanCount = 3,
+            RegularUnitLessonPlanCount = 4,
+            RevisionLessonPlanCount = 2
+        };
+
+        var rule = CurriculumImportRuleResolver.ResolveRule(rules, "unit 0 lesson 2");
+        var sessionIndex = CurriculumImportRuleResolver.ResolveSessionIndex(configuration, rule!, "unit 0 lesson 2");
+
+        Assert.NotNull(rule);
+        Assert.Equal(starterModuleId, rule!.ModuleId);
+        Assert.Equal(2, sessionIndex);
     }
 }

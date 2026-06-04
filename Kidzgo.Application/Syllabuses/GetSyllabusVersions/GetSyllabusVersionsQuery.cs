@@ -23,7 +23,7 @@ public sealed class SyllabusVersionDto
     public Guid LevelId { get; init; }
     public string LevelName { get; init; } = null!;
     public string Code { get; init; } = null!;
-    public string Version { get; init; } = null!;
+    public int Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }
     public bool IsActive { get; init; }

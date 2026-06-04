@@ -464,7 +464,10 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             var text = CurriculumArchiveImportEntryRules.NormalizeArchivePath(entry.FullName);
             var lessonIndex = ExtractLessonIndex(text) ?? 1;
 
-            if (Regex.IsMatch(text, @"\bUNIT\s*STARTER\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            if (Regex.IsMatch(
+                    text,
+                    @"\bUNIT\s*(?:STARTER|0+)\b",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             {
                 starterLessonCount = Math.Max(starterLessonCount, lessonIndex);
                 continue;

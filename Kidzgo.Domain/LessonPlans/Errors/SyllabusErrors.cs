@@ -20,9 +20,13 @@ public static class SyllabusErrors
         "Syllabus.LevelDoesNotBelongToProgram",
         $"Level '{levelId}' does not belong to Program '{programId}'");
 
-    public static Error DuplicateVersion(Guid programId, Guid levelId, string code, string version) => Error.Conflict(
+    public static Error DuplicateVersion(Guid programId, Guid levelId, string code, int version) => Error.Conflict(
         "Syllabus.DuplicateVersion",
         $"Syllabus '{code}' version '{version}' already exists for Program '{programId}' and Level '{levelId}'");
+
+    public static Error InvalidVersion(int? version) => Error.Validation(
+        "Syllabus.InvalidVersion",
+        $"Syllabus version must be greater than 0. Received '{version}'.");
 
     public static Error VersionFamilyMismatch(Guid sourceSyllabusId, Guid targetSyllabusId) => Error.Validation(
         "Syllabus.VersionFamilyMismatch",

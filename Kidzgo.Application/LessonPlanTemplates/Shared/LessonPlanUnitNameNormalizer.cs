@@ -166,6 +166,11 @@ public static class LessonPlanUnitNameNormalizer
     private static LessonPlanUnitIdentity BuildNumberedUnitIdentity(string rawNumber, string rawTitle)
     {
         var number = int.Parse(rawNumber);
+        if (number == 0)
+        {
+            return BuildStarterIdentity(rawTitle);
+        }
+
         var title = CleanDisplayTitle(rawTitle);
         var displayName = string.IsNullOrWhiteSpace(title)
             ? $"UNIT {number}"

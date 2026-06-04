@@ -2,6 +2,7 @@ using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.LessonPlanTemplates.CreateLessonPlanTemplate;
 using Kidzgo.Application.LessonPlanTemplates.DeleteLessonPlanTemplate;
+using Kidzgo.Application.LessonPlanTemplates.HardDeleteLessonPlanTemplate;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplateById;
 using Kidzgo.Application.LessonPlanTemplates.GetLessonPlanTemplates;
 using Kidzgo.Application.LessonPlanTemplates.ImportLessonPlanTemplates;
@@ -216,6 +217,19 @@ public class LessonPlanTemplateController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new DeleteLessonPlanTemplateCommand { Id = id }, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// <summary>
+    /// Hard delete one lesson plan template and all actual lesson plans that still reference it.
+    /// </summary>
+    [HttpDelete("{id:guid}/hard-delete")]
+    [Authorize(Roles = "ManagementStaff,Admin")]
+    public async Task<IResult> HardDeleteLessonPlanTemplate(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new HardDeleteLessonPlanTemplateCommand { Id = id }, cancellationToken);
         return result.MatchOk();
     }
 

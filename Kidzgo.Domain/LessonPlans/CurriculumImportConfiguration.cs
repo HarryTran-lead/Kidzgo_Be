@@ -6,7 +6,6 @@ public class CurriculumImportConfiguration
     public Guid ProgramId { get; set; }
     public Guid LevelId { get; set; }
     public int RegularUnitLessonPlanCount { get; set; }
-    public int StarterUnitLessonPlanCount { get; set; }
     public int RevisionLessonPlanCount { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }

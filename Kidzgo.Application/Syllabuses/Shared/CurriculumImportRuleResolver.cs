@@ -74,26 +74,12 @@ internal static class CurriculumImportRuleResolver
             if (unitMatch.Success)
             {
                 var lessonIndex = ExtractLessonIndex(text) ?? 1;
-                var isStarterUnit = unitMatch.Groups[1].Value.Equals("STARTER", StringComparison.OrdinalIgnoreCase) ||
-                                    (int.TryParse(unitMatch.Groups[1].Value, out var parsedUnitNumber) &&
-                                     parsedUnitNumber == 0);
-                if (isStarterUnit)
-                {
-                    if (!rule.IncludeStarterUnit ||
-                        lessonIndex < 1 ||
-                        lessonIndex > configuration.StarterUnitLessonPlanCount)
-                    {
-                        return null;
-                    }
+                var unitToken = unitMatch.Groups[1].Value;
+                var unitNumber = unitToken.Equals("STARTER", StringComparison.OrdinalIgnoreCase)
+                    ? 0
+                    : int.Parse(unitToken);
 
-                    return lessonIndex;
-                }
-
-                if (!int.TryParse(unitMatch.Groups[1].Value, out var unitNumber) ||
-                    !rule.UnitFrom.HasValue ||
-                    !rule.UnitTo.HasValue ||
-                    unitNumber < rule.UnitFrom.Value ||
-                    unitNumber > rule.UnitTo.Value)
+                if (!CurriculumImportRuleRangeMath.ContainsUnit(rule, unitNumber))
                 {
                     continue;
                 }
@@ -103,8 +89,10 @@ internal static class CurriculumImportRuleResolver
                     return null;
                 }
 
-                var offset = rule.IncludeStarterUnit ? configuration.StarterUnitLessonPlanCount : 0;
-                offset += (unitNumber - rule.UnitFrom.Value) * configuration.RegularUnitLessonPlanCount;
+                var offset = CurriculumImportRuleRangeMath.GetUnitOffset(
+                    rule,
+                    unitNumber,
+                    configuration.RegularUnitLessonPlanCount);
 
                 return offset + lessonIndex;
             }
@@ -127,12 +115,8 @@ internal static class CurriculumImportRuleResolver
                     return null;
                 }
 
-                var offset = rule.IncludeStarterUnit ? configuration.StarterUnitLessonPlanCount : 0;
-                if (rule.UnitFrom.HasValue && rule.UnitTo.HasValue)
-                {
-                    offset += (rule.UnitTo.Value - rule.UnitFrom.Value + 1) *
-                              configuration.RegularUnitLessonPlanCount;
-                }
+                var offset = CurriculumImportRuleRangeMath.GetUnitCount(rule) *
+                             configuration.RegularUnitLessonPlanCount;
 
                 return offset + lessonIndex;
             }
@@ -158,7 +142,7 @@ internal static class CurriculumImportRuleResolver
         {
             return rules
                 .OrderBy(x => x.OrderIndex)
-                .FirstOrDefault(x => x.IncludeStarterUnit);
+                .FirstOrDefault(x => CurriculumImportRuleRangeMath.ContainsUnit(x, 0));
         }
 
         var taggedMatch = TaggedNumberRegex.Match(text);
@@ -180,10 +164,7 @@ internal static class CurriculumImportRuleResolver
         return rules
             .OrderBy(x => x.OrderIndex)
             .FirstOrDefault(x =>
-                x.UnitFrom.HasValue &&
-                x.UnitTo.HasValue &&
-                x.UnitFrom.Value <= number &&
-                number <= x.UnitTo.Value);
+                CurriculumImportRuleRangeMath.ContainsUnit(x, number));
     }
 
     private static int? ExtractLessonIndex(string text)

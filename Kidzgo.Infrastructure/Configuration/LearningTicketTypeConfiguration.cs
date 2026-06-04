@@ -21,6 +21,27 @@ public class LearningTicketTypeConfiguration : IEntityTypeConfiguration<Learning
         builder.Property(x => x.Description)
             .HasMaxLength(500);
 
+        builder.Property(x => x.CompatibilityMode)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired();
+
+        builder.Property(x => x.AllowedDayGroups)
+            .HasConversion<int>()
+            .IsRequired();
+
+        builder.Property(x => x.AllowedTimeBands)
+            .HasConversion<int>()
+            .IsRequired();
+
+        builder.Property(x => x.AllowedTeacherTypes)
+            .HasConversion<int>()
+            .IsRequired();
+
+        builder.Property(x => x.AllowedUsageTypes)
+            .HasConversion<int>()
+            .IsRequired();
+
         builder.Property(x => x.IsActive)
             .IsRequired();
 

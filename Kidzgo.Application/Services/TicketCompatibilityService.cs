@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Domain.LearningTickets;
+using Kidzgo.Domain.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Services;
@@ -11,8 +12,98 @@ public sealed record TicketSelectionResult(
     Guid? TicketTypeId,
     string? TicketTypeCode);
 
+public sealed record TicketCompatibilityEvaluation(
+    bool IsCompatible,
+    string Source,
+    string Reason,
+    bool? OverrideValue);
+
 public sealed class TicketCompatibilityService(IDbContext context)
 {
+    public async Task<TicketCompatibilityEvaluation> EvaluateAsync(
+        Guid? learningTicketTypeId,
+        Guid? slotTypeId,
+        CancellationToken cancellationToken)
+    {
+        if (!learningTicketTypeId.HasValue)
+        {
+            return new TicketCompatibilityEvaluation(
+                true,
+                "NoTicketType",
+                "No learning ticket type configured.",
+                null);
+        }
+
+        if (!slotTypeId.HasValue)
+        {
+            return new TicketCompatibilityEvaluation(
+                true,
+                "NoSlotType",
+                "No slot type configured.",
+                null);
+        }
+
+        var learningTicketType = await context.LearningTicketTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == learningTicketTypeId.Value, cancellationToken);
+
+        var slotType = await context.SlotTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == slotTypeId.Value, cancellationToken);
+
+        var compatibilityOverride = await context.TicketTypeCompatibilities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
+                     x.SlotTypeId == slotTypeId.Value,
+                cancellationToken);
+
+        return Evaluate(learningTicketType, slotType, compatibilityOverride);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, TicketCompatibilityEvaluation>> EvaluateForSlotTypesAsync(
+        Guid? learningTicketTypeId,
+        IReadOnlyCollection<Guid> slotTypeIds,
+        CancellationToken cancellationToken)
+    {
+        if (slotTypeIds.Count == 0)
+        {
+            return new Dictionary<Guid, TicketCompatibilityEvaluation>();
+        }
+
+        var slotTypes = await context.SlotTypes
+            .AsNoTracking()
+            .Where(x => slotTypeIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        if (!learningTicketTypeId.HasValue)
+        {
+            return slotTypes.ToDictionary(
+                x => x.Id,
+                _ => new TicketCompatibilityEvaluation(
+                    true,
+                    "NoTicketType",
+                    "No learning ticket type configured.",
+                    null));
+        }
+
+        var learningTicketType = await context.LearningTicketTypes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == learningTicketTypeId.Value, cancellationToken);
+
+        var overrides = await context.TicketTypeCompatibilities
+            .AsNoTracking()
+            .Where(x => x.LearningTicketTypeId == learningTicketTypeId.Value && slotTypeIds.Contains(x.SlotTypeId))
+            .ToDictionaryAsync(x => x.SlotTypeId, cancellationToken);
+
+        return slotTypes.ToDictionary(
+            x => x.Id,
+            x => Evaluate(
+                learningTicketType,
+                x,
+                overrides.TryGetValue(x.Id, out var compatibilityOverride) ? compatibilityOverride : null));
+    }
+
     public async Task<TicketSelectionResult> SelectTicketForConsumptionAsync(
         Guid registrationId,
         Guid? slotTypeId,
@@ -67,15 +158,26 @@ public sealed class TicketCompatibilityService(IDbContext context)
             .Distinct()
             .ToList();
 
-        var compatibilities = typeIds.Count == 0
-            ? new List<TicketTypeCompatibility>()
+        var overrides = typeIds.Count == 0
+            ? new Dictionary<Guid, TicketTypeCompatibility>()
             : await context.TicketTypeCompatibilities
                 .AsNoTracking()
                 .Where(x => typeIds.Contains(x.LearningTicketTypeId) && x.SlotTypeId == slotType.Id)
-                .ToListAsync(cancellationToken);
+                .ToDictionaryAsync(x => x.LearningTicketTypeId, cancellationToken);
 
         var compatibleTickets = availableTickets
-            .Where(ticket => IsCompatibleWithCurrentPolicy(ticket, compatibilities, slotType.Id))
+            .Select(ticket => new
+            {
+                Ticket = ticket,
+                Evaluation = Evaluate(
+                    ticket.LearningTicketType,
+                    slotType,
+                    ticket.LearningTicketTypeId.HasValue &&
+                    overrides.TryGetValue(ticket.LearningTicketTypeId.Value, out var compatibilityOverride)
+                        ? compatibilityOverride
+                        : null)
+            })
+            .Where(x => x.Evaluation.IsCompatible)
             .ToList();
 
         if (compatibleTickets.Count == 0)
@@ -90,21 +192,21 @@ public sealed class TicketCompatibilityService(IDbContext context)
 
         // Prefer exact code match first, then fallback to FIFO among compatible tickets.
         var exactMatch = compatibleTickets.FirstOrDefault(
-            ticket => ticket.LearningTicketType != null &&
-                      string.Equals(ticket.LearningTicketType.Code, slotType.Code, StringComparison.OrdinalIgnoreCase));
+            x => x.Ticket.LearningTicketType != null &&
+                 string.Equals(x.Ticket.LearningTicketType.Code, slotType.Code, StringComparison.OrdinalIgnoreCase));
 
         var selected = exactMatch ?? compatibleTickets[0];
 
         var reason = exactMatch is not null
-            ? $"Exact match ticket type '{selected.LearningTicketType?.Code}' for slot '{slotType.Code}'"
-            : $"Compatible fallback ticket type '{selected.LearningTicketType?.Code ?? "DEFAULT"}' for slot '{slotType.Code}'";
+            ? $"Exact match ticket type '{selected.Ticket.LearningTicketType?.Code}' for slot '{slotType.Code}'"
+            : $"{selected.Evaluation.Reason} Selected compatible ticket type '{selected.Ticket.LearningTicketType?.Code ?? "DEFAULT"}' for slot '{slotType.Code}'.";
 
         return new TicketSelectionResult(
-            selected,
+            selected.Ticket,
             true,
             reason,
-            selected.LearningTicketTypeId,
-            selected.LearningTicketType?.Code);
+            selected.Ticket.LearningTicketTypeId,
+            selected.Ticket.LearningTicketType?.Code);
     }
 
     public async Task<TicketSelectionResult> ValidateStudentSessionCompatibilityAsync(
@@ -150,22 +252,83 @@ public sealed class TicketCompatibilityService(IDbContext context)
             null);
     }
 
-    private static bool IsCompatibleWithCurrentPolicy(
-        LearningTicketItem ticket,
-        IReadOnlyCollection<TicketTypeCompatibility> compatibilities,
-        Guid slotTypeId)
+    private static TicketCompatibilityEvaluation Evaluate(
+        LearningTicketType? learningTicketType,
+        SlotType? slotType,
+        TicketTypeCompatibility? compatibilityOverride)
     {
-        // Phase 1.5 runtime policy is default-pass:
-        // if no explicit mapping exists, treat as compatible.
-        if (!ticket.LearningTicketTypeId.HasValue)
+        if (learningTicketType is null)
         {
-            return true;
+            return new TicketCompatibilityEvaluation(
+                true,
+                "NoTicketType",
+                "No learning ticket type configured.",
+                null);
         }
 
-        var mapping = compatibilities.FirstOrDefault(
-            x => x.LearningTicketTypeId == ticket.LearningTicketTypeId.Value &&
-                 x.SlotTypeId == slotTypeId);
+        if (slotType is null)
+        {
+            return new TicketCompatibilityEvaluation(
+                true,
+                "NoSlotType",
+                "No slot type configured.",
+                null);
+        }
 
-        return mapping?.IsCompatible ?? true;
+        if (compatibilityOverride is not null)
+        {
+            return new TicketCompatibilityEvaluation(
+                compatibilityOverride.IsCompatible,
+                compatibilityOverride.IsCompatible ? "OverrideAllow" : "OverrideDeny",
+                compatibilityOverride.IsCompatible
+                    ? "Compatible by manual override."
+                    : "Blocked by manual override.",
+                compatibilityOverride.IsCompatible);
+        }
+
+        if (learningTicketType.CompatibilityMode == TicketCompatibilityMode.AllowAll)
+        {
+            return new TicketCompatibilityEvaluation(
+                true,
+                "AllowAll",
+                "Compatible by AllowAll mode.",
+                null);
+        }
+
+        var failures = new List<string>();
+        if (!TicketCompatibilityRuleSupport.Matches(learningTicketType.AllowedDayGroups, slotType.DayGroup))
+        {
+            failures.Add($"Day group '{slotType.DayGroup}' is not allowed.");
+        }
+
+        if (!TicketCompatibilityRuleSupport.Matches(learningTicketType.AllowedTimeBands, slotType.TimeBand))
+        {
+            failures.Add($"Time band '{slotType.TimeBand}' is not allowed.");
+        }
+
+        if (!TicketCompatibilityRuleSupport.Matches(learningTicketType.AllowedTeacherTypes, slotType.TeacherType))
+        {
+            failures.Add($"Teacher type '{slotType.TeacherType}' is not allowed.");
+        }
+
+        if (!TicketCompatibilityRuleSupport.Matches(learningTicketType.AllowedUsageTypes, slotType.UsageType))
+        {
+            failures.Add($"Usage type '{slotType.UsageType}' is not allowed.");
+        }
+
+        if (failures.Count == 0)
+        {
+            return new TicketCompatibilityEvaluation(
+                true,
+                "Rule",
+                "Compatible by default rule.",
+                null);
+        }
+
+        return new TicketCompatibilityEvaluation(
+            false,
+            "Rule",
+            string.Join(" ", failures),
+            null);
     }
 }

@@ -35,6 +35,10 @@ public sealed class CreateSlotTypeCommandHandler(
             Code = normalizedCode,
             Name = command.Name.Trim(),
             Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim(),
+            DayGroup = command.DayGroup,
+            TimeBand = command.TimeBand,
+            TeacherType = command.TeacherType,
+            UsageType = command.UsageType,
             IsActive = command.IsActive,
             CreatedAt = now,
             UpdatedAt = now
@@ -49,6 +53,10 @@ public sealed class CreateSlotTypeCommandHandler(
             Code = item.Code,
             Name = item.Name,
             Description = item.Description,
+            DayGroup = item.DayGroup,
+            TimeBand = item.TimeBand,
+            TeacherType = item.TeacherType,
+            UsageType = item.UsageType,
             IsActive = item.IsActive,
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt

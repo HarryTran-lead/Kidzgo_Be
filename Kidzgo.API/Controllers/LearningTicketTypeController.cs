@@ -33,6 +33,11 @@ public class LearningTicketTypeController : ControllerBase
             Code = request.Code,
             Name = request.Name,
             Description = request.Description,
+            CompatibilityMode = request.CompatibilityMode,
+            AllowedDayGroups = request.AllowedDayGroups,
+            AllowedTimeBands = request.AllowedTimeBands,
+            AllowedTeacherTypes = request.AllowedTeacherTypes,
+            AllowedUsageTypes = request.AllowedUsageTypes,
             IsActive = request.IsActive
         }, cancellationToken);
 
@@ -73,6 +78,11 @@ public class LearningTicketTypeController : ControllerBase
             Code = request.Code,
             Name = request.Name,
             Description = request.Description,
+            CompatibilityMode = request.CompatibilityMode,
+            AllowedDayGroups = request.AllowedDayGroups,
+            AllowedTimeBands = request.AllowedTimeBands,
+            AllowedTeacherTypes = request.AllowedTeacherTypes,
+            AllowedUsageTypes = request.AllowedUsageTypes,
             IsActive = request.IsActive
         }, cancellationToken);
 

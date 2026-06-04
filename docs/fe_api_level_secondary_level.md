@@ -288,7 +288,9 @@ Base path: `/api/registrations`
 | `track=secondary` thi registration phai co secondaryLevelId | `Registration.SecondaryLevelMissing` |
 | `entryType != wait` thi bat buoc co classId | `Registration.ClassIdRequired` |
 | Khong cho assign trung khi track da co class | `Registration.ClassAlreadyAssigned` |
+| `track=primary` thi class phai dung `levelId`; `track=secondary` thi class phai dung `secondaryLevelId` | `Registration.ClassNotMatchingLevel` |
 | Class phai cung branch + program va con slot | `Registration.ClassNotMatchingBranch`, `Registration.ClassNotMatchingProgram`, `Registration.ClassFull` |
+| Rang buoc tuition plan level/module chi apply cho primary track; secondary track co the dung chung tuition plan cua primary level | `Registration.TuitionPlanLevelMismatch`, `Registration.TuitionPlanModuleMismatch` |
 
 ### POST /api/registrations/{id}/transfer-class
 - Body:

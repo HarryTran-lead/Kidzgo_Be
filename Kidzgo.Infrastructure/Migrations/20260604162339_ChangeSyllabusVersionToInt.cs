@@ -40,7 +40,7 @@ namespace Kidzgo.Infrastructure.Migrations
                         END AS parsed_version
                     FROM public."Syllabuses"
                 ),
-                deduped AS (
+                ranked AS (
                     SELECT
                         p.*,
                         CASE
@@ -51,45 +51,60 @@ namespace Kidzgo.Infrastructure.Migrations
                         END AS parsed_rank
                     FROM parsed p
                 ),
-                family_max AS (
-                    SELECT
-                        "ProgramId",
-                        "LevelId",
-                        "Code",
-                        COALESCE(MAX(CASE
-                            WHEN parsed_version > 0 AND parsed_rank = 1 THEN parsed_version
-                            ELSE NULL
-                        END), 0) AS max_version
-                    FROM deduped
-                    GROUP BY "ProgramId", "LevelId", "Code"
-                ),
-                reassigned AS (
-                    SELECT
-                        d."Id",
-                        f.max_version + ROW_NUMBER() OVER (
-                            PARTITION BY d."ProgramId", d."LevelId", d."Code"
-                            ORDER BY d."CreatedAt", d."Id") AS new_version
-                    FROM deduped d
-                    INNER JOIN family_max f
-                        ON f."ProgramId" = d."ProgramId"
-                       AND f."LevelId" = d."LevelId"
-                       AND f."Code" = d."Code"
-                    WHERE NOT (d.parsed_version > 0 AND d.parsed_rank = 1)
-                ),
                 resolved AS (
                     SELECT
-                        d."Id",
+                        r."Id",
                         CASE
-                            WHEN d.parsed_version > 0 AND d.parsed_rank = 1 THEN d.parsed_version
-                            ELSE r.new_version
+                            WHEN r.parsed_version > 0 AND r.parsed_rank = 1 THEN r.parsed_version
+                            ELSE
+                                COALESCE(MAX(CASE
+                                    WHEN r.parsed_version > 0 AND r.parsed_rank = 1
+                                        THEN r.parsed_version
+                                    ELSE NULL
+                                END) OVER (
+                                    PARTITION BY r."ProgramId", r."LevelId", r."Code"
+                                ), 0)
+                                +
+                                SUM(CASE
+                                    WHEN NOT (r.parsed_version > 0 AND r.parsed_rank = 1)
+                                        THEN 1
+                                    ELSE 0
+                                END) OVER (
+                                    PARTITION BY r."ProgramId", r."LevelId", r."Code"
+                                    ORDER BY r."CreatedAt", r."Id"
+                                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                                )
                         END AS new_version
-                    FROM deduped d
-                    LEFT JOIN reassigned r ON r."Id" = d."Id"
+                    FROM ranked r
                 )
                 UPDATE public."Syllabuses" s
                 SET "VersionInt" = resolved.new_version
                 FROM resolved
                 WHERE s."Id" = resolved."Id";
+                """);
+
+            migrationBuilder.Sql(
+                """
+                WITH unresolved AS (
+                    SELECT
+                        s."Id",
+                        COALESCE(MAX(existing."VersionInt"), 0) AS family_max,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY s."ProgramId", s."LevelId", s."Code"
+                            ORDER BY s."CreatedAt", s."Id") AS fallback_rank
+                    FROM public."Syllabuses" s
+                    LEFT JOIN public."Syllabuses" existing
+                        ON existing."ProgramId" IS NOT DISTINCT FROM s."ProgramId"
+                       AND existing."LevelId" IS NOT DISTINCT FROM s."LevelId"
+                       AND existing."Code" IS NOT DISTINCT FROM s."Code"
+                       AND existing."VersionInt" IS NOT NULL
+                    WHERE s."VersionInt" IS NULL
+                    GROUP BY s."Id", s."ProgramId", s."LevelId", s."Code", s."CreatedAt"
+                )
+                UPDATE public."Syllabuses" s
+                SET "VersionInt" = unresolved.family_max + unresolved.fallback_rank
+                FROM unresolved
+                WHERE s."Id" = unresolved."Id";
                 """);
 
             migrationBuilder.DropColumn(

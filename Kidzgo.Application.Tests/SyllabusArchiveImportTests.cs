@@ -91,43 +91,43 @@ public sealed class SyllabusArchiveImportTests
     }
 
     [Fact]
-    public void LessonPlanUnitNameNormalizer_treats_unit_0_as_starter_alias()
+    public void LessonPlanUnitNameNormalizer_normalizes_unit_0_to_numeric_unit()
     {
         var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity("unit 0 lesson 1.docx");
 
         Assert.NotNull(identity);
-        Assert.Equal("UNIT|STARTER", identity!.NormalizedKey);
+        Assert.Equal("UNIT|0", identity!.NormalizedKey);
         Assert.Equal(0, identity.UnitNumber);
-        Assert.Equal("UNIT STARTER", identity.CanonicalDisplayName);
+        Assert.Equal("UNIT 0", identity.CanonicalDisplayName);
     }
 
     [Fact]
-    public void CurriculumImportRuleResolver_maps_unit_0_to_starter_rule()
+    public void LessonPlanUnitNameNormalizer_treats_unit_starter_as_unit_0_alias()
     {
-        var starterModuleId = Guid.NewGuid();
-        var regularModuleId = Guid.NewGuid();
+        var identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity("UNIT STARTER: HELLO");
+
+        Assert.NotNull(identity);
+        Assert.Equal("UNIT|0", identity!.NormalizedKey);
+        Assert.Equal(0, identity.UnitNumber);
+        Assert.Equal("UNIT 0: HELLO", identity.CanonicalDisplayName);
+    }
+
+    [Fact]
+    public void CurriculumImportRuleResolver_maps_unit_0_to_range_that_contains_zero()
+    {
+        var moduleId = Guid.NewGuid();
         var rules = new List<CurriculumImportModuleRule>
         {
             new()
             {
-                ModuleId = starterModuleId,
-                IncludeStarterUnit = true,
-                UnitFrom = 1,
-                UnitTo = 2,
-                OrderIndex = 1
-            },
-            new()
-            {
-                ModuleId = regularModuleId,
-                IncludeStarterUnit = false,
-                UnitFrom = 3,
+                ModuleId = moduleId,
+                UnitFrom = 0,
                 UnitTo = 5,
-                OrderIndex = 2
+                OrderIndex = 1
             }
         };
         var configuration = new CurriculumImportConfiguration
         {
-            StarterUnitLessonPlanCount = 3,
             RegularUnitLessonPlanCount = 4,
             RevisionLessonPlanCount = 2
         };
@@ -136,7 +136,55 @@ public sealed class SyllabusArchiveImportTests
         var sessionIndex = CurriculumImportRuleResolver.ResolveSessionIndex(configuration, rule!, "unit 0 lesson 2");
 
         Assert.NotNull(rule);
-        Assert.Equal(starterModuleId, rule!.ModuleId);
+        Assert.Equal(moduleId, rule!.ModuleId);
         Assert.Equal(2, sessionIndex);
+    }
+
+    [Fact]
+    public void CurriculumImportRuleResolver_supports_unit_0_inside_numeric_range()
+    {
+        var moduleId = Guid.NewGuid();
+        var rule = new CurriculumImportModuleRule
+        {
+            ModuleId = moduleId,
+            UnitFrom = 0,
+            UnitTo = 5,
+            OrderIndex = 1
+        };
+        var configuration = new CurriculumImportConfiguration
+        {
+            RegularUnitLessonPlanCount = 4,
+            RevisionLessonPlanCount = 2
+        };
+
+        var resolvedRule = CurriculumImportRuleResolver.ResolveRule([rule], "unit 0 lesson 2");
+        var starterSessionIndex = CurriculumImportRuleResolver.ResolveSessionIndex(
+            configuration,
+            rule,
+            "unit 0 lesson 2");
+        var firstRegularSessionIndex = CurriculumImportRuleResolver.ResolveSessionIndex(
+            configuration,
+            rule,
+            "unit 1 lesson 1");
+
+        Assert.NotNull(resolvedRule);
+        Assert.Equal(moduleId, resolvedRule!.ModuleId);
+        Assert.Equal(2, starterSessionIndex);
+        Assert.Equal(5, firstRegularSessionIndex);
+    }
+
+    [Fact]
+    public void CurriculumImportRuleRangeMath_counts_unit_0_inside_numeric_range()
+    {
+        var rule = new CurriculumImportModuleRule
+        {
+            UnitFrom = 0,
+            UnitTo = 5
+        };
+
+        Assert.True(CurriculumImportRuleRangeMath.HasUnitRange(rule));
+        Assert.True(CurriculumImportRuleRangeMath.ContainsUnit(rule, 0));
+        Assert.Equal(6, CurriculumImportRuleRangeMath.GetUnitCount(rule));
+        Assert.Equal(4, CurriculumImportRuleRangeMath.GetUnitOffset(rule, 1, 4));
     }
 }

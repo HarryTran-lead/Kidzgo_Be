@@ -454,7 +454,6 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         Domain.LessonPlans.CurriculumImportConfiguration configuration,
         IEnumerable<ZipArchiveEntry> lessonPlanEntries)
     {
-        var starterLessonCount = 0;
         var regularUnitLessonCount = 0;
         var revisionLessonCount = 0;
         var revisionFileCounts = new Dictionary<int, int>();
@@ -469,7 +468,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                     @"\bUNIT\s*(?:STARTER|0+)\b",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             {
-                starterLessonCount = Math.Max(starterLessonCount, lessonIndex);
+                regularUnitLessonCount = Math.Max(regularUnitLessonCount, lessonIndex);
                 continue;
             }
 
@@ -489,11 +488,6 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                     revisionFileCounts.GetValueOrDefault(revisionNumber),
                     lessonIndex);
             }
-        }
-
-        if (starterLessonCount > configuration.StarterUnitLessonPlanCount)
-        {
-            configuration.StarterUnitLessonPlanCount = starterLessonCount;
         }
 
         if (regularUnitLessonCount > configuration.RegularUnitLessonPlanCount)

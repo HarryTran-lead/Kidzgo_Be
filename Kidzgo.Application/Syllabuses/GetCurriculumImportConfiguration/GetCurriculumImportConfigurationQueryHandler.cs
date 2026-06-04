@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +39,6 @@ public sealed class GetCurriculumImportConfigurationQueryHandler(IDbContext cont
             ProgramId = configuration.ProgramId,
             LevelId = configuration.LevelId,
             RegularUnitLessonPlanCount = configuration.RegularUnitLessonPlanCount,
-            StarterUnitLessonPlanCount = configuration.StarterUnitLessonPlanCount,
             RevisionLessonPlanCount = configuration.RevisionLessonPlanCount,
             IsActive = configuration.IsActive,
             Rules = configuration.ModuleRules
@@ -53,14 +53,12 @@ public sealed class GetCurriculumImportConfigurationQueryHandler(IDbContext cont
                         ModuleCode = module.Code,
                         ModuleName = module.Name,
                         ModuleOrder = module.Order,
-                        IncludeStarterUnit = rule.IncludeStarterUnit,
                         UnitFrom = rule.UnitFrom,
                         UnitTo = rule.UnitTo,
                         RevisionNumber = rule.RevisionNumber,
                         OrderIndex = rule.OrderIndex,
                         ExpectedLessonPlanCount = CalculateExpectedLessonPlanCount(
                             configuration.RegularUnitLessonPlanCount,
-                            configuration.StarterUnitLessonPlanCount,
                             configuration.RevisionLessonPlanCount,
                             rule)
                     };
@@ -71,20 +69,14 @@ public sealed class GetCurriculumImportConfigurationQueryHandler(IDbContext cont
 
     private static int CalculateExpectedLessonPlanCount(
         int regularUnitLessonPlanCount,
-        int starterUnitLessonPlanCount,
         int revisionLessonPlanCount,
         Domain.LessonPlans.CurriculumImportModuleRule rule)
     {
         var total = 0;
 
-        if (rule.IncludeStarterUnit)
+        if (CurriculumImportRuleRangeMath.HasUnitRange(rule))
         {
-            total += starterUnitLessonPlanCount;
-        }
-
-        if (rule.UnitFrom.HasValue && rule.UnitTo.HasValue)
-        {
-            total += (rule.UnitTo.Value - rule.UnitFrom.Value + 1) * regularUnitLessonPlanCount;
+            total += CurriculumImportRuleRangeMath.GetUnitCount(rule) * regularUnitLessonPlanCount;
         }
 
         if (rule.RevisionNumber.HasValue)

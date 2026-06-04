@@ -1,6 +1,6 @@
 # FE API Doc - Curriculum Import And Configuration
 
-Updated date: 2026-05-20
+Updated date: 2026-06-05
 
 Base path: `/api/syllabuses`
 
@@ -17,6 +17,21 @@ Success envelope:
   "data": {}
 }
 ```
+
+## 0. Update 2026-06-05
+
+Backend da bo khái niệm `Unit Starter` rieng trong import configuration.
+
+- Khong con field `starterUnitLessonPlanCount`
+- Khong con field `includeStarterUnit`
+- `Unit 0` duoc xem la 1 unit so binh thuong trong range `unitFrom..unitTo`
+- FE can gui rule kieu `unitFrom = 0`, `unitTo = 5` neu module dau gom `Unit 0` den `Unit 5`
+- Ten file Word/zip nen dung `Unit 0 lesson 1.docx`, `Unit 0 lesson 2.docx`
+- Backend van co the doc duoc noi dung legacy `Unit Starter` ben trong file Word de phuc vu import ngoc, nhung canonical output va config moi deu dung `Unit 0`
+
+Luu y:
+
+- Cac example cu ben duoi co the van con chu `Unit Starter`. Khi implement FE moi, uu tien follow cac bullet cap nhat o muc nay.
 
 ## 1. Correct Flow
 
@@ -41,8 +56,8 @@ Important:
 
 - `import-archive` bat buoc can active config.
 - `import-lesson-plan-words` bat buoc can active config khi khong gui `moduleId`.
-- `import-archive` se scan zip de lay count thuc te trong archive. Vi du config dang de `starterUnitLessonPlanCount = 1`, nhung zip co `Unit Starter lesson 2`, backend se dung count thuc te `2` trong lan import do de khong skip/overwrite nham.
-- `import-lesson-plan-words` khong scan ca zip, nen van dung count trong config. Neu import rieng `Unit Starter lesson 2`, config nen de `starterUnitLessonPlanCount >= 2`.
+- `import-archive` se scan zip de lay count thuc te trong archive. Neu module dau map `unitFrom = 0`, `unitTo = 5` thi `Unit 0` duoc tinh nhu 1 unit thuong.
+- `import-lesson-plan-words` khong scan ca zip, nen backend van resolve session theo config dang active.
 - Nen gui `overwriteExisting=true` khi admin import lai cung curriculum.
 
 ## 2. Import Configuration
@@ -64,7 +79,6 @@ Response data:
   "programId": "48eba459-7a08-4461-b1f9-acec097c6185",
   "levelId": "fab421d5-89e0-43e7-b058-ab37f9d48a87",
   "regularUnitLessonPlanCount": 3,
-  "starterUnitLessonPlanCount": 2,
   "revisionLessonPlanCount": 1,
   "isActive": true,
   "rules": [
@@ -74,12 +88,11 @@ Response data:
       "moduleCode": "STATERS_STATE01",
       "moduleName": "Stater01",
       "moduleOrder": 1,
-      "includeStarterUnit": true,
-      "unitFrom": 1,
+      "unitFrom": 0,
       "unitTo": 5,
       "revisionNumber": 1,
       "orderIndex": 1,
-      "expectedLessonPlanCount": 18
+      "expectedLessonPlanCount": 19
     }
   ]
 }
@@ -103,21 +116,18 @@ Request body cho Starters:
 ```json
 {
   "regularUnitLessonPlanCount": 3,
-  "starterUnitLessonPlanCount": 2,
   "revisionLessonPlanCount": 1,
   "isActive": true,
   "rules": [
     {
       "moduleId": "a4850df1-5ce3-4f97-a63c-365d4aea5318",
-      "includeStarterUnit": true,
-      "unitFrom": 1,
+      "unitFrom": 0,
       "unitTo": 5,
       "revisionNumber": 1,
       "orderIndex": 1
     },
     {
       "moduleId": "5f1d6276-9099-431d-8486-091d9ab4a365",
-      "includeStarterUnit": false,
       "unitFrom": 6,
       "unitTo": 10,
       "revisionNumber": 2,
@@ -125,7 +135,6 @@ Request body cho Starters:
     },
     {
       "moduleId": "627f926c-f077-4eaf-b214-6f007d32a087",
-      "includeStarterUnit": false,
       "unitFrom": 11,
       "unitTo": 15,
       "revisionNumber": 3,
@@ -138,10 +147,8 @@ Request body cho Starters:
 Meaning:
 
 - `regularUnitLessonPlanCount`: so lesson plan mac dinh cho moi Unit thuong.
-- `starterUnitLessonPlanCount`: so lesson plan mac dinh cho Unit Starter.
 - `revisionLessonPlanCount`: so lesson plan mac dinh cho moi Revision.
-- `includeStarterUnit`: module nay co gom Unit Starter.
-- `unitFrom`, `unitTo`: khoang Unit map vao module.
+- `unitFrom`, `unitTo`: khoang Unit map vao module, co the bat dau tu `0`.
 - `revisionNumber`: Revision map vao module.
 - `expectedLessonPlanCount`: backend tinh tu config, FE dung de hien preview.
 
@@ -151,7 +158,6 @@ FE validate:
 - `rules` khong rong.
 - `moduleId` unique.
 - `orderIndex` unique.
-- Chi 1 rule co `includeStarterUnit = true`.
 - `unitFrom` va `unitTo` phai di cung nhau.
 - `unitFrom <= unitTo`.
 - Unit range khong overlap.

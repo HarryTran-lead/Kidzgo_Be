@@ -230,7 +230,7 @@ internal static class CurriculumWordImportParser
         var sections = ParseSections(blocks);
         var lessonNumber = lessonMatch?.Success == true ? int.Parse(lessonMatch.Groups[1].Value) : (int?)null;
         var unitTitle = unitMatch?.Success == true
-            ? $"{unitMatch.Groups[1].Value.Trim()}{(string.IsNullOrWhiteSpace(unitMatch.Groups[2].Value) ? string.Empty : $": {unitMatch.Groups[2].Value.Trim()}")}"
+            ? NormalizeLessonPlanUnitLabel(unitMatch.Groups[1].Value.Trim(), unitMatch.Groups[2].Value)
             : null;
 
         var title = !string.IsNullOrWhiteSpace(unitTitle) && lessonNumber.HasValue
@@ -1169,7 +1169,7 @@ internal static class CurriculumWordImportParser
             (text.Contains("hello", StringComparison.OrdinalIgnoreCase) &&
              text.Contains("unit", StringComparison.OrdinalIgnoreCase)))
         {
-            return "STARTER";
+            return "UNIT:0";
         }
 
         return null;
@@ -1177,11 +1177,6 @@ internal static class CurriculumWordImportParser
 
     private static string BuildDisplayNameFromKey(string key)
     {
-        if (string.Equals(key, "STARTER", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Unit Starter";
-        }
-
         if (key.StartsWith("UNIT:", StringComparison.OrdinalIgnoreCase))
         {
             return $"Unit {key["UNIT:".Length..]}";
@@ -1193,6 +1188,21 @@ internal static class CurriculumWordImportParser
         }
 
         return key;
+    }
+
+    private static string NormalizeLessonPlanUnitLabel(string rawUnitLabel, string? rawTitle)
+    {
+        var normalizedUnitLabel = Regex.IsMatch(
+            rawUnitLabel,
+            @"\bUNIT\s+STARTER\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+            ? "UNIT 0"
+            : rawUnitLabel.Trim().ToUpperInvariant();
+        var normalizedTitle = string.IsNullOrWhiteSpace(rawTitle) ? null : rawTitle.Trim();
+
+        return string.IsNullOrWhiteSpace(normalizedTitle)
+            ? normalizedUnitLabel
+            : $"{normalizedUnitLabel}: {normalizedTitle}";
     }
 
     private static List<DocumentBlock> ExtractBlocks(Body body)

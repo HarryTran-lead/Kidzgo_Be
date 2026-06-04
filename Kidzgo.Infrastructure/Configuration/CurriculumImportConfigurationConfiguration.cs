@@ -11,7 +11,6 @@ public sealed class CurriculumImportConfigurationConfiguration : IEntityTypeConf
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.RegularUnitLessonPlanCount).IsRequired();
-        builder.Property(x => x.StarterUnitLessonPlanCount).IsRequired();
         builder.Property(x => x.RevisionLessonPlanCount).IsRequired();
         builder.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
 

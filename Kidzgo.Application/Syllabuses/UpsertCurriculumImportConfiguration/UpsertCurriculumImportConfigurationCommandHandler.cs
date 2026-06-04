@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Syllabuses.GetCurriculumImportConfiguration;
+using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.LessonPlans.Errors;
@@ -81,7 +82,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
         }
 
         configuration.RegularUnitLessonPlanCount = command.RegularUnitLessonPlanCount;
-        configuration.StarterUnitLessonPlanCount = command.StarterUnitLessonPlanCount;
         configuration.RevisionLessonPlanCount = command.RevisionLessonPlanCount;
         configuration.IsActive = command.IsActive;
         configuration.UpdatedAt = now;
@@ -93,7 +93,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
                 Id = Guid.NewGuid(),
                 CurriculumImportConfigurationId = configuration.Id,
                 ModuleId = rule.ModuleId,
-                IncludeStarterUnit = rule.IncludeStarterUnit,
                 UnitFrom = rule.UnitFrom,
                 UnitTo = rule.UnitTo,
                 RevisionNumber = rule.RevisionNumber,
@@ -118,7 +117,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
             ProgramId = configuration.ProgramId,
             LevelId = configuration.LevelId,
             RegularUnitLessonPlanCount = configuration.RegularUnitLessonPlanCount,
-            StarterUnitLessonPlanCount = configuration.StarterUnitLessonPlanCount,
             RevisionLessonPlanCount = configuration.RevisionLessonPlanCount,
             IsActive = configuration.IsActive,
             Rules = ruleEntities.Select(rule =>
@@ -131,7 +129,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
                     ModuleCode = module.Code,
                     ModuleName = module.Name,
                     ModuleOrder = module.Order,
-                    IncludeStarterUnit = rule.IncludeStarterUnit,
                     UnitFrom = rule.UnitFrom,
                     UnitTo = rule.UnitTo,
                     RevisionNumber = rule.RevisionNumber,
@@ -139,7 +136,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
                     ExpectedLessonPlanCount = CalculateExpectedLessonPlanCount(command, new UpsertCurriculumImportModuleRuleModel
                     {
                         ModuleId = rule.ModuleId,
-                        IncludeStarterUnit = rule.IncludeStarterUnit,
                         UnitFrom = rule.UnitFrom,
                         UnitTo = rule.UnitTo,
                         RevisionNumber = rule.RevisionNumber,
@@ -155,11 +151,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
         if (command.RegularUnitLessonPlanCount <= 0)
         {
             return SyllabusErrors.InvalidImportConfiguration("RegularUnitLessonPlanCount must be greater than 0.");
-        }
-
-        if (command.StarterUnitLessonPlanCount <= 0)
-        {
-            return SyllabusErrors.InvalidImportConfiguration("StarterUnitLessonPlanCount must be greater than 0.");
         }
 
         if (command.RevisionLessonPlanCount <= 0)
@@ -182,11 +173,6 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
             return SyllabusErrors.InvalidImportConfiguration("Each rule must have a unique OrderIndex.");
         }
 
-        if (command.Rules.Count(x => x.IncludeStarterUnit) > 1)
-        {
-            return SyllabusErrors.InvalidImportConfiguration("Only one module rule can include the starter unit.");
-        }
-
         var orderedRanges = command.Rules
             .Where(x => x.UnitFrom.HasValue || x.UnitTo.HasValue)
             .OrderBy(x => x.UnitFrom ?? int.MinValue)
@@ -202,7 +188,7 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
 
             if (rule.UnitFrom.HasValue && rule.UnitTo.HasValue)
             {
-                if (rule.UnitFrom.Value <= 0 || rule.UnitTo.Value <= 0 || rule.UnitFrom.Value > rule.UnitTo.Value)
+                if (rule.UnitFrom.Value < 0 || rule.UnitTo.Value < 0 || rule.UnitFrom.Value > rule.UnitTo.Value)
                 {
                     return SyllabusErrors.InvalidImportConfiguration(
                         $"Module '{rule.ModuleId}' has an invalid unit range.");
@@ -248,14 +234,9 @@ public sealed class UpsertCurriculumImportConfigurationCommandHandler(IDbContext
     {
         var total = 0;
 
-        if (rule.IncludeStarterUnit)
+        if (CurriculumImportRuleRangeMath.HasUnitRange(rule))
         {
-            total += command.StarterUnitLessonPlanCount;
-        }
-
-        if (rule.UnitFrom.HasValue && rule.UnitTo.HasValue)
-        {
-            total += (rule.UnitTo.Value - rule.UnitFrom.Value + 1) * command.RegularUnitLessonPlanCount;
+            total += CurriculumImportRuleRangeMath.GetUnitCount(rule) * command.RegularUnitLessonPlanCount;
         }
 
         if (rule.RevisionNumber.HasValue)

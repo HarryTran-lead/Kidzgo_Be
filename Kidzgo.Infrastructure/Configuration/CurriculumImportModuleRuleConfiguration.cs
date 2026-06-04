@@ -10,7 +10,6 @@ public sealed class CurriculumImportModuleRuleConfiguration : IEntityTypeConfigu
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.IncludeStarterUnit).HasDefaultValue(false).IsRequired();
         builder.Property(x => x.OrderIndex).IsRequired();
 
         builder.HasIndex(x => new { x.CurriculumImportConfigurationId, x.ModuleId }).IsUnique();

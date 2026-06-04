@@ -28,6 +28,13 @@ internal static class RegistrationTrackHelper
             : PrimaryTrack;
     }
 
+    internal static Guid? ResolveTargetLevelId(Registration registration, string? track)
+    {
+        return NormalizeTrack(track) == SecondaryTrack
+            ? registration.SecondaryLevelId
+            : registration.LevelId;
+    }
+
     internal static bool TryParseEntryType(string? entryType, out EntryType parsedEntryType)
     {
         switch (entryType?.Trim().ToLowerInvariant())

@@ -60,6 +60,7 @@ public sealed class AssignClassCommandHandler(
         var currentEntryType = isSecondaryTrack ? registration.SecondaryEntryType : registration.EntryType;
         var currentClassId = isSecondaryTrack ? registration.SecondaryClassId : registration.ClassId;
         var targetProgramId = registration.ProgramId;
+        var targetLevelId = RegistrationTrackHelper.ResolveTargetLevelId(registration, track);
 
         if (currentEntryType != null &&
             currentEntryType != EntryType.Wait &&
@@ -159,7 +160,14 @@ public sealed class AssignClassCommandHandler(
                 RegistrationErrors.ClassNotMatchingProgram(classEntity.Id, targetProgramId));
         }
 
-        if (classEntity != null && registration.TuitionPlan != null)
+        if (classEntity != null &&
+            (!targetLevelId.HasValue || classEntity.LevelId != targetLevelId.Value))
+        {
+            return Result.Failure<AssignClassResponse>(
+                RegistrationErrors.ClassNotMatchingLevel(classEntity.Id, targetLevelId ?? Guid.Empty));
+        }
+
+        if (classEntity != null && !isSecondaryTrack && registration.TuitionPlan != null)
         {
             if (registration.TuitionPlan.LevelId != classEntity.LevelId)
             {

@@ -38,6 +38,7 @@ public sealed class SuggestClassesQueryHandler(
         var primarySuggestions = await BuildSuggestionsAsync(
             registration.ProgramId,
             registration.BranchId,
+            registration.LevelId,
             registration.TuitionPlan?.LearningTicketTypeId,
             registration.PreferredSchedule,
             cancellationToken);
@@ -46,6 +47,7 @@ public sealed class SuggestClassesQueryHandler(
             ? await BuildSuggestionsAsync(
                 registration.ProgramId,
                 registration.BranchId,
+                registration.SecondaryLevelId.Value,
                 registration.TuitionPlan?.LearningTicketTypeId,
                 registration.PreferredSchedule,
                 cancellationToken)
@@ -70,6 +72,7 @@ public sealed class SuggestClassesQueryHandler(
     private async Task<(List<SuggestedClassDto> Suggested, List<SuggestedClassDto> Alternative)> BuildSuggestionsAsync(
         Guid programId,
         Guid branchId,
+        Guid levelId,
         Guid? learningTicketTypeId,
         string? preferredSchedule,
         CancellationToken cancellationToken)
@@ -80,6 +83,7 @@ public sealed class SuggestClassesQueryHandler(
             .Include(c => c.ScheduleSegments)
             .Where(c => c.ProgramId == programId
                 && c.BranchId == branchId
+                && c.LevelId == levelId
                 && (c.Status == ClassStatus.Recruiting || c.Status == ClassStatus.Active || c.Status == ClassStatus.Planned || c.Status == ClassStatus.Full)
                 && c.Capacity > c.ClassEnrollments.Count(ce => ce.Status == EnrollmentStatus.Active))
             .OrderBy(c => c.StartDate)

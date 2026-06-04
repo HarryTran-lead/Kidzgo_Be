@@ -59,9 +59,7 @@ public sealed class TransferClassCommandHandler(
 
         var currentClassId = isSecondaryTrack ? registration.SecondaryClassId : registration.ClassId;
         var targetProgramId = registration.ProgramId;
-        var targetLevelId = isSecondaryTrack
-            ? registration.SecondaryLevelId
-            : registration.LevelId;
+        var targetLevelId = RegistrationTrackHelper.ResolveTargetLevelId(registration, track);
 
         if (isSecondaryTrack && !registration.SecondaryLevelId.HasValue)
         {

@@ -12,7 +12,8 @@ namespace Kidzgo.Application.Enrollments.UpdateEnrollment;
 public sealed class UpdateEnrollmentCommandHandler(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService
+    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
+    TicketCompatibilityService ticketCompatibilityService
 ) : ICommandHandler<UpdateEnrollmentCommand, UpdateEnrollmentResponse>
 {
     public async Task<Result<UpdateEnrollmentResponse>> Handle(UpdateEnrollmentCommand command, CancellationToken cancellationToken)
@@ -183,18 +184,10 @@ public sealed class UpdateEnrollmentCommandHandler(
         Guid? slotTypeId,
         CancellationToken cancellationToken)
     {
-        if (!learningTicketTypeId.HasValue || !slotTypeId.HasValue)
-        {
-            return false;
-        }
-
-        var mapping = await context.TicketTypeCompatibilities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
-                     x.SlotTypeId == slotTypeId.Value,
-                cancellationToken);
-
-        return mapping is not null && !mapping.IsCompatible;
+        var evaluation = await ticketCompatibilityService.EvaluateAsync(
+            learningTicketTypeId,
+            slotTypeId,
+            cancellationToken);
+        return !evaluation.IsCompatible;
     }
 }

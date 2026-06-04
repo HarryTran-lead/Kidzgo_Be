@@ -21,6 +21,26 @@ public class SlotTypeConfiguration : IEntityTypeConfiguration<SlotType>
         builder.Property(x => x.Description)
             .HasMaxLength(500);
 
+        builder.Property(x => x.DayGroup)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(x => x.TimeBand)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(x => x.TeacherType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(x => x.UsageType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
         builder.Property(x => x.IsActive)
             .IsRequired();
 

@@ -14,7 +14,8 @@ namespace Kidzgo.Application.Registrations.AssignClass.Handler;
 public sealed class AssignClassCommandHandler(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService
+    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
+    TicketCompatibilityService ticketCompatibilityService
 ) : ICommandHandler<AssignClassCommand, AssignClassResponse>
 {
     public async Task<Result<AssignClassResponse>> Handle(
@@ -383,18 +384,10 @@ public sealed class AssignClassCommandHandler(
         Guid? slotTypeId,
         CancellationToken cancellationToken)
     {
-        if (!learningTicketTypeId.HasValue || !slotTypeId.HasValue)
-        {
-            return false;
-        }
-
-        var mapping = await context.TicketTypeCompatibilities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
-                     x.SlotTypeId == slotTypeId.Value,
-                cancellationToken);
-
-        return mapping is not null && !mapping.IsCompatible;
+        var evaluation = await ticketCompatibilityService.EvaluateAsync(
+            learningTicketTypeId,
+            slotTypeId,
+            cancellationToken);
+        return !evaluation.IsCompatible;
     }
 }

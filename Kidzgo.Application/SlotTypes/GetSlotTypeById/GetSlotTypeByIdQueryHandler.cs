@@ -23,6 +23,10 @@ public sealed class GetSlotTypeByIdQueryHandler(
                 Code = x.Code,
                 Name = x.Name,
                 Description = x.Description,
+                DayGroup = x.DayGroup,
+                TimeBand = x.TimeBand,
+                TeacherType = x.TeacherType,
+                UsageType = x.UsageType,
                 IsActive = x.IsActive,
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt

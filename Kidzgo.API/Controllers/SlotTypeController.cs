@@ -33,6 +33,10 @@ public class SlotTypeController : ControllerBase
             Code = request.Code,
             Name = request.Name,
             Description = request.Description,
+            DayGroup = request.DayGroup,
+            TimeBand = request.TimeBand,
+            TeacherType = request.TeacherType,
+            UsageType = request.UsageType,
             IsActive = request.IsActive
         }, cancellationToken);
 
@@ -73,6 +77,10 @@ public class SlotTypeController : ControllerBase
             Code = request.Code,
             Name = request.Name,
             Description = request.Description,
+            DayGroup = request.DayGroup,
+            TimeBand = request.TimeBand,
+            TeacherType = request.TeacherType,
+            UsageType = request.UsageType,
             IsActive = request.IsActive
         }, cancellationToken);
 

@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LearningTicketTypes.GetLearningTicketTypes;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,11 @@ public sealed class GetLearningTicketTypeByIdQueryHandler(
                 Code = x.Code,
                 Name = x.Name,
                 Description = x.Description,
+                CompatibilityMode = x.CompatibilityMode,
+                AllowedDayGroups = TicketCompatibilityRuleSupport.ExpandDayGroups(x.AllowedDayGroups),
+                AllowedTimeBands = TicketCompatibilityRuleSupport.ExpandTimeBands(x.AllowedTimeBands),
+                AllowedTeacherTypes = TicketCompatibilityRuleSupport.ExpandTeacherTypes(x.AllowedTeacherTypes),
+                AllowedUsageTypes = TicketCompatibilityRuleSupport.ExpandUsageTypes(x.AllowedUsageTypes),
                 IsActive = x.IsActive,
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt

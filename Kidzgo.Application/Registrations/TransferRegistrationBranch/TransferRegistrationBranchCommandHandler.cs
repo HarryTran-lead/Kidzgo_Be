@@ -17,7 +17,8 @@ public sealed class TransferRegistrationBranchCommandHandler(
     IDbContext context,
     ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService)
+    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
+    TicketCompatibilityService ticketCompatibilityService)
     : ICommandHandler<TransferRegistrationBranchCommand, TransferRegistrationBranchResponse>
 {
     public async Task<Result<TransferRegistrationBranchResponse>> Handle(
@@ -429,18 +430,10 @@ public sealed class TransferRegistrationBranchCommandHandler(
         Guid? slotTypeId,
         CancellationToken cancellationToken)
     {
-        if (!learningTicketTypeId.HasValue || !slotTypeId.HasValue)
-        {
-            return false;
-        }
-
-        var mapping = await context.TicketTypeCompatibilities
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                x => x.LearningTicketTypeId == learningTicketTypeId.Value &&
-                     x.SlotTypeId == slotTypeId.Value,
-                cancellationToken);
-
-        return mapping is not null && !mapping.IsCompatible;
+        var evaluation = await ticketCompatibilityService.EvaluateAsync(
+            learningTicketTypeId,
+            slotTypeId,
+            cancellationToken);
+        return !evaluation.IsCompatible;
     }
 }

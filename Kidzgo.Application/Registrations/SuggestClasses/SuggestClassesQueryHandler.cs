@@ -15,7 +15,8 @@ namespace Kidzgo.Application.Registrations.SuggestClasses.Handler;
 
 public sealed class SuggestClassesQueryHandler(
     IDbContext context,
-    ISchedulePatternParser schedulePatternParser
+    ISchedulePatternParser schedulePatternParser,
+    TicketCompatibilityService ticketCompatibilityService
 ) : IQueryHandler<SuggestClassesQuery, SuggestClassesResponse>
 {
     public async Task<Result<SuggestClassesResponse>> Handle(
@@ -84,20 +85,22 @@ public sealed class SuggestClassesQueryHandler(
             .OrderBy(c => c.StartDate)
             .ToListAsync(cancellationToken);
 
-        HashSet<Guid> incompatibleSlotTypeIds = new();
-        if (learningTicketTypeId.HasValue)
-        {
-            incompatibleSlotTypeIds = await context.TicketTypeCompatibilities
-                .AsNoTracking()
-                .Where(x => x.LearningTicketTypeId == learningTicketTypeId.Value && !x.IsCompatible)
-                .Select(x => x.SlotTypeId)
-                .ToHashSetAsync(cancellationToken);
-        }
+        var compatibilityBySlotType = await ticketCompatibilityService.EvaluateForSlotTypesAsync(
+            learningTicketTypeId,
+            matchingClasses
+                .Where(c => c.SlotTypeId.HasValue)
+                .Select(c => c.SlotTypeId!.Value)
+                .Distinct()
+                .ToList(),
+            cancellationToken);
 
         var today = VietnamTime.TodayDateOnly();
 
         var filteredClasses = matchingClasses
-            .Where(c => !c.SlotTypeId.HasValue || !incompatibleSlotTypeIds.Contains(c.SlotTypeId.Value))
+            .Where(c =>
+                !c.SlotTypeId.HasValue ||
+                !compatibilityBySlotType.TryGetValue(c.SlotTypeId.Value, out var evaluation) ||
+                evaluation.IsCompatible)
             .Where(c => IsScheduleMatching(
                 preferredSchedule ?? string.Empty,
                 ResolveEffectiveWeeklyScheduleJson(c, today),

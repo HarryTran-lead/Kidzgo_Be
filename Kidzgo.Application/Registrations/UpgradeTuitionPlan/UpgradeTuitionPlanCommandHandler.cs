@@ -13,7 +13,8 @@ namespace Kidzgo.Application.Registrations.UpgradeTuitionPlan.Handler;
 
 public sealed class UpgradeTuitionPlanCommandHandler(
     IDbContext context,
-    TicketGrantService ticketGrantService
+    TicketGrantService ticketGrantService,
+    TicketCompatibilityService ticketCompatibilityService
 ) : ICommandHandler<UpgradeTuitionPlanCommand, UpgradeTuitionPlanResponse>
 {
     public async Task<Result<UpgradeTuitionPlanResponse>> Handle(
@@ -205,19 +206,25 @@ public sealed class UpgradeTuitionPlanCommandHandler(
         IReadOnlyCollection<Guid> slotTypeIds,
         CancellationToken cancellationToken)
     {
-        if (!learningTicketTypeId.HasValue || slotTypeIds.Count == 0)
+        if (slotTypeIds.Count == 0)
         {
             return null;
         }
 
-        return await context.TicketTypeCompatibilities
-            .AsNoTracking()
-            .Where(x =>
-                x.LearningTicketTypeId == learningTicketTypeId.Value &&
-                slotTypeIds.Contains(x.SlotTypeId) &&
-                !x.IsCompatible)
-            .Select(x => (Guid?)x.SlotTypeId)
-            .FirstOrDefaultAsync(cancellationToken);
+        var evaluations = await ticketCompatibilityService.EvaluateForSlotTypesAsync(
+            learningTicketTypeId,
+            slotTypeIds,
+            cancellationToken);
+
+        foreach (var slotTypeId in slotTypeIds)
+        {
+            if (evaluations.TryGetValue(slotTypeId, out var evaluation) && !evaluation.IsCompatible)
+            {
+                return slotTypeId;
+            }
+        }
+
+        return null;
     }
 
 }

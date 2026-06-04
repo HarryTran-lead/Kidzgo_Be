@@ -2,8 +2,10 @@ using Kidzgo.API.Extensions;
 using Kidzgo.API.Requests;
 using Kidzgo.Application.TicketTypeCompatibilities.CreateTicketTypeCompatibility;
 using Kidzgo.Application.TicketTypeCompatibilities.DeleteTicketTypeCompatibility;
+using Kidzgo.Application.TicketTypeCompatibilities.GetTicketCompatibilityMatrix;
 using Kidzgo.Application.TicketTypeCompatibilities.GetTicketTypeCompatibilities;
 using Kidzgo.Application.TicketTypeCompatibilities.GetTicketTypeCompatibilityById;
+using Kidzgo.Application.TicketTypeCompatibilities.UpsertTicketTypeCompatibilityOverrides;
 using Kidzgo.Application.TicketTypeCompatibilities.UpdateTicketTypeCompatibility;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -53,6 +55,21 @@ public class TicketTypeCompatibilityController : ControllerBase
         return result.MatchOk();
     }
 
+    [HttpGet("matrix")]
+    public async Task<IResult> GetMatrix(
+        [FromQuery] Guid? learningTicketTypeId,
+        [FromQuery] bool onlyActive = true,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetTicketCompatibilityMatrixQuery
+        {
+            LearningTicketTypeId = learningTicketTypeId,
+            OnlyActive = onlyActive
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IResult> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -72,6 +89,25 @@ public class TicketTypeCompatibilityController : ControllerBase
             LearningTicketTypeId = request.LearningTicketTypeId,
             SlotTypeId = request.SlotTypeId,
             IsCompatible = request.IsCompatible
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    [HttpPut("learning-ticket-types/{learningTicketTypeId:guid}/overrides")]
+    public async Task<IResult> UpsertOverrides(
+        Guid learningTicketTypeId,
+        [FromBody] UpsertTicketTypeCompatibilityOverridesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new UpsertTicketTypeCompatibilityOverridesCommand
+        {
+            LearningTicketTypeId = learningTicketTypeId,
+            Items = request.Items.Select(item => new UpsertTicketTypeCompatibilityOverrideItem
+            {
+                SlotTypeId = item.SlotTypeId,
+                IsCompatible = item.IsCompatible
+            }).ToList()
         }, cancellationToken);
 
         return result.MatchOk();

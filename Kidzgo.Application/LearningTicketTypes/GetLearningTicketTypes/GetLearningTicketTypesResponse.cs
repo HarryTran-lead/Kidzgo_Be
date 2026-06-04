@@ -1,3 +1,6 @@
+using Kidzgo.Domain.LearningTickets;
+using Kidzgo.Domain.Sessions;
+
 namespace Kidzgo.Application.LearningTicketTypes.GetLearningTicketTypes;
 
 public sealed class GetLearningTicketTypesResponse
@@ -11,6 +14,11 @@ public sealed class LearningTicketTypeDto
     public string Code { get; init; } = null!;
     public string Name { get; init; } = null!;
     public string? Description { get; init; }
+    public TicketCompatibilityMode CompatibilityMode { get; init; }
+    public List<SlotDayGroup> AllowedDayGroups { get; init; } = new();
+    public List<SlotTimeBand> AllowedTimeBands { get; init; } = new();
+    public List<SlotTeacherType> AllowedTeacherTypes { get; init; } = new();
+    public List<SlotUsageType> AllowedUsageTypes { get; init; } = new();
     public bool IsActive { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }

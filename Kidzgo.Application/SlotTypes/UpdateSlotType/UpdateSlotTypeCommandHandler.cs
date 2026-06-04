@@ -40,6 +40,10 @@ public sealed class UpdateSlotTypeCommandHandler(
         item.Code = normalizedCode;
         item.Name = command.Name.Trim();
         item.Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim();
+        item.DayGroup = command.DayGroup;
+        item.TimeBand = command.TimeBand;
+        item.TeacherType = command.TeacherType;
+        item.UsageType = command.UsageType;
         item.IsActive = command.IsActive;
         item.UpdatedAt = VietnamTime.UtcNow();
 
@@ -51,6 +55,10 @@ public sealed class UpdateSlotTypeCommandHandler(
             Code = item.Code,
             Name = item.Name,
             Description = item.Description,
+            DayGroup = item.DayGroup,
+            TimeBand = item.TimeBand,
+            TeacherType = item.TeacherType,
+            UsageType = item.UsageType,
             IsActive = item.IsActive,
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt

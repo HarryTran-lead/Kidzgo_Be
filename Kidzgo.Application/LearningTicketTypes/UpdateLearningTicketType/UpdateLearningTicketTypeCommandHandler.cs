@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LearningTicketTypes.GetLearningTicketTypes;
+using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +41,11 @@ public sealed class UpdateLearningTicketTypeCommandHandler(
         item.Code = normalizedCode;
         item.Name = command.Name.Trim();
         item.Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim();
+        item.CompatibilityMode = command.CompatibilityMode;
+        item.AllowedDayGroups = TicketCompatibilityRuleSupport.CombineDayGroups(command.AllowedDayGroups);
+        item.AllowedTimeBands = TicketCompatibilityRuleSupport.CombineTimeBands(command.AllowedTimeBands);
+        item.AllowedTeacherTypes = TicketCompatibilityRuleSupport.CombineTeacherTypes(command.AllowedTeacherTypes);
+        item.AllowedUsageTypes = TicketCompatibilityRuleSupport.CombineUsageTypes(command.AllowedUsageTypes);
         item.IsActive = command.IsActive;
         item.UpdatedAt = VietnamTime.UtcNow();
 
@@ -51,6 +57,11 @@ public sealed class UpdateLearningTicketTypeCommandHandler(
             Code = item.Code,
             Name = item.Name,
             Description = item.Description,
+            CompatibilityMode = item.CompatibilityMode,
+            AllowedDayGroups = TicketCompatibilityRuleSupport.ExpandDayGroups(item.AllowedDayGroups),
+            AllowedTimeBands = TicketCompatibilityRuleSupport.ExpandTimeBands(item.AllowedTimeBands),
+            AllowedTeacherTypes = TicketCompatibilityRuleSupport.ExpandTeacherTypes(item.AllowedTeacherTypes),
+            AllowedUsageTypes = TicketCompatibilityRuleSupport.ExpandUsageTypes(item.AllowedUsageTypes),
             IsActive = item.IsActive,
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt

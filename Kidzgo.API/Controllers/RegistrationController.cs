@@ -13,6 +13,7 @@ using Kidzgo.Application.Registrations.GetWaitingList;
 using Kidzgo.Application.Registrations.ImportActiveRegistration;
 using Kidzgo.Application.Registrations.SuggestClasses;
 using Kidzgo.Application.Registrations.TransferClass;
+using Kidzgo.Application.Registrations.TransferRegistrationBranch;
 using Kidzgo.Application.Registrations.UpdateEnrollmentConfirmationPaymentSetting;
 using Kidzgo.Application.Registrations.UpdateRegistration;
 using Kidzgo.Application.Registrations.UpgradeTuitionPlan;
@@ -341,6 +342,28 @@ public class RegistrationController : ControllerBase
             NewClassId = request.NewClassId,
             EffectiveDate = request.EffectiveDate ?? VietnamTime.UtcNow(),
             Track = request.Track,
+            WeeklyPattern = request.WeeklyPattern
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchOk();
+    }
+
+    /// Chuyen chi nhanh cho dang ky hien tai
+    [HttpPost("{id:guid}/transfer-branch")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> TransferBranch(
+        Guid id,
+        [FromBody] TransferRegistrationBranchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new TransferRegistrationBranchCommand
+        {
+            RegistrationId = id,
+            NewBranchId = request.NewBranchId,
+            NewClassId = request.NewClassId,
+            EffectiveDate = request.EffectiveDate ?? VietnamTime.UtcNow(),
+            Reason = request.Reason,
             WeeklyPattern = request.WeeklyPattern
         };
 

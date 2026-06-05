@@ -43,8 +43,6 @@ public sealed class GetTuitionPlanByIdQueryHandler(
             SyllabusCode = syllabus?.SyllabusCode,
             SyllabusVersion = syllabus?.SyllabusVersion,
             SyllabusTitle = syllabus?.SyllabusTitle,
-            ModuleId = TuitionPlanSelectionSupport.ResolvePrimaryModuleId(tuitionPlan),
-            ModuleName = TuitionPlanSelectionSupport.ResolvePrimaryModuleName(tuitionPlan),
             ModuleIds = TuitionPlanSelectionSupport.ResolveModuleIds(tuitionPlan),
             Modules = modules,
             LearningTicketTypeId = tuitionPlan.LearningTicketTypeId,

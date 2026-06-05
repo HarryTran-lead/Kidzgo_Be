@@ -105,8 +105,6 @@ internal static class RegistrationDetailReadModelBuilder
             SyllabusCode = syllabus?.SyllabusCode,
             SyllabusVersion = syllabus?.SyllabusVersion,
             SyllabusTitle = syllabus?.SyllabusTitle,
-            ModuleId = TuitionPlanSelectionSupport.ResolvePrimaryModuleId(registration.TuitionPlan),
-            ModuleName = TuitionPlanSelectionSupport.ResolvePrimaryModuleName(registration.TuitionPlan),
             ModuleIds = TuitionPlanSelectionSupport.ResolveModuleIds(registration.TuitionPlan),
             Modules = modules,
             SecondaryLevelId = registration.SecondaryLevelId,

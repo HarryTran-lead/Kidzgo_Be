@@ -35,8 +35,7 @@ internal sealed class ValidatedTuitionPlanSelectionResult
 internal static class TuitionPlanSelectionSupport
 {
     internal static IReadOnlyList<Guid> NormalizeRequestedModuleIds(
-        IEnumerable<Guid>? moduleIds,
-        Guid? fallbackModuleId)
+        IEnumerable<Guid>? moduleIds)
     {
         var orderedIds = new List<Guid>();
         var seen = new HashSet<Guid>();
@@ -50,11 +49,6 @@ internal static class TuitionPlanSelectionSupport
                     orderedIds.Add(moduleId);
                 }
             }
-        }
-
-        if (orderedIds.Count == 0 && fallbackModuleId.HasValue && fallbackModuleId.Value != Guid.Empty)
-        {
-            orderedIds.Add(fallbackModuleId.Value);
         }
 
         return orderedIds;
@@ -284,13 +278,6 @@ internal static class TuitionPlanSelectionSupport
 
         return Array.Empty<TuitionPlanModuleDto>();
     }
-
-    internal static Guid? ResolvePrimaryModuleId(TuitionPlan tuitionPlan)
-        => ResolveModules(tuitionPlan).FirstOrDefault()?.ModuleId;
-
-    internal static string? ResolvePrimaryModuleName(TuitionPlan tuitionPlan)
-        => ResolveModules(tuitionPlan).FirstOrDefault()?.ModuleName;
-
     internal static TuitionPlanSyllabusDto? ResolveActiveSyllabus(TuitionPlan tuitionPlan)
     {
         var mapping = tuitionPlan.CurriculumMappings

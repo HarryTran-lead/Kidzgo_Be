@@ -18,8 +18,6 @@ public sealed class TuitionPlanDto
     public string? SyllabusCode { get; init; }
     public int? SyllabusVersion { get; init; }
     public string? SyllabusTitle { get; init; }
-    public Guid? ModuleId { get; init; }
-    public string? ModuleName { get; init; }
     public IReadOnlyList<Guid> ModuleIds { get; init; } = Array.Empty<Guid>();
     public IReadOnlyList<TuitionPlanModuleDto> Modules { get; init; } = Array.Empty<TuitionPlanModuleDto>();
     public Guid? LearningTicketTypeId { get; init; }

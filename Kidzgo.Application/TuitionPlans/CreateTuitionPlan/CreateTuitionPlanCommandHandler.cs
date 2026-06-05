@@ -37,8 +37,7 @@ public sealed class CreateTuitionPlanCommandHandler(
         }
 
         var selectedModuleIds = TuitionPlanSelectionSupport.NormalizeRequestedModuleIds(
-            command.ModuleIds,
-            command.ModuleId);
+            command.ModuleIds);
         var selectionResult = await TuitionPlanSelectionSupport.ValidateSelectionAsync(
             context,
             command.ProgramId,
@@ -140,8 +139,6 @@ public sealed class CreateTuitionPlanCommandHandler(
             SyllabusCode = syllabus?.SyllabusCode,
             SyllabusVersion = syllabus?.SyllabusVersion,
             SyllabusTitle = syllabus?.SyllabusTitle,
-            ModuleId = TuitionPlanSelectionSupport.ResolvePrimaryModuleId(createdTuitionPlan),
-            ModuleName = TuitionPlanSelectionSupport.ResolvePrimaryModuleName(createdTuitionPlan),
             ModuleIds = TuitionPlanSelectionSupport.ResolveModuleIds(createdTuitionPlan),
             Modules = modules,
             LearningTicketTypeId = createdTuitionPlan.LearningTicketTypeId,

@@ -19,10 +19,6 @@ public sealed class UpdateTuitionPlanCommandValidator : AbstractValidator<Update
             .NotEqual(Guid.Empty).WithMessage("Syllabus ID must not be empty")
             .When(command => command.SyllabusId.HasValue);
 
-        RuleFor(command => command.ModuleId)
-            .NotEqual(Guid.Empty).WithMessage("Module ID must not be empty")
-            .When(command => command.ModuleId.HasValue);
-
         RuleForEach(command => command.ModuleIds!)
             .NotEqual(Guid.Empty).WithMessage("Module IDs must not contain empty values")
             .When(command => command.ModuleIds is not null);

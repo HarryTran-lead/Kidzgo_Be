@@ -10,6 +10,8 @@ public class TuitionPlan : Entity
     public Guid Id { get; set; }
     public Guid ProgramId { get; set; }
     public Guid LevelId { get; set; }
+    // Legacy/fallback start module used by existing flows. For multi-module plans,
+    // this is the first selected module ordered by module order.
     public Guid? ModuleId { get; set; }
     public string Name { get; set; } = null!;
     public int TotalSessions { get; set; }
@@ -29,4 +31,5 @@ public class TuitionPlan : Entity
     public LearningTicketType? LearningTicketType { get; set; }
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
     public ICollection<PackageCurriculumMapping> CurriculumMappings { get; set; } = new List<PackageCurriculumMapping>();
+    public ICollection<TuitionPlanModuleSelection> SelectedModules { get; set; } = new List<TuitionPlanModuleSelection>();
 }

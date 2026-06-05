@@ -141,6 +141,7 @@ public interface IDbContext
     DbSet<Module> Modules { get; }
     DbSet<BranchProgram> BranchPrograms { get; }
     DbSet<PackageCurriculumMapping> PackageCurriculumMappings { get; }
+    DbSet<TuitionPlanModuleSelection> TuitionPlanModuleSelections { get; }
     DbSet<ExtracurricularProgram> ExtracurricularPrograms { get; }
     DbSet<ProgramLeavePolicy> ProgramLeavePolicies { get; }
     DbSet<TuitionPlan> TuitionPlans { get; }

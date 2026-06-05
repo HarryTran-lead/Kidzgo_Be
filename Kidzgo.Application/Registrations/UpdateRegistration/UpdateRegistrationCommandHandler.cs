@@ -151,12 +151,6 @@ public sealed class UpdateRegistrationCommandHandler(
                     Error.Validation("DifferentLevel", "Tuition plan must match registration level"));
             }
 
-            if (tuitionPlan.ModuleId.HasValue)
-            {
-                return Result.Failure<UpdateRegistrationResponse>(
-                    Error.Validation("ModuleScopedTuitionPlanRequiresClass", "Module-scoped tuition plans can only be assigned together with a matching class."));
-            }
-
             registration.TuitionPlanId = command.TuitionPlanId.Value;
             registration.TuitionPlan = tuitionPlan;
             registration.TotalSessions = tuitionPlan.TotalSessions;

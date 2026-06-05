@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Query;
 using Kidzgo.Application.Programs.Shared;
+using Kidzgo.Application.TuitionPlans.Shared;
 using Kidzgo.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +15,6 @@ public sealed class GetTuitionPlansQueryHandler(
     public async Task<Result<GetTuitionPlansResponse>> Handle(GetTuitionPlansQuery query, CancellationToken cancellationToken)
     {
         var tuitionPlansQuery = context.TuitionPlans
-            .Include(t => t.Program)
             .Where(t => !t.IsDeleted);
 
         if (query.BranchId.HasValue)
@@ -37,7 +37,9 @@ public sealed class GetTuitionPlansQueryHandler(
 
         if (query.ModuleId.HasValue)
         {
-            tuitionPlansQuery = tuitionPlansQuery.Where(t => t.ModuleId == query.ModuleId.Value);
+            tuitionPlansQuery = tuitionPlansQuery.Where(t =>
+                t.ModuleId == query.ModuleId.Value ||
+                t.SelectedModules.Any(x => x.ModuleId == query.ModuleId.Value));
         }
 
         // Filter by IsActive
@@ -51,19 +53,38 @@ public sealed class GetTuitionPlansQueryHandler(
 
         // Apply pagination
         var tuitionPlans = await tuitionPlansQuery
+            .Include(t => t.Program)
+            .Include(t => t.Level)
+            .Include(t => t.Module)
+            .Include(t => t.SelectedModules)
+                .ThenInclude(x => x.Module)
+            .Include(t => t.LearningTicketType)
+            .Include(t => t.CurriculumMappings)
+                .ThenInclude(x => x.Syllabus)
             .OrderByDescending(t => t.CreatedAt)
             .ThenBy(t => t.Name)
             .ApplyPagination(query.PageNumber, query.PageSize)
-            .Select(t => new TuitionPlanDto
+            .ToListAsync(cancellationToken);
+
+        var items = tuitionPlans.Select(t =>
+        {
+            var syllabus = TuitionPlanSelectionSupport.ResolveActiveSyllabus(t);
+            var modules = TuitionPlanSelectionSupport.ResolveModules(t);
+
+            return new TuitionPlanDto
             {
                 Id = t.Id,
                 ProgramId = t.ProgramId,
                 LevelId = t.LevelId,
                 LevelName = t.Level.Name,
-                ModuleId = t.ModuleId,
-                ModuleName = t.Module != null ? t.Module.Name : null,
+                SyllabusId = syllabus?.SyllabusId,
+                SyllabusCode = syllabus?.SyllabusCode,
+                SyllabusVersion = syllabus?.SyllabusVersion,
+                SyllabusTitle = syllabus?.SyllabusTitle,
+                ModuleIds = TuitionPlanSelectionSupport.ResolveModuleIds(t),
+                Modules = modules,
                 LearningTicketTypeId = t.LearningTicketTypeId,
-                LearningTicketTypeCode = t.LearningTicketType != null ? t.LearningTicketType.Code : null,
+                LearningTicketTypeCode = t.LearningTicketType?.Code,
                 ProgramName = t.Program.Name,
                 Name = t.Name,
                 TotalSessions = t.TotalSessions,
@@ -73,11 +94,11 @@ public sealed class GetTuitionPlansQueryHandler(
                 IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt
-            })
-            .ToListAsync(cancellationToken);
+            };
+        }).ToList();
 
         var page = new Page<TuitionPlanDto>(
-            tuitionPlans,
+            items,
             totalCount,
             query.PageNumber,
             query.PageSize);

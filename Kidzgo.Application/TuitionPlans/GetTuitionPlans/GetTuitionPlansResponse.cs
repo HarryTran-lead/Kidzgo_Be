@@ -1,3 +1,4 @@
+using Kidzgo.Application.TuitionPlans.Shared;
 using Kidzgo.Domain.Common;
 
 namespace Kidzgo.Application.TuitionPlans.GetTuitionPlans;
@@ -13,8 +14,12 @@ public sealed class TuitionPlanDto
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
     public string LevelName { get; init; } = null!;
-    public Guid? ModuleId { get; init; }
-    public string? ModuleName { get; init; }
+    public Guid? SyllabusId { get; init; }
+    public string? SyllabusCode { get; init; }
+    public int? SyllabusVersion { get; init; }
+    public string? SyllabusTitle { get; init; }
+    public IReadOnlyList<Guid> ModuleIds { get; init; } = Array.Empty<Guid>();
+    public IReadOnlyList<TuitionPlanModuleDto> Modules { get; init; } = Array.Empty<TuitionPlanModuleDto>();
     public Guid? LearningTicketTypeId { get; init; }
     public string? LearningTicketTypeCode { get; init; }
     public string ProgramName { get; init; } = null!;

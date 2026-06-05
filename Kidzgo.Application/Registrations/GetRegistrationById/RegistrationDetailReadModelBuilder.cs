@@ -1,4 +1,5 @@
 using Kidzgo.Application.Abstraction.Data;
+using Kidzgo.Application.TuitionPlans.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations.Errors;
@@ -23,6 +24,12 @@ internal static class RegistrationDetailReadModelBuilder
             .Include(r => r.SecondaryLevel)
             .Include(r => r.TuitionPlan)
                 .ThenInclude(tp => tp.Module)
+            .Include(r => r.TuitionPlan)
+                .ThenInclude(tp => tp.SelectedModules)
+                    .ThenInclude(x => x.Module)
+            .Include(r => r.TuitionPlan)
+                .ThenInclude(tp => tp.CurriculumMappings)
+                    .ThenInclude(x => x.Syllabus)
             .Include(r => r.Class)
             .Include(r => r.SecondaryClass)
             .FirstOrDefaultAsync(r => r.Id == registrationId, cancellationToken);
@@ -75,6 +82,9 @@ internal static class RegistrationDetailReadModelBuilder
                 StudyDate = VietnamTime.ToVietnamDateOnly(firstStudySessionRow.PlannedDatetime)
             };
 
+        var syllabus = TuitionPlanSelectionSupport.ResolveActiveSyllabus(registration.TuitionPlan);
+        var modules = TuitionPlanSelectionSupport.ResolveModules(registration.TuitionPlan);
+
         return Result.Success(new GetRegistrationByIdResponse
         {
             Id = registration.Id,
@@ -91,8 +101,12 @@ internal static class RegistrationDetailReadModelBuilder
             ProgramName = registration.Program.Name,
             LevelId = registration.LevelId,
             LevelName = registration.Level.Name,
-            ModuleId = registration.TuitionPlan.ModuleId,
-            ModuleName = registration.TuitionPlan.Module?.Name,
+            SyllabusId = syllabus?.SyllabusId,
+            SyllabusCode = syllabus?.SyllabusCode,
+            SyllabusVersion = syllabus?.SyllabusVersion,
+            SyllabusTitle = syllabus?.SyllabusTitle,
+            ModuleIds = TuitionPlanSelectionSupport.ResolveModuleIds(registration.TuitionPlan),
+            Modules = modules,
             SecondaryLevelId = registration.SecondaryLevelId,
             SecondaryLevelName = registration.SecondaryLevel?.Name,
             SecondaryLevelSkillFocus = registration.SecondaryProgramSkillFocus,

@@ -39,6 +39,8 @@ public sealed class SuggestClassesQueryHandler(
             registration.ProgramId,
             registration.BranchId,
             registration.LevelId,
+            registration.TuitionPlan?.ModuleId,
+            registration.TuitionPlan?.ModuleId.HasValue == true,
             registration.TuitionPlan?.LearningTicketTypeId,
             registration.PreferredSchedule,
             cancellationToken);
@@ -48,6 +50,8 @@ public sealed class SuggestClassesQueryHandler(
                 registration.ProgramId,
                 registration.BranchId,
                 registration.SecondaryLevelId.Value,
+                requiredStartModuleId: null,
+                requireUpcomingClass: false,
                 registration.TuitionPlan?.LearningTicketTypeId,
                 registration.PreferredSchedule,
                 cancellationToken)
@@ -73,6 +77,8 @@ public sealed class SuggestClassesQueryHandler(
         Guid programId,
         Guid branchId,
         Guid levelId,
+        Guid? requiredStartModuleId,
+        bool requireUpcomingClass,
         Guid? learningTicketTypeId,
         string? preferredSchedule,
         CancellationToken cancellationToken)
@@ -84,7 +90,10 @@ public sealed class SuggestClassesQueryHandler(
             .Where(c => c.ProgramId == programId
                 && c.BranchId == branchId
                 && c.LevelId == levelId
-                && (c.Status == ClassStatus.Recruiting || c.Status == ClassStatus.Active || c.Status == ClassStatus.Planned || c.Status == ClassStatus.Full)
+                && (!requiredStartModuleId.HasValue || c.StartModuleId == requiredStartModuleId.Value)
+                && (requireUpcomingClass
+                    ? (c.Status == ClassStatus.Recruiting || c.Status == ClassStatus.Planned)
+                    : (c.Status == ClassStatus.Recruiting || c.Status == ClassStatus.Active || c.Status == ClassStatus.Planned || c.Status == ClassStatus.Full))
                 && c.Capacity > c.ClassEnrollments.Count(ce => ce.Status == EnrollmentStatus.Active))
             .OrderBy(c => c.StartDate)
             .ToListAsync(cancellationToken);

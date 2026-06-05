@@ -145,6 +145,7 @@ public sealed class ApplicationDbContext(
     public DbSet<Module> Modules => Set<Module>();
     public DbSet<BranchProgram> BranchPrograms => Set<BranchProgram>();
     public DbSet<PackageCurriculumMapping> PackageCurriculumMappings => Set<PackageCurriculumMapping>();
+    public DbSet<TuitionPlanModuleSelection> TuitionPlanModuleSelections => Set<TuitionPlanModuleSelection>();
     public DbSet<ExtracurricularProgram> ExtracurricularPrograms => Set<ExtracurricularProgram>();
     public DbSet<ProgramLeavePolicy> ProgramLeavePolicies => Set<ProgramLeavePolicy>();
     public DbSet<TuitionPlan> TuitionPlans => Set<TuitionPlan>();

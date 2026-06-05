@@ -20,6 +20,7 @@ public class Module : Entity
 
     public Level Level { get; set; } = null!;
     public ICollection<TuitionPlan> TuitionPlans { get; set; } = new List<TuitionPlan>();
+    public ICollection<TuitionPlanModuleSelection> TuitionPlanSelections { get; set; } = new List<TuitionPlanModuleSelection>();
     public ICollection<Classes.Class> StartClasses { get; set; } = new List<Classes.Class>();
     public ICollection<Classes.Class> CurrentClasses { get; set; } = new List<Classes.Class>();
     public ICollection<Classes.ClassModuleProgress> ClassModuleProgresses { get; set; } = new List<Classes.ClassModuleProgress>();

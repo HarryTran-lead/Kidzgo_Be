@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.TuitionPlans.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs;
 using Kidzgo.Domain.Programs.Errors;
@@ -16,6 +17,7 @@ public sealed class CreatePackageCurriculumMappingCommandHandler(IDbContext cont
     {
         var tuitionPlan = await context.TuitionPlans
             .AsNoTracking()
+            .Include(x => x.SelectedModules)
             .FirstOrDefaultAsync(x => x.Id == command.TuitionPlanId && !x.IsDeleted, cancellationToken);
 
         if (tuitionPlan is null)
@@ -47,12 +49,42 @@ public sealed class CreatePackageCurriculumMappingCommandHandler(IDbContext cont
             return Result.Failure<CreatePackageCurriculumMappingResponse>(TuitionPlanErrors.SyllabusLevelMismatch);
         }
 
+        var selectedModuleIds = tuitionPlan.SelectedModules
+            .OrderBy(x => x.OrderIndex)
+            .Select(x => x.ModuleId)
+            .ToList();
+        if (selectedModuleIds.Count > 0)
+        {
+            var selectionValidation = await TuitionPlanSelectionSupport.ValidateSelectionAsync(
+                context,
+                tuitionPlan.ProgramId,
+                tuitionPlan.LevelId,
+                command.SyllabusId,
+                selectedModuleIds,
+                tuitionPlan.TotalSessions,
+                cancellationToken);
+            if (selectionValidation.IsFailure)
+            {
+                return Result.Failure<CreatePackageCurriculumMappingResponse>(selectionValidation.Error);
+            }
+        }
+
         var mapping = await context.PackageCurriculumMappings
             .FirstOrDefaultAsync(
                 x => x.TuitionPlanId == command.TuitionPlanId && x.SyllabusId == command.SyllabusId,
                 cancellationToken);
 
+        var activeMappings = await context.PackageCurriculumMappings
+            .Where(x => x.TuitionPlanId == command.TuitionPlanId && x.IsActive && x.SyllabusId != command.SyllabusId)
+            .ToListAsync(cancellationToken);
+
         var now = VietnamTime.UtcNow();
+        foreach (var activeMapping in activeMappings)
+        {
+            activeMapping.IsActive = false;
+            activeMapping.UpdatedAt = now;
+        }
+
         if (mapping is null)
         {
             mapping = new PackageCurriculumMapping

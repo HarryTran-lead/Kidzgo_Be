@@ -40,6 +40,10 @@ public static class RegistrationErrors
         "Registration.TuitionPlanModuleMismatch",
         $"Tuition plan '{tuitionPlanId}' does not match class '{classId}' start module.");
 
+    public static Error ModuleBasedTuitionPlanRequiresUpcomingClass(Guid tuitionPlanId) => Error.Validation(
+        "Registration.ModuleBasedTuitionPlanRequiresUpcomingClass",
+        $"Tuition plan '{tuitionPlanId}' can only be assigned to classes that are planned or recruiting.");
+
     public static Error StudentNotFound(Guid studentProfileId) => Error.NotFound(
         "Registration.StudentNotFound",
         $"Student profile with ID {studentProfileId} not found");

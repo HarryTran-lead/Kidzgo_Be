@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.TuitionPlans.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Programs.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -16,27 +17,12 @@ public sealed class GetTuitionPlanByIdQueryHandler(
             .Include(t => t.Program)
             .Include(t => t.Level)
             .Include(t => t.Module)
+            .Include(t => t.SelectedModules)
+                .ThenInclude(x => x.Module)
+            .Include(t => t.CurriculumMappings)
+                .ThenInclude(x => x.Syllabus)
+            .Include(t => t.LearningTicketType)
             .Where(t => t.Id == query.Id && !t.IsDeleted)
-            .Select(t => new GetTuitionPlanByIdResponse
-            {
-                Id = t.Id,
-                ProgramId = t.ProgramId,
-                LevelId = t.LevelId,
-                LevelName = t.Level.Name,
-                ModuleId = t.ModuleId,
-                ModuleName = t.Module != null ? t.Module.Name : null,
-                LearningTicketTypeId = t.LearningTicketTypeId,
-                LearningTicketTypeCode = t.LearningTicketType != null ? t.LearningTicketType.Code : null,
-                ProgramName = t.Program.Name,
-                Name = t.Name,
-                TotalSessions = t.TotalSessions,
-                TuitionAmount = t.TuitionAmount,
-                UnitPriceSession = t.UnitPriceSession,
-                Currency = t.Currency,
-                IsActive = t.IsActive,
-                CreatedAt = t.CreatedAt,
-                UpdatedAt = t.UpdatedAt
-            })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (tuitionPlan is null)
@@ -44,7 +30,33 @@ public sealed class GetTuitionPlanByIdQueryHandler(
             return Result.Failure<GetTuitionPlanByIdResponse>(TuitionPlanErrors.NotFound(query.Id));
         }
 
-        return tuitionPlan;
+        var syllabus = TuitionPlanSelectionSupport.ResolveActiveSyllabus(tuitionPlan);
+        var modules = TuitionPlanSelectionSupport.ResolveModules(tuitionPlan);
+
+        return new GetTuitionPlanByIdResponse
+        {
+            Id = tuitionPlan.Id,
+            ProgramId = tuitionPlan.ProgramId,
+            LevelId = tuitionPlan.LevelId,
+            LevelName = tuitionPlan.Level.Name,
+            SyllabusId = syllabus?.SyllabusId,
+            SyllabusCode = syllabus?.SyllabusCode,
+            SyllabusVersion = syllabus?.SyllabusVersion,
+            SyllabusTitle = syllabus?.SyllabusTitle,
+            ModuleIds = TuitionPlanSelectionSupport.ResolveModuleIds(tuitionPlan),
+            Modules = modules,
+            LearningTicketTypeId = tuitionPlan.LearningTicketTypeId,
+            LearningTicketTypeCode = tuitionPlan.LearningTicketType?.Code,
+            ProgramName = tuitionPlan.Program.Name,
+            Name = tuitionPlan.Name,
+            TotalSessions = tuitionPlan.TotalSessions,
+            TuitionAmount = tuitionPlan.TuitionAmount,
+            UnitPriceSession = tuitionPlan.UnitPriceSession,
+            Currency = tuitionPlan.Currency,
+            IsActive = tuitionPlan.IsActive,
+            CreatedAt = tuitionPlan.CreatedAt,
+            UpdatedAt = tuitionPlan.UpdatedAt
+        };
     }
 }
 

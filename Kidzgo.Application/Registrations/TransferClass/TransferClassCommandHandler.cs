@@ -151,8 +151,23 @@ public sealed class TransferClassCommandHandler(
             return Result.Failure<TransferClassResponse>(RegistrationErrors.ClassFull(command.NewClassId));
         }
 
+        if (registration.TuitionPlan?.ModuleId.HasValue == true &&
+            registration.TuitionPlan.ModuleId != newClass.StartModuleId)
+        {
+            return Result.Failure<TransferClassResponse>(
+                RegistrationErrors.TuitionPlanModuleMismatch(registration.TuitionPlanId, newClass.Id));
+        }
+
         // Check new class status
-        if (newClass.Status != ClassStatus.Active && newClass.Status != ClassStatus.Recruiting)
+        if (registration.TuitionPlan?.ModuleId.HasValue == true &&
+            newClass.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
+        {
+            return Result.Failure<TransferClassResponse>(
+                RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(registration.TuitionPlanId));
+        }
+
+        if (registration.TuitionPlan?.ModuleId.HasValue != true &&
+            newClass.Status != ClassStatus.Active && newClass.Status != ClassStatus.Recruiting)
         {
             return Result.Failure<TransferClassResponse>(
                 Error.Validation("ClassNotAvailable", $"Cannot transfer to class with status {newClass.Status}"));

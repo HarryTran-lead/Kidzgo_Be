@@ -60,6 +60,37 @@ public sealed class UpgradeTuitionPlanCommandHandler(
                 Error.Validation("DifferentProgram", "New tuition plan must belong to the same program"));
         }
 
+        if (newTuitionPlan.LevelId != registration.LevelId)
+        {
+            return Result.Failure<UpgradeTuitionPlanResponse>(
+                Error.Validation("DifferentLevel", "New tuition plan must match the registration level"));
+        }
+
+        if (newTuitionPlan.ModuleId.HasValue && registration.ClassId.HasValue)
+        {
+            var currentClass = await context.Classes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == registration.ClassId.Value, cancellationToken);
+
+            if (currentClass is null)
+            {
+                return Result.Failure<UpgradeTuitionPlanResponse>(
+                    RegistrationErrors.ClassNotFound(registration.ClassId.Value));
+            }
+
+            if (currentClass.StartModuleId != newTuitionPlan.ModuleId.Value)
+            {
+                return Result.Failure<UpgradeTuitionPlanResponse>(
+                    RegistrationErrors.TuitionPlanModuleMismatch(newTuitionPlan.Id, currentClass.Id));
+            }
+
+            if (currentClass.Status is not Domain.Classes.ClassStatus.Planned and not Domain.Classes.ClassStatus.Recruiting)
+            {
+                return Result.Failure<UpgradeTuitionPlanResponse>(
+                    RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(newTuitionPlan.Id));
+            }
+        }
+
         var activeEnrollmentSlotTypeIds = await context.ClassEnrollments
             .Where(ce => ce.StudentProfileId == registration.StudentProfileId
                 && ce.Status == Domain.Classes.EnrollmentStatus.Active

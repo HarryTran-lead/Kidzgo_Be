@@ -192,6 +192,20 @@ public sealed class TransferRegistrationBranchCommandHandler(
                     RegistrationErrors.ClassFull(newClass.Id));
             }
 
+            if (registration.TuitionPlan?.ModuleId.HasValue == true &&
+                registration.TuitionPlan.ModuleId != newClass.StartModuleId)
+            {
+                return Result.Failure<TransferRegistrationBranchResponse>(
+                    RegistrationErrors.TuitionPlanModuleMismatch(registration.TuitionPlanId, newClass.Id));
+            }
+
+            if (registration.TuitionPlan?.ModuleId.HasValue == true &&
+                newClass.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
+            {
+                return Result.Failure<TransferRegistrationBranchResponse>(
+                    RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(registration.TuitionPlanId));
+            }
+
             var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
                 registration.StudentProfileId,
                 newClass.Id,

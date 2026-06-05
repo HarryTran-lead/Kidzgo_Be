@@ -31,7 +31,9 @@ public sealed class CreateEnrollmentCommandHandler(
                 EnrollmentErrors.ClassNotFound);
         }
 
-        if (classEntity.Status != ClassStatus.Active && classEntity.Status != ClassStatus.Planned)
+        if (classEntity.Status != ClassStatus.Active &&
+            classEntity.Status != ClassStatus.Planned &&
+            classEntity.Status != ClassStatus.Recruiting)
         {
             return Result.Failure<CreateEnrollmentResponse>(
                 EnrollmentErrors.ClassNotAvailable);
@@ -136,6 +138,13 @@ public sealed class CreateEnrollmentCommandHandler(
             {
                 return Result.Failure<CreateEnrollmentResponse>(
                     EnrollmentErrors.TuitionPlanModuleMismatch);
+            }
+
+            if (tuitionPlan.ModuleId.HasValue &&
+                classEntity.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.ModuleBasedTuitionPlanRequiresUpcomingClass);
             }
 
             if (await IsExplicitlyIncompatibleAsync(

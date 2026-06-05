@@ -6,7 +6,9 @@ public sealed class CreateTuitionPlanCommand : ICommand<CreateTuitionPlanRespons
 {
     public Guid ProgramId { get; init; }
     public Guid LevelId { get; init; }
+    public Guid? SyllabusId { get; init; }
     public Guid? ModuleId { get; init; }
+    public IReadOnlyList<Guid>? ModuleIds { get; init; }
     public Guid? LearningTicketTypeId { get; init; }
     public string Name { get; init; } = null!;
     public int TotalSessions { get; init; }

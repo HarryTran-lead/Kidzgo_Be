@@ -122,6 +122,14 @@ public sealed class AssignClassCommandHandler(
             return Result.Failure<AssignClassResponse>(RegistrationErrors.ClassNotFound(classId ?? Guid.Empty));
         }
 
+        if (classEntity != null)
+        {
+            currentActiveEnrollmentCount = classEntity.ClassEnrollments
+                .Count(ce => ce.Status == EnrollmentStatus.Active);
+
+            ClassCapacityStatusHelper.SyncAvailabilityStatus(classEntity, currentActiveEnrollmentCount, now);
+        }
+
         if (classEntity != null &&
             await IsExplicitlyIncompatibleAsync(
                 registration.TuitionPlan?.LearningTicketTypeId,
@@ -262,6 +270,14 @@ public sealed class AssignClassCommandHandler(
             if (currentActiveEnrollmentCount >= classEntity.Capacity)
             {
                 return Result.Failure<AssignClassResponse>(RegistrationErrors.ClassFull(classEntity.Id));
+            }
+
+            if (!isSecondaryTrack &&
+                registration.TuitionPlan?.ModuleId.HasValue == true &&
+                classEntity.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
+            {
+                return Result.Failure<AssignClassResponse>(
+                    RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(registration.TuitionPlanId));
             }
 
             var alreadyEnrolled = await context.ClassEnrollments

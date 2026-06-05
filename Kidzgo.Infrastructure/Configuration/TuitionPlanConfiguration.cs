@@ -70,6 +70,11 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
             .HasForeignKey(x => x.ModuleId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasMany(x => x.SelectedModules)
+            .WithOne(x => x.TuitionPlan)
+            .HasForeignKey(x => x.TuitionPlanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasMany(x => x.ClassEnrollments)
             .WithOne(x => x.TuitionPlan)
             .HasForeignKey(x => x.TuitionPlanId)

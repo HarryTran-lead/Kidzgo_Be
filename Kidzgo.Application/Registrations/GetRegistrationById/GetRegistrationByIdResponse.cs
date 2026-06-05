@@ -1,3 +1,4 @@
+using Kidzgo.Application.TuitionPlans.Shared;
 using Kidzgo.Domain.Common;
 
 namespace Kidzgo.Application.Registrations.GetRegistrationById;
@@ -18,8 +19,14 @@ public sealed class GetRegistrationByIdResponse
     public string ProgramName { get; init; } = null!;
     public Guid LevelId { get; init; }
     public string LevelName { get; init; } = null!;
+    public Guid? SyllabusId { get; init; }
+    public string? SyllabusCode { get; init; }
+    public int? SyllabusVersion { get; init; }
+    public string? SyllabusTitle { get; init; }
     public Guid? ModuleId { get; init; }
     public string? ModuleName { get; init; }
+    public IReadOnlyList<Guid> ModuleIds { get; init; } = Array.Empty<Guid>();
+    public IReadOnlyList<TuitionPlanModuleDto> Modules { get; init; } = Array.Empty<TuitionPlanModuleDto>();
     public Guid? SecondaryLevelId { get; init; }
     public string? SecondaryLevelName { get; init; }
     public string? SecondaryLevelSkillFocus { get; init; }

@@ -52,6 +52,26 @@ public static class TuitionPlanErrors
         "TuitionPlan.SyllabusLevelMismatch",
         "Syllabus must belong to the same level as the package");
 
+    public static readonly Error SyllabusRequiredForModuleSelection = Error.Validation(
+        "TuitionPlan.SyllabusRequiredForModuleSelection",
+        "Syllabus is required when selecting modules for a tuition plan.");
+
+    public static readonly Error ModuleSelectionRequiredForSyllabus = Error.Validation(
+        "TuitionPlan.ModuleSelectionRequiredForSyllabus",
+        "At least one module must be selected when a syllabus is provided.");
+
+    public static Error SelectedModuleNotInSyllabus(Guid syllabusId, Guid moduleId) => Error.Validation(
+        "TuitionPlan.SelectedModuleNotInSyllabus",
+        $"Module '{moduleId}' does not belong to syllabus '{syllabusId}'.");
+
+    public static Error SelectedModulesMustBeConsecutive(Guid syllabusId) => Error.Validation(
+        "TuitionPlan.SelectedModulesMustBeConsecutive",
+        $"Selected modules for syllabus '{syllabusId}' must form a consecutive sequence.");
+
+    public static Error ModuleSelectionSessionCountMismatch(int expectedTotalSessions) => Error.Validation(
+        "TuitionPlan.ModuleSelectionSessionCountMismatch",
+        $"Total sessions must equal the sum of the selected modules ({expectedTotalSessions}).");
+
     public static Error CurriculumAlreadyMapped(Guid tuitionPlanId, Guid syllabusId) => Error.Conflict(
         "TuitionPlan.CurriculumAlreadyMapped",
         $"Package '{tuitionPlanId}' is already mapped to syllabus '{syllabusId}'");

@@ -277,13 +277,11 @@ public class SyllabusController(ISender mediator) : ControllerBase
             ProgramId = programId,
             LevelId = levelId,
             RegularUnitLessonPlanCount = request.RegularUnitLessonPlanCount,
-            StarterUnitLessonPlanCount = request.StarterUnitLessonPlanCount,
             RevisionLessonPlanCount = request.RevisionLessonPlanCount,
             IsActive = request.IsActive,
             Rules = request.Rules.Select(x => new UpsertCurriculumImportModuleRuleModel
             {
                 ModuleId = x.ModuleId,
-                IncludeStarterUnit = x.IncludeStarterUnit,
                 UnitFrom = x.UnitFrom,
                 UnitTo = x.UnitTo,
                 RevisionNumber = x.RevisionNumber,

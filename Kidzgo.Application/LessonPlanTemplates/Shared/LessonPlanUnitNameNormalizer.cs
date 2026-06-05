@@ -153,14 +153,14 @@ public static class LessonPlanUnitNameNormalizer
     {
         var title = CleanDisplayTitle(rawTitle);
         var displayName = string.IsNullOrWhiteSpace(title)
-            ? "UNIT STARTER"
-            : $"UNIT STARTER: {title}";
+            ? "UNIT 0"
+            : $"UNIT 0: {title}";
 
         return new LessonPlanUnitIdentity(
             CanonicalDisplayName: displayName,
-            NormalizedKey: "UNIT|STARTER",
+            NormalizedKey: "UNIT|0",
             UnitNumber: 0,
-            UnitTitle: string.IsNullOrWhiteSpace(title) ? "STARTER" : title);
+            UnitTitle: title);
     }
 
     private static LessonPlanUnitIdentity BuildNumberedUnitIdentity(string rawNumber, string rawTitle)

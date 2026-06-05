@@ -12,7 +12,8 @@ namespace Kidzgo.Application.Registrations.CancelRegistration.Handler;
 public sealed class CancelRegistrationCommandHandler(
     IDbContext context,
     ClassLifecycleService classLifecycleService,
-    StudentSessionAssignmentService studentSessionAssignmentService
+    StudentSessionAssignmentService studentSessionAssignmentService,
+    TicketGrantService ticketGrantService
 ) : ICommandHandler<CancelRegistrationCommand, CancelRegistrationResponse>
 {
     public async Task<Result<CancelRegistrationResponse>> Handle(
@@ -20,6 +21,9 @@ public sealed class CancelRegistrationCommandHandler(
         CancellationToken cancellationToken)
     {
         var now = VietnamTime.UtcNow();
+        var normalizedReason = string.IsNullOrWhiteSpace(command.Reason)
+            ? null
+            : command.Reason.Trim();
 
         var registration = await context.Registrations
             .FirstOrDefaultAsync(r => r.Id == command.Id, cancellationToken);
@@ -59,11 +63,28 @@ public sealed class CancelRegistrationCommandHandler(
                 cancellationToken);
         }
 
+        var voidReason = normalizedReason is null
+            ? "Void remaining tickets because registration was cancelled"
+            : $"Void remaining tickets because registration was cancelled: {normalizedReason}";
+
+        await ticketGrantService.VoidAvailableTicketsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            voidReason,
+            createdByUserId: null,
+            cancellationToken);
+
         // Update registration status
         registration.Status = RegistrationStatus.Cancelled;
-        registration.Note = string.IsNullOrEmpty(registration.Note) 
-            ? command.Reason 
-            : $"{registration.Note} | Cancel reason: {command.Reason}";
+        if (normalizedReason is not null)
+        {
+            registration.Note = string.IsNullOrEmpty(registration.Note)
+                ? normalizedReason
+                : $"{registration.Note} | Cancel reason: {normalizedReason}";
+        }
+
+        registration.RemainingSessions = 0;
+        registration.TotalSessions = registration.UsedSessions;
         registration.UpdatedAt = now;
 
         await context.SaveChangesAsync(cancellationToken);
@@ -82,7 +103,7 @@ public sealed class CancelRegistrationCommandHandler(
         {
             Id = registration.Id,
             Status = registration.Status.ToString(),
-            Reason = command.Reason,
+            Reason = normalizedReason,
             CancelledAt = now
         };
     }

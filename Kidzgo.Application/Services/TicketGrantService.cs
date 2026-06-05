@@ -55,6 +55,49 @@ public sealed class TicketGrantService(IDbContext context)
         return Task.CompletedTask;
     }
 
+    public async Task<int> VoidAvailableTicketsAsync(
+        Guid studentProfileId,
+        Guid registrationId,
+        string reason,
+        Guid? createdByUserId,
+        CancellationToken cancellationToken)
+    {
+        var availableItems = await context.LearningTicketItems
+            .Where(x => x.StudentProfileId == studentProfileId &&
+                        x.RegistrationId == registrationId &&
+                        x.Status == LearningTicketItemStatus.Available)
+            .ToListAsync(cancellationToken);
+
+        if (availableItems.Count == 0)
+        {
+            return 0;
+        }
+
+        var now = VietnamTime.UtcNow();
+
+        foreach (var item in availableItems)
+        {
+            item.Status = LearningTicketItemStatus.Voided;
+            item.ConsumedBySessionId = null;
+            item.ConsumedByAttendanceId = null;
+            item.ConsumedAt = null;
+        }
+
+        context.LearningTicketLedgers.Add(new LearningTicketLedger
+        {
+            Id = Guid.NewGuid(),
+            StudentProfileId = studentProfileId,
+            RegistrationId = registrationId,
+            TransactionType = LearningTicketTransactionType.Void,
+            Quantity = -availableItems.Count,
+            Reason = reason,
+            CreatedByUserId = createdByUserId,
+            CreatedAt = now
+        });
+
+        return availableItems.Count;
+    }
+
     public async Task<int> GetAvailableTicketsAsync(
         Guid registrationId,
         CancellationToken cancellationToken)

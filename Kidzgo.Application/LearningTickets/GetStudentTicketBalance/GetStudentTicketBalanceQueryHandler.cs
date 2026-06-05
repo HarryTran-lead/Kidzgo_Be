@@ -4,6 +4,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LearningTickets.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LearningTickets;
+using Kidzgo.Domain.Registrations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.LearningTickets.GetStudentTicketBalance;
@@ -33,26 +34,25 @@ public sealed class GetStudentTicketBalanceQueryHandler(
         var available = await context.LearningTicketItems
             .CountAsync(
                 x => x.StudentProfileId == studentProfileId &&
-                     x.Status == LearningTicketItemStatus.Available,
+                     x.Status == LearningTicketItemStatus.Available &&
+                     x.Registration.Status != RegistrationStatus.Cancelled &&
+                     x.Registration.Status != RegistrationStatus.Completed,
                 cancellationToken);
 
         var consumed = await context.LearningTicketItems
             .CountAsync(
                 x => x.StudentProfileId == studentProfileId &&
-                     x.Status == LearningTicketItemStatus.Consumed,
+                     x.Status == LearningTicketItemStatus.Consumed &&
+                     x.Registration.Status != RegistrationStatus.Cancelled &&
+                     x.Registration.Status != RegistrationStatus.Completed,
                 cancellationToken);
-
-        var totalGranted = await context.LearningTicketLedgers
-            .Where(x => x.StudentProfileId == studentProfileId &&
-                        x.TransactionType == LearningTicketTransactionType.Grant)
-            .SumAsync(x => x.Quantity, cancellationToken);
 
         return Result.Success(new GetStudentTicketBalanceResponse
         {
             StudentProfileId = studentProfileId,
             Available = available,
             Consumed = consumed,
-            TotalGranted = Math.Max(totalGranted, available + consumed)
+            TotalGranted = available + consumed
         });
     }
 }

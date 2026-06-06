@@ -1,7 +1,9 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
 using Kidzgo.Domain.Registrations.Errors;
@@ -13,7 +15,8 @@ public sealed class CancelRegistrationCommandHandler(
     IDbContext context,
     ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    TicketGrantService ticketGrantService
+    TicketGrantService ticketGrantService,
+    IUserContext userContext
 ) : ICommandHandler<CancelRegistrationCommand, CancelRegistrationResponse>
 {
     public async Task<Result<CancelRegistrationResponse>> Handle(
@@ -40,6 +43,8 @@ public sealed class CancelRegistrationCommandHandler(
             return Result.Failure<CancelRegistrationResponse>(
                 RegistrationErrors.InvalidStatus(registration.Status.ToString(), "cancel"));
         }
+
+        var beforeSnapshot = RegistrationAuditLogHelper.CreateSnapshot(registration);
 
         var enrollments = await context.ClassEnrollments
             .Where(ce => ce.StudentProfileId == registration.StudentProfileId
@@ -86,6 +91,18 @@ public sealed class CancelRegistrationCommandHandler(
         registration.RemainingSessions = 0;
         registration.TotalSessions = registration.UsedSessions;
         registration.UpdatedAt = now;
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.CancelRegistration,
+            registration,
+            dataBefore: beforeSnapshot,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                reason = normalizedReason
+            },
+            timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
 

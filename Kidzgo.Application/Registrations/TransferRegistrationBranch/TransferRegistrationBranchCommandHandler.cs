@@ -1,7 +1,9 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Programs.Shared;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
@@ -18,7 +20,8 @@ public sealed class TransferRegistrationBranchCommandHandler(
     ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService)
+    TicketCompatibilityService ticketCompatibilityService,
+    IUserContext userContext)
     : ICommandHandler<TransferRegistrationBranchCommand, TransferRegistrationBranchResponse>
 {
     public async Task<Result<TransferRegistrationBranchResponse>> Handle(
@@ -57,6 +60,8 @@ public sealed class TransferRegistrationBranchCommandHandler(
             return Result.Failure<TransferRegistrationBranchResponse>(
                 RegistrationErrors.InvalidStatus(registration.Status.ToString(), "transfer-branch"));
         }
+
+        var beforeSnapshot = RegistrationAuditLogHelper.CreateSnapshot(registration);
 
         if (registration.SecondaryClassId.HasValue)
         {
@@ -332,6 +337,28 @@ public sealed class TransferRegistrationBranchCommandHandler(
             effectiveDate,
             command.Reason,
             now);
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.TransferRegistrationBranch,
+            registration,
+            dataBefore: beforeSnapshot,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                oldBranchId,
+                oldBranchName,
+                NewBranchId = targetBranch.Id,
+                NewBranchName = targetBranch.Name,
+                oldClassId,
+                oldClassName,
+                NewClassId = newClass?.Id,
+                NewClassName = newClass?.Title,
+                EffectiveDate = command.EffectiveDate,
+                Reason = command.Reason,
+                warningMessage
+            },
+            timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
 

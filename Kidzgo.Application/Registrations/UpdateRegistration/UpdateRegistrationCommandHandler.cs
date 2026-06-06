@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
@@ -9,7 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Kidzgo.Application.Registrations.UpdateRegistration.Handler;
 
 public sealed class UpdateRegistrationCommandHandler(
-    IDbContext context
+    IDbContext context,
+    IUserContext userContext
 ) : ICommandHandler<UpdateRegistrationCommand, UpdateRegistrationResponse>
 {
     public async Task<Result<UpdateRegistrationResponse>> Handle(
@@ -35,6 +37,8 @@ public sealed class UpdateRegistrationCommandHandler(
             return Result.Failure<UpdateRegistrationResponse>(
                 RegistrationErrors.InvalidStatus(registration.Status.ToString(), "update"));
         }
+
+        var beforeSnapshot = RegistrationAuditLogHelper.CreateSnapshot(registration);
 
         if (command.ExpectedStartDate.HasValue)
         {
@@ -180,6 +184,17 @@ public sealed class UpdateRegistrationCommandHandler(
         }
 
         registration.UpdatedAt = now;
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.UpdateRegistration,
+            registration,
+            dataBefore: beforeSnapshot,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration)
+            },
+            timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
 

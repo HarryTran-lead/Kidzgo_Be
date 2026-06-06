@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
@@ -14,7 +15,8 @@ namespace Kidzgo.Application.Registrations.UpgradeTuitionPlan.Handler;
 public sealed class UpgradeTuitionPlanCommandHandler(
     IDbContext context,
     TicketGrantService ticketGrantService,
-    TicketCompatibilityService ticketCompatibilityService
+    TicketCompatibilityService ticketCompatibilityService,
+    IUserContext userContext
 ) : ICommandHandler<UpgradeTuitionPlanCommand, UpgradeTuitionPlanResponse>
 {
     public async Task<Result<UpgradeTuitionPlanResponse>> Handle(
@@ -41,6 +43,8 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             return Result.Failure<UpgradeTuitionPlanResponse>(
                 RegistrationErrors.NoActiveRegistrationForUpgrade(registration.StudentProfileId));
         }
+
+        var beforeSnapshot = RegistrationAuditLogHelper.CreateSnapshot(registration);
 
         // 3. Get new tuition plan
         var newTuitionPlan = await context.TuitionPlans.FindAsync(
@@ -208,6 +212,24 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             LearningTicketSource.Purchase,
             createdByUserId: null,
             cancellationToken);
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.UpgradeRegistrationTuitionPlan,
+            registration,
+            dataBefore: beforeSnapshot,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                oldTuitionPlanName,
+                NewTuitionPlanId = newTuitionPlan.Id,
+                NewTuitionPlanName = newTuitionPlan.Name,
+                oldTotalSessions,
+                NewTotalSessions = upgradedTotalSessions,
+                AddedSessions = newTuitionPlan.TotalSessions,
+                CarryOverCreditAmount = registration.CarryOverCreditAmount ?? carryOverCreditAmount
+            },
+            timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
 

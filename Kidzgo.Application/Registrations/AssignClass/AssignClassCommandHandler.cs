@@ -1,6 +1,8 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Classes;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Classes;
@@ -15,7 +17,8 @@ public sealed class AssignClassCommandHandler(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService
+    TicketCompatibilityService ticketCompatibilityService,
+    IUserContext userContext
 ) : ICommandHandler<AssignClassCommand, AssignClassResponse>
 {
     public async Task<Result<AssignClassResponse>> Handle(
@@ -48,6 +51,8 @@ public sealed class AssignClassCommandHandler(
             return Result.Failure<AssignClassResponse>(
                 RegistrationErrors.InvalidStatus(registration.Status.ToString(), "assign-class"));
         }
+
+        var beforeSnapshot = RegistrationAuditLogHelper.CreateSnapshot(registration);
 
         if (isSecondaryTrack && !registration.SecondaryLevelId.HasValue)
         {
@@ -382,6 +387,25 @@ public sealed class AssignClassCommandHandler(
         }
 
         registration.UpdatedAt = now;
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.AssignRegistrationClass,
+            registration,
+            dataBefore: beforeSnapshot,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                track,
+                EntryType = RegistrationTrackHelper.ToApiEntryType(entryType) ?? nameof(EntryType.Immediate),
+                AssignedClassId = classEntity?.Id,
+                AssignedClassCode = classEntity?.Code,
+                AssignedClassTitle = classEntity?.Title,
+                FirstStudyDate = resolvedFirstStudyDate,
+                firstStudySessionAt,
+                warningMessage
+            },
+            timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
 

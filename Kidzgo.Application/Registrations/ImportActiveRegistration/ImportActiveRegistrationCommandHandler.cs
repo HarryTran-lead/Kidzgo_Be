@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
@@ -14,7 +15,8 @@ namespace Kidzgo.Application.Registrations.ImportActiveRegistration;
 
 public sealed class ImportActiveRegistrationCommandHandler(
     IDbContext context,
-    TicketGrantService ticketGrantService
+    TicketGrantService ticketGrantService,
+    IUserContext userContext
 ) : ICommandHandler<ImportActiveRegistrationCommand, ImportActiveRegistrationResponse>
 {
     public async Task<Result<ImportActiveRegistrationResponse>> Handle(
@@ -181,6 +183,24 @@ public sealed class ImportActiveRegistrationCommandHandler(
         RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         context.Registrations.Add(registration);
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.ImportActiveRegistration,
+            registration,
+            dataBefore: null,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                source = "import-active",
+                importedUsage = new
+                {
+                    command.UsedSessions,
+                    command.RemainingSessions,
+                    ActualStartDate = actualStartDate
+                }
+            },
+            timestamp: now);
         await ticketGrantService.GrantTicketsAsync(
             registration.StudentProfileId,
             registration.Id,

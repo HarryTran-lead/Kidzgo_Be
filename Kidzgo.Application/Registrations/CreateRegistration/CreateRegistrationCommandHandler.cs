@@ -1,5 +1,6 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations;
 using Kidzgo.Application.Registrations.Shared;
@@ -15,7 +16,8 @@ namespace Kidzgo.Application.Registrations.CreateRegistration;
 
 public sealed class CreateRegistrationCommandHandler(
     IDbContext context,
-    TicketGrantService ticketGrantService
+    TicketGrantService ticketGrantService,
+    IUserContext userContext
 ) : ICommandHandler<CreateRegistrationCommand, CreateRegistrationResponse>
 {
     public async Task<Result<CreateRegistrationResponse>> Handle(
@@ -191,6 +193,18 @@ public sealed class CreateRegistrationCommandHandler(
         RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         context.Registrations.Add(registration);
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.CreateRegistration,
+            registration,
+            dataBefore: null,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                source = "manual"
+            },
+            timestamp: now);
         await ticketGrantService.GrantTicketsAsync(
             registration.StudentProfileId,
             registration.Id,

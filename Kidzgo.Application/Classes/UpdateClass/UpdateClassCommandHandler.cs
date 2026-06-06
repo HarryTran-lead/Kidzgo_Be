@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
+using Kidzgo.Application.Classes;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes;
@@ -390,10 +391,9 @@ public sealed class UpdateClassCommandHandler(
         classEntity.WeeklyScheduleJson = normalizedWeeklyScheduleJson;
         classEntity.Description = command.Description;
         classEntity.UpdatedAt = VietnamTime.UtcNow();
-        classEntity.Status = ResolveLifecycleStatus(
+        classEntity.Status = ClassLifecycleStatusHelper.ResolveScheduledStatus(
             classEntity.Status,
             classEntity.StartDate,
-            classEntity.EndDate,
             VietnamTime.ToVietnamDateOnly(classEntity.UpdatedAt));
 
         classEntity.SyllabusId = command.SyllabusId;
@@ -496,25 +496,5 @@ public sealed class UpdateClassCommandHandler(
         return parseResult.IsSuccess ? parseResult.Value : [];
     }
 
-    private static ClassStatus ResolveLifecycleStatus(
-        ClassStatus currentStatus,
-        DateOnly startDate,
-        DateOnly? endDate,
-        DateOnly today)
-    {
-        if (currentStatus is ClassStatus.Closed or ClassStatus.Completed or ClassStatus.Cancelled or ClassStatus.Suspended)
-        {
-            return currentStatus;
-        }
-
-        if (startDate <= today)
-        {
-            return currentStatus == ClassStatus.Full
-                ? ClassStatus.Full
-                : ClassStatus.Active;
-        }
-
-        return ClassStatus.Planned;
-    }
 }
 

@@ -1,7 +1,9 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Registrations;
+using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Common;
@@ -17,7 +19,8 @@ public sealed class TransferClassCommandHandler(
     ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService
+    TicketCompatibilityService ticketCompatibilityService,
+    IUserContext userContext
 ) : ICommandHandler<TransferClassCommand, TransferClassResponse>
 {
     public async Task<Result<TransferClassResponse>> Handle(
@@ -56,6 +59,8 @@ public sealed class TransferClassCommandHandler(
             return Result.Failure<TransferClassResponse>(
                 RegistrationErrors.InvalidStatus(registration.Status.ToString(), "transfer-class"));
         }
+
+        var beforeSnapshot = RegistrationAuditLogHelper.CreateSnapshot(registration);
 
         var currentClassId = isSecondaryTrack ? registration.SecondaryClassId : registration.ClassId;
         var targetProgramId = registration.ProgramId;
@@ -258,6 +263,23 @@ public sealed class TransferClassCommandHandler(
         registration.OperationType = OperationType.Transfer;
         registration.Status = RegistrationTrackHelper.ResolveStatus(registration);
         registration.UpdatedAt = now;
+        RegistrationAuditLogHelper.AddAuditLog(
+            context,
+            userContext,
+            RegistrationAuditActions.TransferRegistrationClass,
+            registration,
+            dataBefore: beforeSnapshot,
+            dataAfter: new
+            {
+                registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
+                track,
+                oldClassId,
+                OldClassName = oldClass?.Title,
+                NewClassId = newClass.Id,
+                NewClassName = newClass.Title,
+                EffectiveDate = command.EffectiveDate
+            },
+            timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
         if (oldClass != null)

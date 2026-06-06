@@ -51,10 +51,9 @@ public sealed class SyncPlannedToActualSessionsJob(
         await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Quartz job synced Planned* -> Actual* for {Count} sessions", sessions.Count);
 
-        // Update class status from Planned to Active when first session date arrives
-        // Find classes with Planned status that have their first session today or in the past
+        // Update class status from upcoming statuses to Active when the first session date arrives.
         var plannedClassIds = await db.Classes
-            .Where(c => c.Status == ClassStatus.Planned)
+            .Where(c => c.Status == ClassStatus.Planned || c.Status == ClassStatus.Recruiting)
             .Select(c => c.Id)
             .ToListAsync(cancellationToken);
 
@@ -63,7 +62,7 @@ public sealed class SyncPlannedToActualSessionsJob(
             return;
         }
 
-        // Get first session date for each planned class
+        // Get first session date for each upcoming class.
         var firstSessionDates = await db.Sessions
             .Where(s => plannedClassIds.Contains(s.ClassId))
             .GroupBy(s => s.ClassId)
@@ -92,7 +91,7 @@ public sealed class SyncPlannedToActualSessionsJob(
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Quartz job updated {Count} classes from Planned to Active", classesToActivate.Count);
+        logger.LogInformation("Quartz job updated {Count} classes from upcoming statuses to Active", classesToActivate.Count);
     }
 }
 

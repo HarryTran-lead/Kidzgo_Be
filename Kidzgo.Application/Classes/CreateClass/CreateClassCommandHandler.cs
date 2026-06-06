@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
+using Kidzgo.Application.Classes;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes;
@@ -330,7 +331,7 @@ public sealed class CreateClassCommandHandler(
                 : null,
             ActualEndDate = null,
             EndDate = command.EndDate,
-            Status = ClassStatus.Active,
+            Status = ClassLifecycleStatusHelper.ResolveInitialStatus(command.StartDate, now),
             Capacity = command.Capacity,
             WeeklyScheduleJson = normalizedWeeklyScheduleJson,
             Description = command.Description,

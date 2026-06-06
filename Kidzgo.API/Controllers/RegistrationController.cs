@@ -7,6 +7,7 @@ using Kidzgo.Application.Registrations.GenerateEnrollmentConfirmationPdf;
 using Kidzgo.Application.Registrations.GetEnrollmentConfirmationPdfHistory;
 using Kidzgo.Application.Registrations.GetEnrollmentConfirmationPdfPreview;
 using Kidzgo.Application.Registrations.GetEnrollmentConfirmationPaymentSetting;
+using Kidzgo.Application.Registrations.GetRegistrationHistory;
 using Kidzgo.Application.Registrations.GetRegistrationById;
 using Kidzgo.Application.Registrations.GetRegistrations;
 using Kidzgo.Application.Registrations.GetWaitingList;
@@ -123,6 +124,24 @@ public class RegistrationController : ControllerBase
     {
         var query = new GetRegistrationByIdQuery { Id = id };
         var result = await _mediator.Send(query, cancellationToken);
+        return result.MatchOk();
+    }
+
+    [HttpGet("{id:guid}/history")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> GetRegistrationHistory(
+        Guid id,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetRegistrationHistoryQuery
+        {
+            RegistrationId = id,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        }, cancellationToken);
+
         return result.MatchOk();
     }
 

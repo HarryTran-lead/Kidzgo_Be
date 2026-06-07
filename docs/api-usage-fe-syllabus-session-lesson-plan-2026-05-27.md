@@ -77,7 +77,7 @@ Response rut gon:
         "levelId": "uuid",
         "levelName": "Level 1",
         "code": "STARTERS",
-        "version": "v3",
+        "version": 3,
         "title": "Get Ready for Starters",
         "effectiveFrom": "2026-05-01T00:00:00Z",
         "effectiveTo": null,
@@ -238,7 +238,7 @@ Response rut gon:
         "levelId": "uuid",
         "levelName": "Level 1",
         "code": "STARTERS",
-        "version": "v4",
+        "version": 4,
         "title": "Get Ready for Starters",
         "isActive": true
       }
@@ -290,7 +290,7 @@ Response rut gon:
         "levelId": "uuid",
         "levelName": "Level 1",
         "code": "STARTERS",
-        "version": "v3",
+        "version": 3,
         "title": "Get Ready for Starters",
         "edition": "2nd Edition",
         "isActive": true
@@ -338,7 +338,7 @@ Request body:
 
 ```json
 {
-  "version": "v4",
+  "version": 4,
   "title": "Get Ready for Starters",
   "edition": "2nd Edition",
   "effectiveFrom": "2026-06-01T00:00:00Z",

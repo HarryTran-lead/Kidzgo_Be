@@ -85,7 +85,7 @@ Request body:
   "programId": "guid",
   "levelId": "guid",
   "code": "GET_READY_STARTER",
-  "version": "v1",
+  "version": 1,
   "title": "The Syllabus of Get Ready for Starters",
   "edition": "Second edition",
   "effectiveFrom": "2026-05-19T00:00:00+07:00",
@@ -114,7 +114,7 @@ Success data:
   "programId": "guid",
   "levelId": "guid",
   "code": "GET_READY_STARTER",
-  "version": "v1",
+  "version": 1,
   "title": "The Syllabus of Get Ready for Starters",
   "isActive": true
 }
@@ -154,7 +154,7 @@ Success data:
         "levelId": "guid",
         "levelName": "Starter",
         "code": "GET_READY_STARTER",
-        "version": "v1",
+        "version": 1,
         "title": "The Syllabus of Get Ready for Starters",
         "isActive": true,
         "unitCount": 15,
@@ -187,7 +187,7 @@ Success data:
   "levelId": "guid",
   "levelName": "Starter",
   "code": "GET_READY_STARTER",
-  "version": "v1",
+  "version": 1,
   "title": "The Syllabus of Get Ready for Starters",
   "edition": "Second edition",
   "effectiveFrom": "2026-05-19T00:00:00+07:00",
@@ -279,7 +279,7 @@ Request body:
 ```json
 {
   "code": "GET_READY_STARTER",
-  "version": "v2",
+  "version": 2,
   "title": "The Syllabus of Get Ready for Starters",
   "edition": "Second edition",
   "effectiveFrom": "2026-05-19T00:00:00+07:00",
@@ -306,7 +306,7 @@ Success data:
 {
   "id": "guid",
   "code": "GET_READY_STARTER",
-  "version": "v2",
+  "version": 2,
   "title": "The Syllabus of Get Ready for Starters",
   "isActive": true
 }
@@ -329,7 +329,7 @@ Query params:
 - `programId: Guid`
 - `levelId: Guid`
 - `code: string`
-- `version: string`
+- `version: int`
 - `overwriteExisting?: boolean = true`
 
 Form-data:
@@ -374,7 +374,7 @@ Query params:
 - `programId: Guid`
 - `levelId: Guid`
 - `code: string`
-- `version: string`
+- `version: int`
 - `overwriteExisting?: boolean = true`
 
 Form-data:

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Kidzgo.API.Requests;
 
 /// <summary>
@@ -6,6 +8,7 @@ namespace Kidzgo.API.Requests;
 public sealed class UpdateSyllabusRequest
 {
     public string Code { get; init; } = null!;
+    [JsonConverter(typeof(SyllabusVersionJsonConverter))]
     public int Version { get; init; }
     public string Title { get; init; } = null!;
     public string? Edition { get; init; }

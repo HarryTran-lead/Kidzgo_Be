@@ -174,8 +174,10 @@ Query params:
 - `programId: Guid`
 - `levelId: Guid`
 - `code: string`
-- `version: string`
+- `version: int`
 - `overwriteExisting: boolean`, default `true`
+
+`version` phai la so duong, vi du `1`. Backend cung con accept legacy input dang `v1`, nhung FE nen gui so.
 
 Form-data:
 
@@ -243,8 +245,10 @@ Query params:
 - `programId: Guid`
 - `levelId: Guid`
 - `code: string`
-- `version: string`
+- `version: int`
 - `overwriteExisting: boolean`, default `true`
+
+`version` phai la so duong, vi du `1`. Backend cung con accept legacy input dang `v1`, nhung FE nen gui so.
 
 Form-data:
 

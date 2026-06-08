@@ -940,6 +940,7 @@ internal static class CurriculumWordImportParser
                 NormalizeExcelTitleValue(topic),
                 NormalizeExcelTitleValue(unitTitle),
                 NormalizeExcelTitleValue(unitCode));
+            var normalizedModuleHint = ResolveCanonicalExcelUnitName(unitTitle, unitCode, topic);
 
             lessons.Add(new ParsedSyllabusLesson(
                 lessons.Count + 1,
@@ -952,7 +953,7 @@ internal static class CurriculumWordImportParser
                 null,
                 NormalizeExcelCell(GetByIndex(row, studentBookIndex)),
                 NormalizeExcelCell(GetByIndex(row, teacherBookIndex)),
-                FirstNonEmpty(unitTitle, unitCode, normalizedTopic)));
+                normalizedModuleHint ?? FirstNonEmpty(unitTitle, unitCode, normalizedTopic)));
         }
 
         return lessons;
@@ -962,9 +963,23 @@ internal static class CurriculumWordImportParser
         IReadOnlyDictionary<string, List<string[]>> sheets,
         List<ParsedSyllabusLesson> lessons)
     {
+        var lessonDerivedUnits = BuildUnitsFromLessons(lessons)
+            .Select(unit =>
+            {
+                var normalizedUnitName = ResolveCanonicalExcelUnitName(unit.ModuleHint, unit.Name);
+                return new ParsedSyllabusUnit(
+                    normalizedUnitName ?? unit.Name,
+                    unit.OrderIndex,
+                    unit.AllocatedPeriods,
+                    unit.LessonCount,
+                    unit.Notes,
+                    normalizedUnitName ?? unit.ModuleHint ?? unit.Name);
+            })
+            .ToList();
+
         if (!sheets.TryGetValue("Units_Summary", out var summaryRows) || summaryRows.Count < 2)
         {
-            return BuildUnitsFromLessons(lessons);
+            return lessonDerivedUnits;
         }
 
         var header = summaryRows[0].Select(Normalize).ToArray();
@@ -973,7 +988,7 @@ internal static class CurriculumWordImportParser
         var unitTitleIndex = FindHeaderIndex(header, "unittitle");
         var plannedPeriodsIndex = FindHeaderIndex(header, "plannedperiods");
 
-        var units = new List<ParsedSyllabusUnit>();
+        var summaryLookup = new Dictionary<string, SummarySheetUnitDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in summaryRows.Skip(1))
         {
             if (row.All(string.IsNullOrWhiteSpace))
@@ -984,22 +999,40 @@ internal static class CurriculumWordImportParser
             var unitCode = GetByIndex(row, unitCodeIndex);
             var unitLabel = GetByIndex(row, unitLabelIndex);
             var unitTitle = GetByIndex(row, unitTitleIndex);
-            var lessonCount = lessons.Count(lesson =>
-                string.Equals(
-                    Normalize(GetUnitCodeFromHint(lesson.ModuleHint ?? lesson.Topic)),
-                    Normalize(unitCode),
-                    StringComparison.OrdinalIgnoreCase));
+            var unitKey = ResolveCanonicalExcelUnitKey(unitTitle, unitLabel, unitCode);
+            if (unitKey is null || summaryLookup.ContainsKey(unitKey))
+            {
+                continue;
+            }
 
-            units.Add(new ParsedSyllabusUnit(
-                NormalizeExcelTitleValue(FirstNonEmpty(unitTitle, unitLabel, unitCode)) ?? unitCode,
-                units.Count + 1,
-                ParseFirstInt(GetByIndex(row, plannedPeriodsIndex)),
-                lessonCount > 0 ? lessonCount : null,
-                null,
-                FirstNonEmpty(unitTitle, unitLabel, unitCode)));
+            summaryLookup[unitKey] = new SummarySheetUnitDefinition(
+                ResolveCanonicalExcelUnitName(unitTitle, unitLabel, unitCode),
+                ParseFirstInt(GetByIndex(row, plannedPeriodsIndex)));
         }
 
-        return units.Count > 0 ? units : BuildUnitsFromLessons(lessons);
+        if (summaryLookup.Count == 0)
+        {
+            return lessonDerivedUnits;
+        }
+
+        return lessonDerivedUnits
+            .Select(unit =>
+            {
+                var unitKey = ResolveCanonicalExcelUnitKey(unit.ModuleHint, unit.Name);
+                if (unitKey is not null && summaryLookup.TryGetValue(unitKey, out var summaryDefinition))
+                {
+                    return new ParsedSyllabusUnit(
+                        summaryDefinition.Name ?? unit.Name,
+                        unit.OrderIndex,
+                        summaryDefinition.AllocatedPeriods ?? unit.AllocatedPeriods,
+                        unit.LessonCount,
+                        unit.Notes,
+                        summaryDefinition.Name ?? unit.ModuleHint ?? unit.Name);
+                }
+
+                return unit;
+            })
+            .ToList();
     }
 
     private static List<ParsedSyllabusResource> ParseResourcesFromMaterialsSheet(
@@ -1102,28 +1135,48 @@ internal static class CurriculumWordImportParser
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
     }
 
+    private static string? ResolveCanonicalExcelUnitKey(params string?[] hints)
+    {
+        return hints
+            .Select(ExtractUnitKey)
+            .FirstOrDefault(key => key is not null);
+    }
+
+    private static string? ResolveCanonicalExcelUnitName(params string?[] hints)
+    {
+        var key = ResolveCanonicalExcelUnitKey(hints);
+        if (key is not null)
+        {
+            return BuildDisplayNameFromKey(key);
+        }
+
+        return NormalizeExcelTitleValue(FirstNonEmpty(hints));
+    }
+
     private static string? GetUnitCodeFromHint(string? hint)
     {
-        if (string.IsNullOrWhiteSpace(hint))
+        var key = ResolveCanonicalExcelUnitKey(hint);
+        if (string.IsNullOrWhiteSpace(key))
         {
             return null;
         }
 
-        var normalized = hint.Trim();
-        var revisionMatch = Regex.Match(normalized, @"REVISION\s*0*(\d+)", RegexOptions.IgnoreCase);
-        if (revisionMatch.Success)
+        if (key.StartsWith("REVISION:", StringComparison.OrdinalIgnoreCase))
         {
-            return $"revision-{int.Parse(revisionMatch.Groups[1].Value)}";
+            return $"revision-{int.Parse(key["REVISION:".Length..]):0}";
         }
 
-        if (LessonPlanUnitNameNormalizer.IsIntroUnitAliasText(normalized) ||
-            normalized.Contains("starter", StringComparison.OrdinalIgnoreCase))
+        if (key.Equals("UNIT:0", StringComparison.OrdinalIgnoreCase))
         {
-            return "starter";
+            return "unit-00";
         }
 
-        var unitMatch = Regex.Match(normalized, @"UNIT\s*0*(\d+)", RegexOptions.IgnoreCase);
-        return unitMatch.Success ? $"unit-{int.Parse(unitMatch.Groups[1].Value):00}" : normalized;
+        if (key.StartsWith("UNIT:", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"unit-{int.Parse(key["UNIT:".Length..]):00}";
+        }
+
+        return Normalize(hint!);
     }
 
     private static List<UnitDefinition> ParseUnitDefinitions(IEnumerable<Table> tables)
@@ -1174,21 +1227,32 @@ internal static class CurriculumWordImportParser
             return null;
         }
 
-        var revisionMatch = Regex.Match(text, @"\bREVISION\s*0*(\d+)\b", RegexOptions.IgnoreCase);
+        var revisionMatch = Regex.Match(
+            text,
+            @"\bREVISION[\s:_-]*0*(\d+)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (revisionMatch.Success)
         {
             return $"REVISION:{int.Parse(revisionMatch.Groups[1].Value)}";
         }
 
-        var unitMatch = Regex.Match(text, @"\bUNIT\s*0*(\d+)\b", RegexOptions.IgnoreCase);
+        var unitMatch = Regex.Match(
+            text,
+            @"\bUNIT[\s:_-]*0*(\d+)\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (unitMatch.Success)
         {
             return $"UNIT:{int.Parse(unitMatch.Groups[1].Value)}";
         }
 
-        if (LessonPlanUnitNameNormalizer.IsIntroUnitAliasText(text) ||
+        if (Regex.IsMatch(
+                text,
+                @"\bUNIT[\s:_-]*(?:STARTER|STARTERS|MOVER|MOVERS|FLYER|FLYERS|HELLO)\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) ||
+            LessonPlanUnitNameNormalizer.IsIntroUnitAliasText(text) ||
             text.Contains("starter", StringComparison.OrdinalIgnoreCase) ||
             text.Contains("unit hello", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("unit-hello", StringComparison.OrdinalIgnoreCase) ||
             (text.Contains("hello", StringComparison.OrdinalIgnoreCase) &&
              text.Contains("unit", StringComparison.OrdinalIgnoreCase)))
         {
@@ -1672,6 +1736,10 @@ internal static class CurriculumWordImportParser
         int? AllocatedPeriods,
         int OrderIndex,
         string? ModuleHint);
+
+    private sealed record SummarySheetUnitDefinition(
+        string? Name,
+        int? AllocatedPeriods);
 
     private readonly record struct LessonTableLayout(
         int PeriodIndex,

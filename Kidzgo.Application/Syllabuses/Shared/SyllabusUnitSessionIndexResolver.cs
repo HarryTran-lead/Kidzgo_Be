@@ -42,9 +42,13 @@ internal static class SyllabusUnitSessionIndexResolver
 
         var targetUnit = orderedUnits.FirstOrDefault(x =>
             string.Equals(x.NormalizedKey, normalizedUnitKey, StringComparison.OrdinalIgnoreCase));
-        if (targetUnit is null ||
-            !targetUnit.LessonCount.HasValue ||
-            targetUnit.LessonCount.Value <= 0 ||
+        if (targetUnit is null)
+        {
+            return null;
+        }
+
+        if (targetUnit.LessonCount.HasValue &&
+            targetUnit.LessonCount.Value > 0 &&
             lessonNumber > targetUnit.LessonCount.Value)
         {
             return null;
@@ -80,6 +84,6 @@ internal static class SyllabusUnitSessionIndexResolver
                     x.Unit.ModuleId!.Value,
                     x.Identity!.NormalizedKey,
                     x.Unit.OrderIndex,
-                    x.Unit.LessonCount)));
+                    x.Unit.LessonCount ?? x.Unit.AllocatedPeriods)));
     }
 }

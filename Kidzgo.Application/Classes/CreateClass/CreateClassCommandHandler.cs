@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
@@ -207,6 +208,7 @@ public sealed class CreateClassCommandHandler(
         }
 
         string? slotTypeCode = null;
+        var defaultSectionType = SectionType.Normal;
         if (command.SlotTypeId.HasValue)
         {
             var slotType = await context.SlotTypes
@@ -224,6 +226,7 @@ public sealed class CreateClassCommandHandler(
             }
 
             slotTypeCode = slotType.Code;
+            defaultSectionType = SlotTypeSectionTypeMapper.Map(slotType.UsageType);
         }
 
         var sessionsToGenerate = command.SessionsToGenerate.GetValueOrDefault();
@@ -382,7 +385,7 @@ public sealed class CreateClassCommandHandler(
                     SlotTypeId = classEntity.SlotTypeId,
                     DurationMinutes = occurrence.DurationMinutes,
                     ParticipationType = ParticipationType.Main,
-                    SectionType = SectionType.Normal,
+                    SectionType = defaultSectionType,
                     Status = SessionStatus.Scheduled,
                     CurriculumSnapshotJson = BuildCurriculumSnapshotJson(plannedMetadata[index]),
                     CreatedAt = now,

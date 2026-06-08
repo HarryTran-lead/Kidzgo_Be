@@ -13,7 +13,7 @@ public sealed class CreateSessionCommand : ICommand<CreateSessionResponse>
     public Guid? PlannedAssistantId { get; init; }
     public Guid? SlotTypeId { get; init; }
     public ParticipationType ParticipationType { get; init; } = ParticipationType.Main;
-    public SectionType SectionType { get; init; } = SectionType.Normal;
+    public SectionType? SectionType { get; init; }
 }
 
 

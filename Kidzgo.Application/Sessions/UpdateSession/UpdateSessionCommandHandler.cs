@@ -94,7 +94,10 @@ public sealed class UpdateSessionCommandHandler(
         session.PlannedAssistantId = command.PlannedAssistantId;
         session.SlotTypeId = slotTypeId;
         session.ParticipationType = command.ParticipationType;
-        session.SectionType = command.SectionType;
+        if (command.SectionType.HasValue)
+        {
+            session.SectionType = command.SectionType.Value;
+        }
         session.UpdatedAt = VietnamTime.UtcNow();
 
         await studentSessionAssignmentService.SyncAssignmentsForSessionAsync(session, cancellationToken);

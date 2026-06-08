@@ -52,10 +52,11 @@ public sealed class CreateSessionCommandHandler(
         var plannedUtc = VietnamTime.NormalizeToUtc(command.PlannedDatetime);
         var slotTypeId = command.SlotTypeId ?? classEntity.SlotTypeId;
         string? slotTypeCode = null;
+        SlotType? slotType = null;
 
         if (slotTypeId.HasValue)
         {
-            var slotType = await context.SlotTypes
+            slotType = await context.SlotTypes
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == slotTypeId.Value && x.IsActive, cancellationToken);
 
@@ -69,6 +70,11 @@ public sealed class CreateSessionCommandHandler(
 
             slotTypeCode = slotType.Code;
         }
+
+        var resolvedSectionType = command.SectionType ??
+                                  (slotType is not null
+                                      ? SlotTypeSectionTypeMapper.Map(slotType.UsageType)
+                                      : SectionType.Normal);
 
         var conflictResult = await conflictChecker.CheckConflictsAsync(
             Guid.Empty,
@@ -98,7 +104,7 @@ public sealed class CreateSessionCommandHandler(
             SlotTypeId = slotTypeId,
             DurationMinutes = command.DurationMinutes,
             ParticipationType = command.ParticipationType,
-            SectionType = command.SectionType,
+            SectionType = resolvedSectionType,
             Status = SessionStatus.Scheduled,
             CreatedAt = now,
             UpdatedAt = now

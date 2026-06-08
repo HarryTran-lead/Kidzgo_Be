@@ -9,7 +9,7 @@ public sealed class UpdateSessionRequest
     public Guid? PlannedAssistantId { get; set; }
     public Guid? SlotTypeId { get; set; }
     public string ParticipationType { get; set; } = "Main";
-    public string SectionType { get; set; } = "Normal";
+    public string? SectionType { get; set; }
 }
 
 

@@ -73,10 +73,12 @@ public class SessionController : ControllerBase
             return CustomResults.Problem(Result.Failure(SessionErrors.InvalidParticipationType(request.ParticipationType)));
         }
 
-        var sectionType = Enum.TryParse<Domain.Sessions.SectionType>(
-            request.SectionType, true, out var parsedSectionType)
-            ? parsedSectionType
-            : Domain.Sessions.SectionType.Normal;
+        Domain.Sessions.SectionType? sectionType = request.SectionType is null
+            ? null
+            : (Enum.TryParse<Domain.Sessions.SectionType>(
+                request.SectionType, true, out var parsedSectionType)
+                ? parsedSectionType
+                : Domain.Sessions.SectionType.Normal);
 
         var command = new CreateSessionCommand
         {
@@ -165,10 +167,12 @@ public class SessionController : ControllerBase
             return CustomResults.Problem(Result.Failure(SessionErrors.InvalidParticipationType(request.ParticipationType)));
         }
 
-        var sectionType = Enum.TryParse<Domain.Sessions.SectionType>(
-            request.SectionType, true, out var parsedSectionType)
-            ? parsedSectionType
-            : Domain.Sessions.SectionType.Normal;
+        Domain.Sessions.SectionType? sectionType = request.SectionType is null
+            ? null
+            : (Enum.TryParse<Domain.Sessions.SectionType>(
+                request.SectionType, true, out var parsedSectionType)
+                ? parsedSectionType
+                : Domain.Sessions.SectionType.Normal);
 
         var command = new UpdateSessionCommand
         {

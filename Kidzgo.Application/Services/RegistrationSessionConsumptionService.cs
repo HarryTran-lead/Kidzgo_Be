@@ -33,6 +33,7 @@ public sealed class RegistrationSessionConsumptionService(
         AbsenceType? previousAbsenceType,
         AttendanceStatus newStatus,
         AbsenceType? newAbsenceType,
+        ParticipationType participationType,
         SectionType sectionType,
         Guid? slotTypeId,
         DateTime sessionDateTimeUtc,
@@ -45,8 +46,16 @@ public sealed class RegistrationSessionConsumptionService(
             return new AttendanceTransitionOutcome(impactedClassIds, false, 0, null, false, null, null);
         }
 
-        var beforeDecision = ticketConsumptionPolicyService.Evaluate(previousStatus, previousAbsenceType, sectionType);
-        var afterDecision = ticketConsumptionPolicyService.Evaluate(newStatus, newAbsenceType, sectionType);
+        var beforeDecision = ticketConsumptionPolicyService.Evaluate(
+            previousStatus,
+            previousAbsenceType,
+            participationType,
+            sectionType);
+        var afterDecision = ticketConsumptionPolicyService.Evaluate(
+            newStatus,
+            newAbsenceType,
+            participationType,
+            sectionType);
 
         var consumedBefore = beforeDecision.ShouldConsumeTicket && beforeDecision.Quantity > 0;
         var consumedAfter = afterDecision.ShouldConsumeTicket && afterDecision.Quantity > 0;

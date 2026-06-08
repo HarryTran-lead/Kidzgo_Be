@@ -110,6 +110,7 @@ public sealed class UpdateAttendanceCommandHandler(
                 oldAbsenceType,
                 attendance.AttendanceStatus,
                 attendance.AbsenceType,
+                attendance.Session.ParticipationType,
                 attendance.Session.SectionType,
                 attendance.Session.SlotTypeId,
                 attendance.Session.ActualDatetime ?? attendance.Session.PlannedDatetime,

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ExcelDataReader;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans.Errors;
 using UglyToad.PdfPig;
@@ -219,12 +220,12 @@ internal static class CurriculumWordImportParser
         var rawText = string.Join("\n", blocks.Select(x => x.Text).Where(x => !string.IsNullOrWhiteSpace(x)));
 
         var unitLine = blocks.Select(x => x.Text).FirstOrDefault(x =>
-            Regex.IsMatch(x, @"\bUNIT\s+(?:\d+|STARTER)\b", RegexOptions.IgnoreCase) ||
+            Regex.IsMatch(x, @"\bUNIT\s+(?:\d+|STARTER|STARTERS|MOVER|MOVERS|FLYER|FLYERS|HELLO)\b", RegexOptions.IgnoreCase) ||
             Regex.IsMatch(x, @"\bREVISION\s*0*\d+\b", RegexOptions.IgnoreCase));
         var lessonLine = blocks.Select(x => x.Text).FirstOrDefault(x => Regex.IsMatch(x, @"\bLesson\s*0*\d+\b", RegexOptions.IgnoreCase));
         var unitMatch = unitLine is null
             ? null
-            : Regex.Match(unitLine, @"(UNIT\s+(?:\d+|STARTER)|REVISION\s*0*\d+)\s*:?\s*(.*)$", RegexOptions.IgnoreCase);
+            : Regex.Match(unitLine, @"(UNIT\s+(?:\d+|STARTER|STARTERS|MOVER|MOVERS|FLYER|FLYERS|HELLO)|REVISION\s*0*\d+)\s*:?\s*(.*)$", RegexOptions.IgnoreCase);
         var lessonMatch = lessonLine is null ? null : Regex.Match(lessonLine, @"Lesson\s*0*(\d+)", RegexOptions.IgnoreCase);
 
         var sections = ParseSections(blocks);
@@ -1115,7 +1116,8 @@ internal static class CurriculumWordImportParser
             return $"revision-{int.Parse(revisionMatch.Groups[1].Value)}";
         }
 
-        if (normalized.Contains("starter", StringComparison.OrdinalIgnoreCase))
+        if (LessonPlanUnitNameNormalizer.IsIntroUnitAliasText(normalized) ||
+            normalized.Contains("starter", StringComparison.OrdinalIgnoreCase))
         {
             return "starter";
         }
@@ -1184,7 +1186,8 @@ internal static class CurriculumWordImportParser
             return $"UNIT:{int.Parse(unitMatch.Groups[1].Value)}";
         }
 
-        if (text.Contains("starter", StringComparison.OrdinalIgnoreCase) ||
+        if (LessonPlanUnitNameNormalizer.IsIntroUnitAliasText(text) ||
+            text.Contains("starter", StringComparison.OrdinalIgnoreCase) ||
             text.Contains("unit hello", StringComparison.OrdinalIgnoreCase) ||
             (text.Contains("hello", StringComparison.OrdinalIgnoreCase) &&
              text.Contains("unit", StringComparison.OrdinalIgnoreCase)))
@@ -1214,7 +1217,7 @@ internal static class CurriculumWordImportParser
     {
         var normalizedUnitLabel = Regex.IsMatch(
             rawUnitLabel,
-            @"\bUNIT\s+STARTER\b",
+            @"\bUNIT\s+(?:STARTER|STARTERS|MOVER|MOVERS|FLYER|FLYERS|HELLO)\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             ? "UNIT 0"
             : rawUnitLabel.Trim().ToUpperInvariant();

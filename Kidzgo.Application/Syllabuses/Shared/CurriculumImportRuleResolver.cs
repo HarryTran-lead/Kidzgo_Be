@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Domain.LessonPlans;
 using Kidzgo.Domain.Programs;
 
@@ -69,15 +70,15 @@ internal static class CurriculumImportRuleResolver
         {
             var unitMatch = Regex.Match(
                 text,
-                @"\bUNIT\s*(STARTER|0*\d+)\b",
+                @"\bUNIT\s*(STARTER|STARTERS|MOVER|MOVERS|FLYER|FLYERS|HELLO|0*\d+)\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (unitMatch.Success)
             {
                 var lessonIndex = ExtractLessonIndex(text) ?? 1;
                 var unitToken = unitMatch.Groups[1].Value;
-                var unitNumber = unitToken.Equals("STARTER", StringComparison.OrdinalIgnoreCase)
-                    ? 0
-                    : int.Parse(unitToken);
+                var unitNumber = int.TryParse(unitToken, out var parsedUnitNumber)
+                    ? parsedUnitNumber
+                    : 0;
 
                 if (!CurriculumImportRuleRangeMath.ContainsUnit(rule, unitNumber))
                 {
@@ -134,11 +135,9 @@ internal static class CurriculumImportRuleResolver
             return null;
         }
 
-        if (text.Contains("unit starter", StringComparison.OrdinalIgnoreCase) ||
+        if (LessonPlanUnitNameNormalizer.IsIntroUnitAliasText(text) ||
             Regex.IsMatch(text, @"\bUNIT\s*0+\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) ||
-            text.Contains("unit hello", StringComparison.OrdinalIgnoreCase) ||
-            text.Equals("starter", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("hello", StringComparison.OrdinalIgnoreCase))
+            text.Equals("starter", StringComparison.OrdinalIgnoreCase))
         {
             return rules
                 .OrderBy(x => x.OrderIndex)

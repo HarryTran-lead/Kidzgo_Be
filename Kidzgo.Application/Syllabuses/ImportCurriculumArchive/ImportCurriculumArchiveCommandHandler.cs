@@ -169,6 +169,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             .ThenBy(x => x.OrderIndex)
             .ToListAsync(cancellationToken);
         var syllabusUnitLookup = BuildSyllabusUnitLookup(syllabusUnits);
+        var syllabusUnitSessionLookup = SyllabusUnitSessionIndexResolver.BuildLookupFromSyllabusUnits(syllabusUnits);
 
         foreach (var entry in syllabusEntries)
         {
@@ -189,6 +190,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
             modules,
             importConfiguration,
             syllabusUnitLookup,
+            syllabusUnitSessionLookup,
             lessonPlanEntries,
             skipped,
             skippedItems);
@@ -283,6 +285,7 @@ public sealed class ImportCurriculumArchiveCommandHandler(
         IReadOnlyList<Domain.Programs.Module> modules,
         Domain.LessonPlans.CurriculumImportConfiguration configuration,
         IReadOnlyDictionary<(Guid ModuleId, string NormalizedKey), ResolvedSyllabusUnit> syllabusUnitLookup,
+        IReadOnlyDictionary<Guid, IReadOnlyList<OrderedSyllabusUnitSession>> syllabusUnitSessionLookup,
         IReadOnlyList<ZipArchiveEntry> lessonPlanEntries,
         ICollection<string> skipped,
         ICollection<SkippedCurriculumArchiveEntryDto> skippedItems)
@@ -330,10 +333,20 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 continue;
             }
 
-            var sessionIndexOverride = CurriculumImportRuleResolver.ResolveSessionIndex(
-                configuration,
-                rule,
-                archiveIdentity.SessionHint);
+            var syllabusUnit = syllabusUnitLookup.GetValueOrDefault((module.Id, archiveIdentity.UnitIdentity.NormalizedKey));
+            var sessionIndexOverride = SyllabusUnitSessionIndexResolver.ResolveSessionIndex(
+                syllabusUnitSessionLookup,
+                module.Id,
+                archiveIdentity.UnitIdentity.NormalizedKey,
+                archiveIdentity.LessonNumber);
+
+            if (!sessionIndexOverride.HasValue)
+            {
+                sessionIndexOverride = CurriculumImportRuleResolver.ResolveSessionIndex(
+                    configuration,
+                    rule,
+                    archiveIdentity.SessionHint);
+            }
             if (!sessionIndexOverride.HasValue)
             {
                 AddSkippedEntry(
@@ -345,7 +358,6 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                 continue;
             }
 
-            var syllabusUnit = syllabusUnitLookup.GetValueOrDefault((module.Id, archiveIdentity.UnitIdentity.NormalizedKey));
             candidates.Add(new ResolvedLessonPlanArchiveEntry(
                 entry,
                 module,
@@ -443,7 +455,8 @@ public sealed class ImportCurriculumArchiveCommandHandler(
                     continue;
                 }
 
-                result[key] = new ResolvedSyllabusUnit(unit.Name, identity.NormalizedKey, moduleOrderIndex++);
+                result[key] = new ResolvedSyllabusUnit(unit.Name, identity.NormalizedKey, unit.OrderIndex);
+                moduleOrderIndex++;
             }
         }
 

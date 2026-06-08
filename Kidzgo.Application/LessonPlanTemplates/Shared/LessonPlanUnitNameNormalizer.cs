@@ -7,6 +7,8 @@ namespace Kidzgo.Application.LessonPlanTemplates.Shared;
 
 public static class LessonPlanUnitNameNormalizer
 {
+    private const string IntroUnitAliasPattern = @"STARTER|STARTERS|MOVER|MOVERS|FLYER|FLYERS|HELLO";
+
     public static string Normalize(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -43,11 +45,11 @@ public static class LessonPlanUnitNameNormalizer
 
             var starterMatch = Regex.Match(
                 normalizedHint,
-                @"\bUNIT\s+STARTER\b(?<name>.*?)(?=\bLESSON\b|$)",
+                $@"\bUNIT\s+(?:{IntroUnitAliasPattern})\b(?<name>.*?)(?=\bLESSON\b|$)",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             if (starterMatch.Success)
             {
-                return BuildStarterIdentity(starterMatch.Groups["name"].Value);
+                return BuildIntroUnitIdentity(starterMatch.Groups["name"].Value);
             }
 
             var unitMatch = Regex.Match(
@@ -106,6 +108,29 @@ public static class LessonPlanUnitNameNormalizer
         return null;
     }
 
+    public static bool IsIntroUnitAliasText(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var normalizedHint = NormalizeHint(raw);
+        if (Regex.IsMatch(
+                normalizedHint,
+                $@"\bUNIT\s+(?:{IntroUnitAliasPattern})\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return true;
+        }
+
+        var normalized = NormalizeLoose(raw);
+        return Regex.IsMatch(
+            normalized,
+            $@"^(?:{IntroUnitAliasPattern})$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
     private static LessonPlanUnitIdentity? TryParseUnitIdentity(string raw)
     {
         var normalized = NormalizeLoose(raw);
@@ -116,11 +141,11 @@ public static class LessonPlanUnitNameNormalizer
 
         var starterMatch = Regex.Match(
             normalized,
-            @"\bUNIT\s+STARTER\b(?<name>.*)$",
+            $@"\bUNIT\s+(?:{IntroUnitAliasPattern})\b(?<name>.*)$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (starterMatch.Success)
         {
-            return BuildStarterIdentity(starterMatch.Groups["name"].Value);
+            return BuildIntroUnitIdentity(starterMatch.Groups["name"].Value);
         }
 
         var unitMatch = Regex.Match(
@@ -149,7 +174,7 @@ public static class LessonPlanUnitNameNormalizer
             UnitTitle: cleanedTitle);
     }
 
-    private static LessonPlanUnitIdentity BuildStarterIdentity(string rawTitle)
+    private static LessonPlanUnitIdentity BuildIntroUnitIdentity(string rawTitle)
     {
         var title = CleanDisplayTitle(rawTitle);
         var displayName = string.IsNullOrWhiteSpace(title)
@@ -168,7 +193,7 @@ public static class LessonPlanUnitNameNormalizer
         var number = int.Parse(rawNumber);
         if (number == 0)
         {
-            return BuildStarterIdentity(rawTitle);
+            return BuildIntroUnitIdentity(rawTitle);
         }
 
         var title = CleanDisplayTitle(rawTitle);

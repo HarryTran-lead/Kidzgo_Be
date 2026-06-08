@@ -180,7 +180,7 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
                     x.ModuleId!.Value,
                     x.Identity!.NormalizedKey,
                     x.Unit.OrderIndex,
-                    x.Unit.LessonCount)));
+                    x.Unit.LessonCount ?? x.Unit.AllocatedPeriods)));
 
         var resolvedLessonImports = ResolveLessonImports(
             parsed.Value.Lessons,

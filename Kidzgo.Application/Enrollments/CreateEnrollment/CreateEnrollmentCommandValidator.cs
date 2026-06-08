@@ -14,6 +14,10 @@ public sealed class CreateEnrollmentCommandValidator : AbstractValidator<CreateE
 
         RuleFor(command => command.EnrollDate)
             .NotEmpty().WithMessage("Enroll date is required");
+
+        RuleFor(command => command.RegistrationId)
+            .NotEmpty().WithMessage("Registration ID must not be empty")
+            .When(command => command.RegistrationId.HasValue);
     }
 }
 

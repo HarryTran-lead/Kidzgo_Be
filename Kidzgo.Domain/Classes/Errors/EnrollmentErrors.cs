@@ -40,6 +40,22 @@ public static class EnrollmentErrors
         "Enrollment.TuitionPlanNotFound",
         "Tuition plan not found");
 
+    public static Error RegistrationNotFound(Guid registrationId) => Error.NotFound(
+        "Enrollment.RegistrationNotFound",
+        $"Registration '{registrationId}' was not found.");
+
+    public static readonly Error RegistrationStudentMismatch = Error.Validation(
+        "Enrollment.RegistrationStudentMismatch",
+        "The selected registration does not belong to the selected student.");
+
+    public static readonly Error RegistrationNotActive = Error.Conflict(
+        "Enrollment.RegistrationNotActive",
+        "The selected registration is not active for supplementary enrollment.");
+
+    public static Error RegistrationTicketNotAvailable(Guid registrationId, string reason) => Error.Conflict(
+        "Enrollment.RegistrationTicketNotAvailable",
+        $"Registration '{registrationId}' cannot supply tickets for this class. {reason}");
+
     public static readonly Error TuitionPlanNotAvailable = Error.Conflict(
         "Enrollment.TuitionPlanNotAvailable",
         "Tuition plan is not available");

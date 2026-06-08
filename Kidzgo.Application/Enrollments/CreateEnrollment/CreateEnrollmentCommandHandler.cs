@@ -6,6 +6,7 @@ using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.Registrations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Enrollments.CreateEnrollment;
@@ -86,6 +87,51 @@ public sealed class CreateEnrollmentCommandHandler(
                 EnrollmentErrors.ClassFull);
         }
 
+        Registration? linkedRegistration = null;
+        if (command.RegistrationId.HasValue)
+        {
+            linkedRegistration = await context.Registrations
+                .FirstOrDefaultAsync(r => r.Id == command.RegistrationId.Value, cancellationToken);
+
+            if (linkedRegistration is null)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.RegistrationNotFound(command.RegistrationId.Value));
+            }
+
+            if (linkedRegistration.StudentProfileId != command.StudentProfileId)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.RegistrationStudentMismatch);
+            }
+
+            if (linkedRegistration.Status is RegistrationStatus.Cancelled or RegistrationStatus.Completed)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.RegistrationNotActive);
+            }
+
+            if (command.TuitionPlanId.HasValue &&
+                command.TuitionPlanId.Value != linkedRegistration.TuitionPlanId)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(Error.Validation(
+                    "Enrollment.TuitionPlanRegistrationMismatch",
+                    "TuitionPlanId must match the linked registration when RegistrationId is provided."));
+            }
+
+            var ticketSelection = await ticketCompatibilityService.SelectTicketForConsumptionAsync(
+                linkedRegistration.Id,
+                classEntity.SlotTypeId,
+                cancellationToken);
+            if (ticketSelection.TicketItem is null)
+            {
+                return Result.Failure<CreateEnrollmentResponse>(
+                    EnrollmentErrors.RegistrationTicketNotAvailable(
+                        linkedRegistration.Id,
+                        ticketSelection.Reason));
+            }
+        }
+
         var weeklyPatternResult = SchedulePatternSupport.NormalizeWeeklyPatternJson(
             command.WeeklyPattern,
             requireValue: false);
@@ -104,7 +150,7 @@ public sealed class CreateEnrollmentCommandHandler(
         }
 
         // Check if tuition plan exists and is active (if provided)
-        if (command.TuitionPlanId.HasValue)
+        if (linkedRegistration is null && command.TuitionPlanId.HasValue)
         {
             var tuitionPlan = await context.TuitionPlans
                 .FirstOrDefaultAsync(tp => tp.Id == command.TuitionPlanId.Value, cancellationToken);
@@ -159,6 +205,8 @@ public sealed class CreateEnrollmentCommandHandler(
             }
         }
 
+        var resolvedTuitionPlanId = linkedRegistration?.TuitionPlanId ?? command.TuitionPlanId;
+
         var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
             command.StudentProfileId,
             classEntity.Id,
@@ -178,7 +226,8 @@ public sealed class CreateEnrollmentCommandHandler(
             StudentProfileId = command.StudentProfileId,
             EnrollDate = command.EnrollDate,
             Status = EnrollmentStatus.Active,
-            TuitionPlanId = command.TuitionPlanId,
+            TuitionPlanId = resolvedTuitionPlanId,
+            RegistrationId = linkedRegistration?.Id,
             Track = RegistrationTrackHelper.ToTrackType(command.Track),
             SessionSelectionPattern = sessionSelectionPattern,
             CreatedAt = now,
@@ -217,6 +266,7 @@ public sealed class CreateEnrollmentCommandHandler(
             ClassTitle = enrollmentWithNav.Class.Title,
             StudentProfileId = enrollmentWithNav.StudentProfileId,
             StudentName = enrollmentWithNav.StudentProfile.DisplayName,
+            RegistrationId = enrollmentWithNav.RegistrationId,
             StudentHomeBranchId = branchAccessResult.Value.State.HomeBranchId,
             StudentActiveBranchId = branchAccessResult.Value.State.ActiveBranchId,
             IsCrossBranchEnrollment = branchAccessResult.Value.IsCrossBranch,

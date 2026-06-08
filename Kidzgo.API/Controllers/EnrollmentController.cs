@@ -41,6 +41,7 @@ public class EnrollmentController : ControllerBase
             ClassId = request.ClassId,
             StudentProfileId = request.StudentProfileId,
             EnrollDate = request.EnrollDate,
+            RegistrationId = request.RegistrationId,
             TuitionPlanId = request.TuitionPlanId,
             Track = request.Track,
             WeeklyPattern = request.WeeklyPattern,

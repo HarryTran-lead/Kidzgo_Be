@@ -51,6 +51,7 @@ public sealed class GetEnrollmentsQueryHandler(
                 ClassTitle = e.Class.Title,
                 StudentProfileId = e.StudentProfileId,
                 StudentName = e.StudentProfile.DisplayName,
+                RegistrationId = e.RegistrationId,
                 EnrollDate = e.EnrollDate,
                 Status = e.Status.ToString(),
                 TuitionPlanId = e.TuitionPlanId,

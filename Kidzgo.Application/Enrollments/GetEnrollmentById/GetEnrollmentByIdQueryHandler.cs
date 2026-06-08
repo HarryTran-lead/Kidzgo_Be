@@ -45,6 +45,7 @@ public sealed class GetEnrollmentByIdQueryHandler(
             BranchName = enrollment.Class.Branch.Name,
             StudentProfileId = enrollment.StudentProfileId,
             StudentName = enrollment.StudentProfile.DisplayName,
+            RegistrationId = enrollment.RegistrationId,
             StudentHomeBranchId = studentBranchState?.HomeBranchId,
             StudentActiveBranchId = studentBranchState?.ActiveBranchId,
             IsCrossBranchEnrollment = studentBranchState is not null && studentBranchState.ActiveBranchId != enrollment.Class.BranchId,

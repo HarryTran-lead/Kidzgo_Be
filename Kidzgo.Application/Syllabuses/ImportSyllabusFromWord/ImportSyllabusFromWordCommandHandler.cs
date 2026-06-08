@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
+using Kidzgo.Application.LessonPlanTemplates.Shared;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LessonPlans;
@@ -166,6 +167,27 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         syllabus.UpdatedAt = now;
         EntityStringLengthTrimmer.TrimToModelLimits(context, syllabus);
 
+        var syllabusUnitSessionLookup = SyllabusUnitSessionIndexResolver.BuildLookup(
+            parsed.Value.Units
+                .Select(unit => new
+                {
+                    ModuleId = ResolveModuleId(modules, importConfiguration.ModuleRules, unit.ModuleHint),
+                    Identity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(unit.Name, unit.ModuleHint),
+                    Unit = unit
+                })
+                .Where(x => x.ModuleId.HasValue && x.Identity is not null)
+                .Select(x => new OrderedSyllabusUnitSession(
+                    x.ModuleId!.Value,
+                    x.Identity!.NormalizedKey,
+                    x.Unit.OrderIndex,
+                    x.Unit.LessonCount)));
+
+        var resolvedLessonImports = ResolveLessonImports(
+            parsed.Value.Lessons,
+            modules,
+            importConfiguration.ModuleRules,
+            syllabusUnitSessionLookup);
+
         var unitEntities = parsed.Value.Units.Select(unit => new SyllabusUnit
         {
             Id = Guid.NewGuid(),
@@ -180,20 +202,20 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             UpdatedAt = now
         }).ToList();
 
-        var lessonEntities = parsed.Value.Lessons.Select(lesson => new SyllabusLesson
+        var lessonEntities = resolvedLessonImports.Select(lesson => new SyllabusLesson
         {
             Id = Guid.NewGuid(),
             SyllabusId = syllabus.Id,
-            ModuleId = ResolveModuleId(modules, importConfiguration.ModuleRules, lesson.ModuleHint),
-            PeriodFrom = lesson.PeriodFrom,
-            PeriodTo = lesson.PeriodTo,
-            Topic = FitLegacyShortText(lesson.Topic),
-            LessonNumber = lesson.LessonNumber,
-            ContentSummary = FitLegacyShortText(lesson.ContentSummary),
-            StructureSummary = FitLegacyShortText(lesson.StructureSummary),
-            StudentBookPages = FitMax(lesson.StudentBookPages, 100),
-            TeacherBookPages = FitMax(lesson.TeacherBookPages, 100),
-            OrderIndex = lesson.OrderIndex,
+            ModuleId = lesson.ModuleId,
+            PeriodFrom = lesson.Lesson.PeriodFrom,
+            PeriodTo = lesson.Lesson.PeriodTo,
+            Topic = FitLegacyShortText(lesson.Lesson.Topic),
+            LessonNumber = lesson.Lesson.LessonNumber,
+            ContentSummary = FitLegacyShortText(lesson.Lesson.ContentSummary),
+            StructureSummary = FitLegacyShortText(lesson.Lesson.StructureSummary),
+            StudentBookPages = FitMax(lesson.Lesson.StudentBookPages, 100),
+            TeacherBookPages = FitMax(lesson.Lesson.TeacherBookPages, 100),
+            OrderIndex = lesson.Lesson.OrderIndex,
             CreatedAt = now,
             UpdatedAt = now
         }).ToList();
@@ -211,23 +233,23 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             UpdatedAt = now
         }).ToList();
 
-        var sessionTemplates = parsed.Value.Lessons.Select(lesson => new SessionTemplate
+        var sessionTemplates = resolvedLessonImports.Select(lesson => new SessionTemplate
         {
             Id = Guid.NewGuid(),
             SyllabusId = syllabus.Id,
             ProgramId = command.ProgramId,
             LevelId = command.LevelId,
-            ModuleId = ResolveModuleId(modules, importConfiguration.ModuleRules, lesson.ModuleHint),
-            SessionIndex = lesson.OrderIndex,
-            SessionIndexInModule = lesson.LessonNumber,
-            LessonNumber = lesson.LessonNumber,
-            Title = FitLegacyShortText(lesson.Topic),
-            Topic = FitLegacyShortText(lesson.Topic),
-            ObjectiveSummary = FitLegacyShortText(lesson.ContentSummary),
-            VocabularySummary = FitLegacyShortText(lesson.Components),
-            GrammarSummary = FitLegacyShortText(lesson.StructureSummary),
-            ContentSummary = FitLegacyShortText(lesson.ContentSummary),
-            OrderIndex = lesson.OrderIndex,
+            ModuleId = lesson.ModuleId,
+            SessionIndex = lesson.Lesson.OrderIndex,
+            SessionIndexInModule = lesson.SessionIndexInModule,
+            LessonNumber = lesson.Lesson.LessonNumber,
+            Title = FitLegacyShortText(lesson.Lesson.Topic),
+            Topic = FitLegacyShortText(lesson.Lesson.Topic),
+            ObjectiveSummary = FitLegacyShortText(lesson.Lesson.ContentSummary),
+            VocabularySummary = FitLegacyShortText(lesson.Lesson.Components),
+            GrammarSummary = FitLegacyShortText(lesson.Lesson.StructureSummary),
+            ContentSummary = FitLegacyShortText(lesson.Lesson.ContentSummary),
+            OrderIndex = lesson.Lesson.OrderIndex,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now
@@ -340,4 +362,51 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
         var normalized = System.Text.RegularExpressions.Regex.Replace(value, @"\s+", " ").Trim();
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength].Trim();
     }
+
+    private static IReadOnlyList<ResolvedParsedLessonImport> ResolveLessonImports(
+        IReadOnlyList<ParsedSyllabusLesson> lessons,
+        IReadOnlyList<Domain.Programs.Module> modules,
+        IEnumerable<Domain.LessonPlans.CurriculumImportModuleRule> rules,
+        IReadOnlyDictionary<Guid, IReadOnlyList<OrderedSyllabusUnitSession>> syllabusUnitSessionLookup)
+    {
+        var orderedRules = rules.OrderBy(x => x.OrderIndex).ToList();
+        var resolved = new List<ResolvedParsedLessonImport>(lessons.Count);
+        var moduleSessionCounters = new Dictionary<Guid, int>();
+
+        foreach (var lesson in lessons.OrderBy(x => x.OrderIndex))
+        {
+            var moduleId = ResolveModuleId(modules, orderedRules, lesson.ModuleHint);
+            int? sessionIndexInModule = null;
+
+            if (moduleId.HasValue)
+            {
+                var unitIdentity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(lesson.ModuleHint, lesson.Topic);
+                if (unitIdentity is not null && lesson.LessonNumber.HasValue)
+                {
+                    sessionIndexInModule = SyllabusUnitSessionIndexResolver.ResolveSessionIndex(
+                        syllabusUnitSessionLookup,
+                        moduleId.Value,
+                        unitIdentity.NormalizedKey,
+                        lesson.LessonNumber.Value);
+                }
+
+                var nextSequentialIndex = moduleSessionCounters.GetValueOrDefault(moduleId.Value) + 1;
+                if (!sessionIndexInModule.HasValue)
+                {
+                    sessionIndexInModule = nextSequentialIndex;
+                }
+
+                moduleSessionCounters[moduleId.Value] = Math.Max(nextSequentialIndex, sessionIndexInModule.Value);
+            }
+
+            resolved.Add(new ResolvedParsedLessonImport(lesson, moduleId, sessionIndexInModule));
+        }
+
+        return resolved;
+    }
+
+    private sealed record ResolvedParsedLessonImport(
+        ParsedSyllabusLesson Lesson,
+        Guid? ModuleId,
+        int? SessionIndexInModule);
 }

@@ -682,10 +682,30 @@ internal static class CurriculumWordImportParser
                 StringComparer.OrdinalIgnoreCase);
 
         var orderedKeys = definitions
-            .OrderBy(x => x.OrderIndex)
+            .Select(x => new
+            {
+                x.Key,
+                DefinitionOrder = (int?)x.OrderIndex,
+                FirstLessonOrder = lessonGroups.TryGetValue(x.Key, out var groupedLessons)
+                    ? groupedLessons.Min(lesson => lesson.OrderIndex)
+                    : (int?)null
+            })
+            .Concat(lessonGroups.Keys
+                .Where(key => definitions.All(x => !x.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
+                .Select(key => new
+                {
+                    Key = key,
+                    DefinitionOrder = (int?)null,
+                    FirstLessonOrder = (int?)lessonGroups[key].Min(lesson => lesson.OrderIndex)
+                }))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .OrderBy(x => x.FirstLessonOrder ?? int.MaxValue)
+                .ThenBy(x => x.DefinitionOrder ?? int.MaxValue)
+                .First())
+            .OrderBy(x => x.FirstLessonOrder ?? int.MaxValue)
+            .ThenBy(x => x.DefinitionOrder ?? int.MaxValue)
             .Select(x => x.Key)
-            .Concat(lessonGroups.Keys.Where(key => definitions.All(x => !x.Key.Equals(key, StringComparison.OrdinalIgnoreCase))))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var units = new List<ParsedSyllabusUnit>();

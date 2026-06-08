@@ -52,6 +52,14 @@ public sealed class ImportLessonPlanWordsCommandHandler(
                 LessonPlanTemplateErrors.SyllabusNotFound(command.SyllabusId));
         }
 
+        var syllabusUnits = await context.SyllabusUnits
+            .AsNoTracking()
+            .Where(x => x.SyllabusId == command.SyllabusId && x.ModuleId.HasValue)
+            .OrderBy(x => x.ModuleId)
+            .ThenBy(x => x.OrderIndex)
+            .ToListAsync(cancellationToken);
+        var syllabusUnitSessionLookup = SyllabusUnitSessionIndexResolver.BuildLookupFromSyllabusUnits(syllabusUnits);
+
         var importConfiguration = await context.CurriculumImportConfigurations
             .AsNoTracking()
             .Include(x => x.ModuleRules)
@@ -89,17 +97,29 @@ public sealed class ImportLessonPlanWordsCommandHandler(
                 continue;
             }
 
-            var sessionIndexOverride = command.ModuleId.HasValue
-                ? ResolveModuleScopedSessionIndex(importConfiguration, module.Id, file.FileName)
-                : ResolveSessionIndex(importConfiguration!, module.Id, file.FileName);
-            if (!command.ModuleId.HasValue && !sessionIndexOverride.HasValue)
+            var unitIdentity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(file.FileName);
+            var lessonPlanUnitNameOverride = unitIdentity?.CanonicalDisplayName;
+            var lessonNumberOverride = LessonPlanUnitNameNormalizer.ExtractLessonNumber(file.FileName);
+            var sessionIndexOverride = unitIdentity is not null && lessonNumberOverride.HasValue
+                ? SyllabusUnitSessionIndexResolver.ResolveSessionIndex(
+                    syllabusUnitSessionLookup,
+                    module.Id,
+                    unitIdentity.NormalizedKey,
+                    lessonNumberOverride.Value)
+                : null;
+
+            if (!sessionIndexOverride.HasValue)
             {
-                skipped.Add($"{file.FileName}: Could not resolve session index from import configuration");
-                continue;
+                sessionIndexOverride = command.ModuleId.HasValue
+                    ? ResolveModuleScopedSessionIndex(importConfiguration, module.Id, file.FileName)
+                    : ResolveSessionIndex(importConfiguration!, module.Id, file.FileName);
             }
 
-            var lessonPlanUnitNameOverride = LessonPlanUnitNameNormalizer.ExtractUnitName(file.FileName);
-            var lessonNumberOverride = LessonPlanUnitNameNormalizer.ExtractLessonNumber(file.FileName);
+            if (!command.ModuleId.HasValue && !sessionIndexOverride.HasValue)
+            {
+                skipped.Add($"{file.FileName}: Could not resolve session index from syllabus units or import configuration");
+                continue;
+            }
 
             var result = await sender.Send(
                 new ImportLessonPlanTemplateFromWordCommand

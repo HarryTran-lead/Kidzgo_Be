@@ -80,6 +80,10 @@ public static class SessionErrors
         "Session.InvalidTeacherRole",
         $"Invalid teacher role: '{role}'. Valid values: MainTeacher, Assistant");
 
+    public static Error InvalidParticipationType(string? participationType) => Error.Validation(
+        "Session.InvalidParticipationType",
+        $"Invalid participation type: '{participationType}'. Valid values: {string.Join(", ", ParticipationTypeRules.SelectableValues)}");
+
     public static Error InvalidSectionType(string? sectionType) => Error.Validation(
         "Session.InvalidSectionType",
         $"Invalid section type: '{sectionType}'. Valid values: {string.Join(", ", Enum.GetNames<SectionType>())}");

@@ -161,6 +161,7 @@ public sealed class MarkAttendanceCommandHandler(
                     previousAbsenceType,
                     attendance.AttendanceStatus,
                     attendance.AbsenceType,
+                    session.ParticipationType,
                     session.SectionType,
                     session.SlotTypeId,
                     session.ActualDatetime ?? session.PlannedDatetime,

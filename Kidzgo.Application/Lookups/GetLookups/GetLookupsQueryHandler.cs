@@ -23,7 +23,7 @@ public sealed class GetLookupsQueryHandler(IDbContext context) : IQueryHandler<G
             .ToList();
 
         // ParticipationType
-        lookups["participationType"] = Enum.GetValues<ParticipationType>()
+        lookups["participationType"] = ParticipationTypeRules.SelectableValues
             .Select(e => new LookupItemDto { Value = e.ToString(), DisplayName = e.ToString() })
             .ToList();
 

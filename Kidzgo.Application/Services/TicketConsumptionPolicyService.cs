@@ -13,19 +13,23 @@ public sealed class TicketConsumptionPolicyService
     public TicketConsumptionDecision Evaluate(
         AttendanceStatus? attendanceStatus,
         AbsenceType? absenceType,
+        ParticipationType participationType,
         SectionType sectionType)
     {
-        var shouldConsume = attendanceStatus switch
+        var canConsumeTicket = ParticipationTypeRules.ShouldConsumeTicket(participationType);
+        var shouldConsume = canConsumeTicket && (attendanceStatus switch
         {
             AttendanceStatus.Present => true,
             AttendanceStatus.Absent when absenceType == AbsenceType.NoNotice => true,
             _ => false
-        };
+        });
 
         var shouldAdvanceLesson = sectionType == SectionType.Normal &&
                                   attendanceStatus == AttendanceStatus.Present;
 
-        var reason = shouldConsume
+        var reason = !canConsumeTicket
+            ? $"No ticket consumption for {participationType} participation"
+            : shouldConsume
             ? $"Attendance {attendanceStatus} in {sectionType} section"
             : $"No ticket consumption for attendance {attendanceStatus}";
 

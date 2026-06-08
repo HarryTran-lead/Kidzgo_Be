@@ -68,10 +68,11 @@ public class SessionController : ControllerBase
         [FromBody] CreateSessionRequest request,
         CancellationToken cancellationToken)
     {
-        var participationType = Enum.TryParse<Domain.Sessions.ParticipationType>(
-            request.ParticipationType, true, out var parsedType)
-            ? parsedType
-            : Domain.Sessions.ParticipationType.Main;
+        if (!TryParseSupportedParticipationType(request.ParticipationType, out var participationType))
+        {
+            return CustomResults.Problem(Result.Failure(SessionErrors.InvalidParticipationType(request.ParticipationType)));
+        }
+
         var sectionType = Enum.TryParse<Domain.Sessions.SectionType>(
             request.SectionType, true, out var parsedSectionType)
             ? parsedSectionType
@@ -159,10 +160,11 @@ public class SessionController : ControllerBase
         [FromBody] UpdateSessionRequest request,
         CancellationToken cancellationToken)
     {
-        var participationType = Enum.TryParse<Domain.Sessions.ParticipationType>(
-            request.ParticipationType, true, out var parsedType)
-            ? parsedType
-            : Domain.Sessions.ParticipationType.Main;
+        if (!TryParseSupportedParticipationType(request.ParticipationType, out var participationType))
+        {
+            return CustomResults.Problem(Result.Failure(SessionErrors.InvalidParticipationType(request.ParticipationType)));
+        }
+
         var sectionType = Enum.TryParse<Domain.Sessions.SectionType>(
             request.SectionType, true, out var parsedSectionType)
             ? parsedSectionType
@@ -281,12 +283,16 @@ public class SessionController : ControllerBase
         [FromBody] UpdateSessionsByClassRequest request,
         CancellationToken cancellationToken)
     {
-        var participationType = request.ParticipationType != null
-            ? (Enum.TryParse<Domain.Sessions.ParticipationType>(
-                request.ParticipationType, true, out var parsedType)
-                ? parsedType
-                : Domain.Sessions.ParticipationType.Main)
-            : (Domain.Sessions.ParticipationType?)null;
+        Domain.Sessions.ParticipationType? participationType = null;
+        if (request.ParticipationType != null)
+        {
+            if (!TryParseSupportedParticipationType(request.ParticipationType, out var parsedParticipationType))
+            {
+                return CustomResults.Problem(Result.Failure(SessionErrors.InvalidParticipationType(request.ParticipationType)));
+            }
+
+            participationType = parsedParticipationType;
+        }
 
         var filterByStatus = request.FilterByStatus != null
             ? (Enum.TryParse<Domain.Sessions.SessionStatus>(
@@ -586,5 +592,15 @@ public class SessionController : ControllerBase
             "teacher" or
             "assistant" or
             "assistantteacher";
+    }
+
+    private static bool TryParseSupportedParticipationType(string? participationType, out ParticipationType parsedType)
+    {
+        if (!Enum.TryParse(participationType, true, out parsedType))
+        {
+            return false;
+        }
+
+        return ParticipationTypeRules.IsSupportedForSessionManagement(parsedType);
     }
 }

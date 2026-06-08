@@ -188,18 +188,24 @@ public sealed class ImportSyllabusFromWordCommandHandler(IDbContext context)
             importConfiguration.ModuleRules,
             syllabusUnitSessionLookup);
 
-        var unitEntities = parsed.Value.Units.Select(unit => new SyllabusUnit
+        var unitEntities = parsed.Value.Units.Select(unit =>
         {
-            Id = Guid.NewGuid(),
-            SyllabusId = syllabus.Id,
-            ModuleId = ResolveModuleId(modules, importConfiguration.ModuleRules, unit.ModuleHint),
-            Name = FitLegacyShortText(unit.Name),
-            AllocatedPeriods = unit.AllocatedPeriods,
-            LessonCount = unit.LessonCount,
-            OrderIndex = unit.OrderIndex,
-            Notes = FitLegacyShortText(unit.Notes),
-            CreatedAt = now,
-            UpdatedAt = now
+            var moduleId = ResolveModuleId(modules, importConfiguration.ModuleRules, unit.ModuleHint);
+            var unitIdentity = LessonPlanUnitNameNormalizer.ExtractUnitIdentity(unit.Name, unit.ModuleHint);
+
+            return new SyllabusUnit
+            {
+                Id = Guid.NewGuid(),
+                SyllabusId = syllabus.Id,
+                ModuleId = moduleId,
+                Name = FitLegacyShortText(unitIdentity?.CanonicalDisplayName ?? unit.Name),
+                AllocatedPeriods = unit.AllocatedPeriods,
+                LessonCount = unit.LessonCount,
+                OrderIndex = unit.OrderIndex,
+                Notes = FitLegacyShortText(unit.Notes),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
         }).ToList();
 
         var lessonEntities = resolvedLessonImports.Select(lesson => new SyllabusLesson

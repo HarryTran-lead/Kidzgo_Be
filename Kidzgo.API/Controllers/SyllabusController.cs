@@ -349,11 +349,16 @@ public class SyllabusController(ISender mediator) : ControllerBase
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
         [FromQuery] string code,
-        [FromQuery] int version,
+        [FromQuery] string version,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)
     {
+        if (!TryParseSyllabusVersion(version, out var parsedVersion, out var validationProblem))
+        {
+            return validationProblem!;
+        }
+
         if (file == null || file.Length == 0)
         {
             return Results.BadRequest(new { error = "No file provided" });
@@ -365,7 +370,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
             ProgramId = programId,
             LevelId = levelId,
             Code = code,
-            Version = version,
+            Version = parsedVersion,
             OverwriteExisting = overwriteExisting,
             FileName = file.FileName,
             FileStream = file.OpenReadStream()
@@ -461,11 +466,16 @@ public class SyllabusController(ISender mediator) : ControllerBase
         [FromQuery] Guid programId,
         [FromQuery] Guid levelId,
         [FromQuery] string code,
-        [FromQuery] int version,
+        [FromQuery] string version,
         IFormFile file,
         [FromQuery] bool overwriteExisting = true,
         CancellationToken cancellationToken = default)
     {
+        if (!TryParseSyllabusVersion(version, out var parsedVersion, out var validationProblem))
+        {
+            return validationProblem!;
+        }
+
         if (file == null || file.Length == 0)
         {
             return Results.BadRequest(new { error = "No file provided" });
@@ -477,7 +487,7 @@ public class SyllabusController(ISender mediator) : ControllerBase
             ProgramId = programId,
             LevelId = levelId,
             Code = code,
-            Version = version,
+            Version = parsedVersion,
             OverwriteExisting = overwriteExisting,
             FileName = file.FileName,
             FileStream = file.OpenReadStream()
@@ -712,6 +722,22 @@ public class SyllabusController(ISender mediator) : ControllerBase
         }, cancellationToken);
 
         return result.MatchOk();
+    }
+
+    private static bool TryParseSyllabusVersion(string rawValue, out int parsedVersion, out IResult? validationProblem)
+    {
+        if (SyllabusVersionParser.TryParse(rawValue, out parsedVersion))
+        {
+            validationProblem = null;
+            return true;
+        }
+
+        validationProblem = Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["version"] = [SyllabusVersionParser.BuildValidationMessage(rawValue)]
+        });
+
+        return false;
     }
 
     private static SyllabusDocumentSectionDto MapSection(SyllabusSectionRequest request)

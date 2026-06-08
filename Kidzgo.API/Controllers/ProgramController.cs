@@ -3,6 +3,7 @@ using Kidzgo.API.Requests;
 using Kidzgo.Application.Programs.AssignProgramToBranch;
 using Kidzgo.Application.Programs.CreateProgram;
 using Kidzgo.Application.Programs.DeleteProgram;
+using Kidzgo.Application.Programs.GetCurriculumTree;
 using Kidzgo.Application.Programs.GetProgramById;
 using Kidzgo.Application.Programs.GetPrograms;
 using Kidzgo.Application.Programs.ToggleProgramStatus;
@@ -110,6 +111,22 @@ public class ProgramController : ControllerBase
     }
 
     /// UC-042: Cập nhật Program
+    /// View curriculum tree for one program
+    [HttpGet("{programId:guid}/curriculum-tree")]
+    [Authorize(Roles = "Admin,ManagementStaff,Teacher")]
+    public async Task<IResult> GetCurriculumTree(
+        Guid programId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetProgramCurriculumTreeQuery
+        {
+            ProgramId = programId
+        }, cancellationToken);
+
+        return result.MatchOk();
+    }
+
+    /// UC-042: Cap nhat Program
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin,ManagementStaff")]
     public async Task<IResult> UpdateProgram(

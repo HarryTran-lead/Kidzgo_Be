@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Kidzgo.API.Requests;
 
 /// <summary>
@@ -23,6 +25,7 @@ public sealed class CreateSyllabusRequest
     /// <summary>
     /// Optional business version number. When omitted, backend picks the next available positive integer.
     /// </summary>
+    [JsonConverter(typeof(NullableSyllabusVersionJsonConverter))]
     public int? Version { get; init; }
 
     /// <summary>

@@ -103,8 +103,10 @@ Query params:
 - `programId: Guid`
 - `levelId: Guid`
 - `code: string`
-- `version: string`
+- `version: int`
 - `overwriteExisting: boolean = true`
+
+`version` phai la so duong, vi du `1`. Backend con accept legacy input `v1`, nhung FE nen gui so.
 
 Multipart:
 

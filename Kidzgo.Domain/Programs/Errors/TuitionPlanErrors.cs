@@ -76,6 +76,12 @@ public static class TuitionPlanErrors
         "TuitionPlan.CurriculumAlreadyMapped",
         $"Package '{tuitionPlanId}' is already mapped to syllabus '{syllabusId}'");
 
+    public static Error UpdateConflict(string conflictedEntries) => Error.Conflict(
+        "TuitionPlan.UpdateConflict",
+        string.IsNullOrWhiteSpace(conflictedEntries)
+            ? "Tuition plan was changed while the update was being processed. Please reload and try again."
+            : $"Tuition plan update conflicted with concurrent changes in: {conflictedEntries}. Please reload and try again.");
+
     public static readonly Error HasActiveEnrollments = Error.Conflict(
         "TuitionPlan.HasActiveEnrollments",
         "Cannot delete tuition plan with active enrollments");

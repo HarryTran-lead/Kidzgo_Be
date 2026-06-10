@@ -15,8 +15,6 @@ public sealed class UpdateTuitionPlanCommandHandler(
     public async Task<Result<UpdateTuitionPlanResponse>> Handle(UpdateTuitionPlanCommand command, CancellationToken cancellationToken)
     {
         var tuitionPlan = await context.TuitionPlans
-            .Include(t => t.SelectedModules)
-            .Include(t => t.CurriculumMappings)
             .FirstOrDefaultAsync(t => t.Id == command.Id && !t.IsDeleted, cancellationToken);
 
         if (tuitionPlan is null)
@@ -95,13 +93,34 @@ public sealed class UpdateTuitionPlanCommandHandler(
         tuitionPlan.LearningTicketTypeId = command.LearningTicketTypeId;
         tuitionPlan.UpdatedAt = now;
 
-        TuitionPlanSelectionSupport.ReplaceSelectedModules(
-            tuitionPlan,
-            selectionResult.Value.OrderedSelectedModules,
-            now);
-        SyncCurriculumMappings(tuitionPlan, selectionResult.Value.Syllabus, now);
+        tuitionPlan.ModuleId = selectionResult.Value.OrderedSelectedModules.Count == 0
+            ? null
+            : selectionResult.Value.OrderedSelectedModules[0].Id;
 
-        await context.SaveChangesAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            await ReplaceSelectedModulesAsync(
+                tuitionPlan.Id,
+                selectionResult.Value.OrderedSelectedModules,
+                now,
+                cancellationToken);
+            await SyncCurriculumMappingsAsync(
+                tuitionPlan.Id,
+                selectionResult.Value.Syllabus?.Id,
+                now,
+                cancellationToken);
+
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return Result.Failure<UpdateTuitionPlanResponse>(
+                TuitionPlanErrors.UpdateConflict(DescribeConflictedEntries(ex)));
+        }
 
         // Query again with includes to get related data for response
         var updatedTuitionPlan = await context.TuitionPlans
@@ -144,41 +163,87 @@ public sealed class UpdateTuitionPlanCommandHandler(
         };
     }
 
-    private static void SyncCurriculumMappings(
-        TuitionPlan tuitionPlan,
-        Domain.LessonPlans.Syllabus? syllabus,
-        DateTime now)
+    private async Task ReplaceSelectedModulesAsync(
+        Guid tuitionPlanId,
+        IReadOnlyList<Module> orderedSelectedModules,
+        DateTime now,
+        CancellationToken cancellationToken)
     {
-        foreach (var mapping in tuitionPlan.CurriculumMappings)
-        {
-            mapping.IsActive = false;
-            mapping.UpdatedAt = now;
-        }
+        await context.TuitionPlanModuleSelections
+            .Where(x => x.TuitionPlanId == tuitionPlanId)
+            .ExecuteDeleteAsync(cancellationToken);
 
-        if (syllabus is null)
+        if (orderedSelectedModules.Count == 0)
         {
             return;
         }
 
-        var existingMapping = tuitionPlan.CurriculumMappings
-            .FirstOrDefault(x => x.SyllabusId == syllabus.Id);
-
-        if (existingMapping is null)
-        {
-            tuitionPlan.CurriculumMappings.Add(new PackageCurriculumMapping
+        var newSelections = orderedSelectedModules
+            .Select((module, index) => new TuitionPlanModuleSelection
             {
                 Id = Guid.NewGuid(),
-                TuitionPlanId = tuitionPlan.Id,
-                SyllabusId = syllabus.Id,
+                TuitionPlanId = tuitionPlanId,
+                ModuleId = module.Id,
+                OrderIndex = index,
+                CreatedAt = now,
+                UpdatedAt = now
+            })
+            .ToList();
+
+        context.TuitionPlanModuleSelections.AddRange(newSelections);
+    }
+
+    private async Task SyncCurriculumMappingsAsync(
+        Guid tuitionPlanId,
+        Guid? syllabusId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        await context.PackageCurriculumMappings
+            .Where(x =>
+                x.TuitionPlanId == tuitionPlanId &&
+                x.IsActive &&
+                (!syllabusId.HasValue || x.SyllabusId != syllabusId.Value))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.IsActive, false)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        if (!syllabusId.HasValue)
+        {
+            return;
+        }
+
+        var activatedCount = await context.PackageCurriculumMappings
+            .Where(x => x.TuitionPlanId == tuitionPlanId && x.SyllabusId == syllabusId.Value)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(x => x.IsActive, true)
+                    .SetProperty(x => x.UpdatedAt, now),
+                cancellationToken);
+
+        if (activatedCount == 0)
+        {
+            context.PackageCurriculumMappings.Add(new PackageCurriculumMapping
+            {
+                Id = Guid.NewGuid(),
+                TuitionPlanId = tuitionPlanId,
+                SyllabusId = syllabusId.Value,
                 IsActive = true,
                 CreatedAt = now,
                 UpdatedAt = now
             });
-
-            return;
         }
+    }
 
-        existingMapping.IsActive = true;
-        existingMapping.UpdatedAt = now;
+    private static string DescribeConflictedEntries(DbUpdateConcurrencyException exception)
+    {
+        return string.Join(
+            ", ",
+            exception.Entries
+                .Select(entry => entry.Metadata.ClrType.Name)
+                .Distinct()
+                .OrderBy(name => name));
     }
 }

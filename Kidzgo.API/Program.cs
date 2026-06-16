@@ -19,6 +19,7 @@ public class Program
             .AddEnvironmentVariables();
 
         builder.ConfigurePresentationHost();
+        builder.Host.UseWindowsService();
 
         builder.Services
             .AddApplication()

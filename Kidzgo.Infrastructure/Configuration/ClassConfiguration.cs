@@ -56,8 +56,6 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
 
         builder.Property(x => x.AssistantTeacherId);
 
-        builder.Property(x => x.SlotTypeId);
-
         builder.Property(x => x.StartDate)
             .IsRequired();
 
@@ -136,11 +134,6 @@ public class ClassConfiguration : IEntityTypeConfiguration<Class>
             .WithMany(x => x.AssistantTeacherClasses)
             .HasForeignKey(x => x.AssistantTeacherId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(x => x.SlotType)
-            .WithMany()
-            .HasForeignKey(x => x.SlotTypeId)
-            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(x => x.ClassEnrollments)
             .WithOne(x => x.Class)

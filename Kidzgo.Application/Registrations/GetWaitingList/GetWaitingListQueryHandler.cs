@@ -46,6 +46,7 @@ public sealed class GetWaitingListQueryHandler(
 
             if ((track is null || track == RegistrationTrackHelper.PrimaryTrack) &&
                 registration.ClassId is null &&
+                (!query.LevelId.HasValue || registration.LevelId == query.LevelId.Value) &&
                 (!query.ProgramId.HasValue || registration.ProgramId == query.ProgramId.Value))
             {
                 items.Add(new WaitingListItemDto
@@ -73,6 +74,7 @@ public sealed class GetWaitingListQueryHandler(
             if ((track is null || track == RegistrationTrackHelper.SecondaryTrack) &&
                 registration.SecondaryLevelId.HasValue &&
                 registration.SecondaryClassId is null &&
+                (!query.LevelId.HasValue || registration.SecondaryLevelId == query.LevelId.Value) &&
                 (!query.ProgramId.HasValue || registration.ProgramId == query.ProgramId.Value))
             {
                 items.Add(new WaitingListItemDto

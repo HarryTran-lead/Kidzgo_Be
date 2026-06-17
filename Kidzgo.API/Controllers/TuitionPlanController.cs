@@ -34,9 +34,6 @@ public class TuitionPlanController : ControllerBase
         {
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
-            SyllabusId = request.SyllabusId,
-            ModuleIds = request.ModuleIds,
-            LearningTicketTypeId = request.LearningTicketTypeId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,
             TuitionAmount = request.TuitionAmount,
@@ -54,7 +51,6 @@ public class TuitionPlanController : ControllerBase
         [FromQuery] Guid? branchId,
         [FromQuery] Guid? programId,
         [FromQuery] Guid? levelId,
-        [FromQuery] Guid? moduleId,
         [FromQuery] bool? isActive,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -65,7 +61,6 @@ public class TuitionPlanController : ControllerBase
             BranchId = branchId,
             ProgramId = programId,
             LevelId = levelId,
-            ModuleId = moduleId,
             IsActive = isActive,
             PageNumber = pageNumber,
             PageSize = pageSize
@@ -82,7 +77,6 @@ public class TuitionPlanController : ControllerBase
         [FromQuery] Guid? branchId,
         [FromQuery] Guid? programId,
         [FromQuery] Guid? levelId,
-        [FromQuery] Guid? moduleId,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
@@ -92,7 +86,6 @@ public class TuitionPlanController : ControllerBase
             BranchId = branchId,
             ProgramId = programId,
             LevelId = levelId,
-            ModuleId = moduleId,
             IsActive = true, // Hardcode IsActive = true
             PageNumber = pageNumber,
             PageSize = pageSize
@@ -131,9 +124,6 @@ public class TuitionPlanController : ControllerBase
             Id = id,
             ProgramId = request.ProgramId,
             LevelId = request.LevelId,
-            SyllabusId = request.SyllabusId,
-            ModuleIds = request.ModuleIds,
-            LearningTicketTypeId = request.LearningTicketTypeId,
             Name = request.Name,
             TotalSessions = request.TotalSessions,
             TuitionAmount = request.TuitionAmount,

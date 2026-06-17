@@ -20,8 +20,6 @@ public sealed class TimetableItemDto
     public int DurationMinutes { get; init; }
     public string? ParticipationType { get; init; }
     public string? SectionType { get; init; }
-    public Guid? SlotTypeId { get; init; }
-    public string? SlotTypeCode { get; init; }
     public string? Status { get; init; }
     public Guid? PlannedRoomId { get; init; }
     public string? PlannedRoomName { get; init; }

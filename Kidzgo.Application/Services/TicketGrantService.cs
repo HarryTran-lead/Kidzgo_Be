@@ -2,6 +2,7 @@ using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.LearningTickets;
 using Kidzgo.Domain.Registrations;
+using Kidzgo.Domain.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.Services;
@@ -12,7 +13,6 @@ public sealed class TicketGrantService(IDbContext context)
         Guid studentProfileId,
         Guid registrationId,
         int quantity,
-        Guid? learningTicketTypeId,
         string reason,
         LearningTicketSource source,
         Guid? createdByUserId,
@@ -31,7 +31,6 @@ public sealed class TicketGrantService(IDbContext context)
                 Id = Guid.NewGuid(),
                 StudentProfileId = studentProfileId,
                 RegistrationId = registrationId,
-                LearningTicketTypeId = learningTicketTypeId,
                 Status = LearningTicketItemStatus.Available,
                 Source = source,
                 CreatedAt = now
@@ -53,6 +52,42 @@ public sealed class TicketGrantService(IDbContext context)
         });
 
         return Task.CompletedTask;
+    }
+
+    public async Task<int> GrantRolloverMakeupCreditsAsync(
+        Guid studentProfileId,
+        Guid registrationId,
+        Guid? createdByUserId,
+        CancellationToken cancellationToken)
+    {
+        var rolloverCredits = await context.MakeupCredits
+            .Where(x => x.StudentProfileId == studentProfileId &&
+                        x.Status == MakeupCreditStatus.Available)
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (rolloverCredits.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var credit in rolloverCredits)
+        {
+            credit.Status = MakeupCreditStatus.Transferred;
+            credit.ExpiresAt = null;
+            credit.UsedSessionId = null;
+        }
+
+        await GrantTicketsAsync(
+            studentProfileId,
+            registrationId,
+            rolloverCredits.Count,
+            "Rollover available makeup credits",
+            LearningTicketSource.Rollover,
+            createdByUserId,
+            cancellationToken);
+
+        return rolloverCredits.Count;
     }
 
     public async Task<int> VoidAvailableTicketsAsync(

@@ -22,11 +22,11 @@ public static class MakeupCreditErrors
 
     public static Error TargetClassMustBeMakeupProgram => Error.Validation(
         "MakeupCredit.TargetClassMustBeMakeupProgram",
-        "Target session must belong to a makeup program.");
+        "Target session must belong to the same level as the missed session.");
 
     public static Error MustBeFutureWeek => Error.Validation(
         "MakeupCredit.MustBeFutureWeek",
-        "Makeup session must be in the weeks after the missed week.");
+        "Makeup session must be after the missed session.");
 
     public static Error CannotUsePastDate => Error.Validation(
         "MakeupCredit.CannotUsePastDate",
@@ -50,7 +50,7 @@ public static class MakeupCreditErrors
 
     public static Error MustStayInCurrentMakeupProgram => Error.Validation(
         "MakeupCredit.MustStayInCurrentMakeupProgram",
-        "Target session must belong to the same makeup program as the current allocation.");
+        "Target session must belong to the same level as the current allocation.");
 
     public static Error TargetSessionFull => Error.Conflict(
         "MakeupCredit.TargetSessionFull",

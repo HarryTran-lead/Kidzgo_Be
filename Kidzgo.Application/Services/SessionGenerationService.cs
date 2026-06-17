@@ -1,6 +1,5 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Services;
-using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
 using Kidzgo.Domain.Common;
@@ -182,17 +181,6 @@ public sealed class SessionGenerationService
         }
 
         var generatedSectionType = SectionType.Normal;
-        if (classEntity.SlotTypeId.HasValue)
-        {
-            var slotType = await _context.SlotTypes
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == classEntity.SlotTypeId.Value, cancellationToken);
-
-            if (slotType is not null)
-            {
-                generatedSectionType = SlotTypeSectionTypeMapper.Map(slotType.UsageType);
-            }
-        }
 
         var existingSessions = await _context.Sessions
             .Where(s => s.ClassId == classEntity.Id)
@@ -265,7 +253,6 @@ public sealed class SessionGenerationService
                 PlannedRoomId = roomId,
                 PlannedTeacherId = classEntity.MainTeacherId,
                 PlannedAssistantId = classEntity.AssistantTeacherId,
-                SlotTypeId = classEntity.SlotTypeId,
                 DurationMinutes = candidate.DurationMinutes,
                 ParticipationType = ParticipationType.Main,
                 SectionType = generatedSectionType,

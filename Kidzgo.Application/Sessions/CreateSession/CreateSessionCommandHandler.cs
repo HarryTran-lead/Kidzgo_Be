@@ -1,7 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
-using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Services;
+using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Time;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
@@ -50,31 +50,7 @@ public sealed class CreateSessionCommandHandler(
 
         var now = VietnamTime.UtcNow();
         var plannedUtc = VietnamTime.NormalizeToUtc(command.PlannedDatetime);
-        var slotTypeId = command.SlotTypeId ?? classEntity.SlotTypeId;
-        string? slotTypeCode = null;
-        SlotType? slotType = null;
-
-        if (slotTypeId.HasValue)
-        {
-            slotType = await context.SlotTypes
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == slotTypeId.Value && x.IsActive, cancellationToken);
-
-            if (slotType is null)
-            {
-                return Result.Failure<CreateSessionResponse>(
-                    Error.Validation(
-                        "Session.SlotTypeNotFound",
-                        $"Slot type '{slotTypeId.Value}' was not found or inactive."));
-            }
-
-            slotTypeCode = slotType.Code;
-        }
-
-        var resolvedSectionType = command.SectionType ??
-                                  (slotType is not null
-                                      ? SlotTypeSectionTypeMapper.Map(slotType.UsageType)
-                                      : SectionType.Normal);
+        var resolvedSectionType = command.SectionType ?? SectionType.Normal;
 
         var conflictResult = await conflictChecker.CheckConflictsAsync(
             Guid.Empty,
@@ -101,7 +77,6 @@ public sealed class CreateSessionCommandHandler(
             PlannedRoomId = command.PlannedRoomId,
             PlannedTeacherId = command.PlannedTeacherId,
             PlannedAssistantId = command.PlannedAssistantId,
-            SlotTypeId = slotTypeId,
             DurationMinutes = command.DurationMinutes,
             ParticipationType = command.ParticipationType,
             SectionType = resolvedSectionType,
@@ -133,9 +108,7 @@ public sealed class CreateSessionCommandHandler(
             SessionIndexInModule = session.SessionIndexInModule,
             PlannedDatetime = session.PlannedDatetime,
             DurationMinutes = session.DurationMinutes,
-            SectionType = session.SectionType.ToString(),
-            SlotTypeId = session.SlotTypeId,
-            SlotTypeCode = slotTypeCode
+            SectionType = session.SectionType.ToString()
         };
     }
 

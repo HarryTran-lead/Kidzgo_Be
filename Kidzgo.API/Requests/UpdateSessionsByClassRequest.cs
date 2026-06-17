@@ -20,7 +20,6 @@ public sealed class UpdateSessionsByClassRequest
     public Guid? PlannedRoomId { get; set; }
     public Guid? PlannedTeacherId { get; set; }
     public Guid? PlannedAssistantId { get; set; }
-    public Guid? SlotTypeId { get; set; }
     public string? ParticipationType { get; set; }
     public string? SectionType { get; set; }
 }

@@ -1,6 +1,7 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Authentication;
+using Kidzgo.Application.Registrations.Notifications;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Registrations;
@@ -197,6 +198,7 @@ public sealed class UpdateRegistrationCommandHandler(
             timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
+        await WaitingListThresholdNotificationHelper.NotifyAsync(context, registration, cancellationToken);
 
         return new UpdateRegistrationResponse
         {

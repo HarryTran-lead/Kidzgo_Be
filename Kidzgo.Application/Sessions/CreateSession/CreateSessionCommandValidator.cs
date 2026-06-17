@@ -18,11 +18,6 @@ public sealed class CreateSessionCommandValidator : AbstractValidator<CreateSess
         RuleFor(c => c.DurationMinutes)
             .GreaterThan(0)
             .WithMessage("DurationMinutes must be greater than 0");
-
-        RuleFor(c => c.SlotTypeId)
-            .NotEqual(Guid.Empty)
-            .WithMessage("SlotTypeId must not be empty")
-            .When(c => c.SlotTypeId.HasValue);
     }
 }
 

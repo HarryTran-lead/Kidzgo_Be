@@ -48,5 +48,4 @@ public class Syllabus : Entity
     public ICollection<SyllabusResource> Resources { get; set; } = new List<SyllabusResource>();
     public ICollection<SessionTemplate> SessionTemplates { get; set; } = new List<SessionTemplate>();
     public ICollection<Classes.Class> Classes { get; set; } = new List<Classes.Class>();
-    public ICollection<PackageCurriculumMapping> PackageCurriculumMappings { get; set; } = new List<PackageCurriculumMapping>();
 }

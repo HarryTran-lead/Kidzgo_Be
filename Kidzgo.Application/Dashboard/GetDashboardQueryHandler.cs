@@ -244,6 +244,7 @@ public sealed class GetDashboardQueryHandler(
         var credits = await query.ToListAsync(cancellationToken);
         var total = credits.Count;
         var used = credits.Count(c => c.Status == MakeupCreditStatus.Used);
+        var transferred = credits.Count(c => c.Status == MakeupCreditStatus.Transferred);
         var available = credits.Count(c => c.Status == MakeupCreditStatus.Available);
         var expired = credits.Count(c => c.Status == MakeupCreditStatus.Expired);
 
@@ -252,12 +253,14 @@ public sealed class GetDashboardQueryHandler(
             TotalCredits = total,
             UsedCredits = used,
             AvailableCredits = available,
+            TransferredCredits = transferred,
 
             TotalCreditsIssued = total,
             UsedCreditsCount = used,
             AvailableCreditsCount = available,
+            TransferredCreditsCount = transferred,
             ExpiredCreditsCount = expired,
-            UtilizationRate = total > 0 ? Math.Round((double)used / total * 100, 2) : 0,
+            UtilizationRate = total > 0 ? Math.Round((double)(used + transferred) / total * 100, 2) : 0,
             StatusBreakdown =
             [
                 new StatusBreakdownItem
@@ -271,6 +274,12 @@ public sealed class GetDashboardQueryHandler(
                     Status = MakeupCreditStatus.Used.ToString(),
                     Count = used,
                     Percentage = total > 0 ? Math.Round((double)used / total * 100, 2) : 0
+                },
+                new StatusBreakdownItem
+                {
+                    Status = MakeupCreditStatus.Transferred.ToString(),
+                    Count = transferred,
+                    Percentage = total > 0 ? Math.Round((double)transferred / total * 100, 2) : 0
                 },
                 new StatusBreakdownItem
                 {

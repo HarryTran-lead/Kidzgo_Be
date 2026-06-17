@@ -12,7 +12,6 @@ public class LearningTicketItemConfiguration : IEntityTypeConfiguration<Learning
 
         builder.Property(x => x.StudentProfileId).IsRequired();
         builder.Property(x => x.RegistrationId).IsRequired();
-        builder.Property(x => x.LearningTicketTypeId);
         builder.Property(x => x.Status)
             .HasConversion<string>()
             .HasMaxLength(20)
@@ -33,11 +32,6 @@ public class LearningTicketItemConfiguration : IEntityTypeConfiguration<Learning
             .HasForeignKey(x => x.RegistrationId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(x => x.LearningTicketType)
-            .WithMany()
-            .HasForeignKey(x => x.LearningTicketTypeId)
-            .OnDelete(DeleteBehavior.SetNull);
-
         builder.HasOne(x => x.ConsumedBySession)
             .WithMany()
             .HasForeignKey(x => x.ConsumedBySessionId)
@@ -50,6 +44,5 @@ public class LearningTicketItemConfiguration : IEntityTypeConfiguration<Learning
 
         builder.HasIndex(x => new { x.RegistrationId, x.Status, x.CreatedAt });
         builder.HasIndex(x => x.StudentProfileId);
-        builder.HasIndex(x => new { x.RegistrationId, x.LearningTicketTypeId, x.Status, x.CreatedAt });
     }
 }

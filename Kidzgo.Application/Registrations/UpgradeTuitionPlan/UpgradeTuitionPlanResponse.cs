@@ -17,5 +17,6 @@ public sealed class UpgradeTuitionPlanResponse
     public decimal DiscountAmount { get; init; }
     public decimal CarryOverCreditAmount { get; init; }
     public decimal FinalTuitionAmount { get; init; }
+    public int RolledOverMakeupCredits { get; init; }
     public string Status { get; init; } = null!;
 }

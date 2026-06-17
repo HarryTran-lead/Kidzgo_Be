@@ -19,7 +19,6 @@ public sealed class TransferClassCommandHandler(
     ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService,
     IUserContext userContext
 ) : ICommandHandler<TransferClassCommand, TransferClassResponse>
 {
@@ -99,17 +98,6 @@ public sealed class TransferClassCommandHandler(
             return Result.Failure<TransferClassResponse>(RegistrationErrors.ClassNotFound(command.NewClassId));
         }
 
-        if (await IsExplicitlyIncompatibleAsync(
-                registration.TuitionPlan?.LearningTicketTypeId,
-                newClass.SlotTypeId,
-                cancellationToken))
-        {
-            return Result.Failure<TransferClassResponse>(
-                RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
-                    registration.TuitionPlan?.LearningTicketTypeId,
-                    newClass.SlotTypeId));
-        }
-
         var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
             context,
             registration.StudentProfileId,
@@ -156,23 +144,7 @@ public sealed class TransferClassCommandHandler(
             return Result.Failure<TransferClassResponse>(RegistrationErrors.ClassFull(command.NewClassId));
         }
 
-        if (registration.TuitionPlan?.ModuleId.HasValue == true &&
-            registration.TuitionPlan.ModuleId != newClass.StartModuleId)
-        {
-            return Result.Failure<TransferClassResponse>(
-                RegistrationErrors.TuitionPlanModuleMismatch(registration.TuitionPlanId, newClass.Id));
-        }
-
-        // Check new class status
-        if (registration.TuitionPlan?.ModuleId.HasValue == true &&
-            newClass.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
-        {
-            return Result.Failure<TransferClassResponse>(
-                RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(registration.TuitionPlanId));
-        }
-
-        if (registration.TuitionPlan?.ModuleId.HasValue != true &&
-            newClass.Status != ClassStatus.Active && newClass.Status != ClassStatus.Recruiting)
+        if (newClass.Status != ClassStatus.Active && newClass.Status != ClassStatus.Recruiting)
         {
             return Result.Failure<TransferClassResponse>(
                 Error.Validation("ClassNotAvailable", $"Cannot transfer to class with status {newClass.Status}"));
@@ -301,17 +273,5 @@ public sealed class TransferClassCommandHandler(
             EffectiveDate = command.EffectiveDate,
             Status = registration.Status.ToString()
         };
-    }
-
-    private async Task<bool> IsExplicitlyIncompatibleAsync(
-        Guid? learningTicketTypeId,
-        Guid? slotTypeId,
-        CancellationToken cancellationToken)
-    {
-        var evaluation = await ticketCompatibilityService.EvaluateAsync(
-            learningTicketTypeId,
-            slotTypeId,
-            cancellationToken);
-        return !evaluation.IsCompatible;
     }
 }

@@ -22,8 +22,7 @@ public sealed record AttendanceTransitionOutcome(
 public sealed class RegistrationSessionConsumptionService(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    TicketConsumptionPolicyService ticketConsumptionPolicyService,
-    TicketCompatibilityService ticketCompatibilityService)
+    TicketConsumptionPolicyService ticketConsumptionPolicyService)
 {
     public async Task<AttendanceTransitionOutcome> ApplyAttendanceTransitionAsync(
         Guid? sessionId,
@@ -35,7 +34,6 @@ public sealed class RegistrationSessionConsumptionService(
         AbsenceType? newAbsenceType,
         ParticipationType participationType,
         SectionType sectionType,
-        Guid? slotTypeId,
         DateTime sessionDateTimeUtc,
         CancellationToken cancellationToken)
     {
@@ -92,11 +90,12 @@ public sealed class RegistrationSessionConsumptionService(
 
         if (consumedAfter)
         {
-            var selection = await ticketCompatibilityService.SelectTicketForConsumptionAsync(
-                registration.Id,
-                slotTypeId,
-                cancellationToken);
-            var availableTicket = selection.TicketItem;
+            var availableTicket = await context.LearningTicketItems
+                .Where(x => x.RegistrationId == registration.Id &&
+                            x.Status == LearningTicketItemStatus.Available)
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (availableTicket is null)
             {
@@ -106,8 +105,8 @@ public sealed class RegistrationSessionConsumptionService(
                     0,
                     registration.RemainingSessions,
                     afterDecision.AdvanceLessonProgression,
-                    selection.IsCompatible,
-                    selection.Reason);
+                    null,
+                    null);
             }
 
             availableTicket.Status = LearningTicketItemStatus.Consumed;
@@ -152,8 +151,8 @@ public sealed class RegistrationSessionConsumptionService(
                 -1,
                 registration.RemainingSessions,
                 afterDecision.AdvanceLessonProgression,
-                selection.IsCompatible,
-                selection.Reason);
+                null,
+                null);
         }
 
         var wasCompletedBySessionExhaustion =

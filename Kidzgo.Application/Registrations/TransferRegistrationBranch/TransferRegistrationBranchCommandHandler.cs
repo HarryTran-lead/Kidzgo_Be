@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Programs.Shared;
+using Kidzgo.Application.Registrations.Notifications;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
@@ -20,7 +21,6 @@ public sealed class TransferRegistrationBranchCommandHandler(
     ClassLifecycleService classLifecycleService,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService,
     IUserContext userContext)
     : ICommandHandler<TransferRegistrationBranchCommand, TransferRegistrationBranchResponse>
 {
@@ -163,17 +163,6 @@ public sealed class TransferRegistrationBranchCommandHandler(
                     RegistrationErrors.ClassNotMatchingLevel(newClass.Id, registration.LevelId));
             }
 
-            if (await IsExplicitlyIncompatibleAsync(
-                    registration.TuitionPlan?.LearningTicketTypeId,
-                    newClass.SlotTypeId,
-                    cancellationToken))
-            {
-                return Result.Failure<TransferRegistrationBranchResponse>(
-                    RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
-                        registration.TuitionPlan?.LearningTicketTypeId,
-                        newClass.SlotTypeId));
-            }
-
             var selectionPatternValidation = await studentSessionAssignmentService
                 .ValidateSelectionPatternAsync(newClass, sessionSelectionPattern, cancellationToken);
             if (selectionPatternValidation.IsFailure)
@@ -195,20 +184,6 @@ public sealed class TransferRegistrationBranchCommandHandler(
             {
                 return Result.Failure<TransferRegistrationBranchResponse>(
                     RegistrationErrors.ClassFull(newClass.Id));
-            }
-
-            if (registration.TuitionPlan?.ModuleId.HasValue == true &&
-                registration.TuitionPlan.ModuleId != newClass.StartModuleId)
-            {
-                return Result.Failure<TransferRegistrationBranchResponse>(
-                    RegistrationErrors.TuitionPlanModuleMismatch(registration.TuitionPlanId, newClass.Id));
-            }
-
-            if (registration.TuitionPlan?.ModuleId.HasValue == true &&
-                newClass.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
-            {
-                return Result.Failure<TransferRegistrationBranchResponse>(
-                    RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(registration.TuitionPlanId));
             }
 
             var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
@@ -361,6 +336,7 @@ public sealed class TransferRegistrationBranchCommandHandler(
             timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
+        await WaitingListThresholdNotificationHelper.NotifyAsync(context, registration, cancellationToken);
 
         if (oldClassId.HasValue)
         {
@@ -466,15 +442,4 @@ public sealed class TransferRegistrationBranchCommandHandler(
             cancellationToken);
     }
 
-    private async Task<bool> IsExplicitlyIncompatibleAsync(
-        Guid? learningTicketTypeId,
-        Guid? slotTypeId,
-        CancellationToken cancellationToken)
-    {
-        var evaluation = await ticketCompatibilityService.EvaluateAsync(
-            learningTicketTypeId,
-            slotTypeId,
-            cancellationToken);
-        return !evaluation.IsCompatible;
-    }
 }

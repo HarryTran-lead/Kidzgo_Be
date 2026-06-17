@@ -26,6 +26,11 @@ public sealed class ExpireMakeupCreditCommandHandler(IDbContext context)
             return Result.Failure(MakeupCreditErrors.NotFound(command.MakeupCreditId));
         }
 
+        if (credit.Status != MakeupCreditStatus.Available)
+        {
+            return Result.Failure(MakeupCreditErrors.NotAvailable(command.MakeupCreditId));
+        }
+
         credit.Status = MakeupCreditStatus.Expired;
         credit.ExpiresAt = command.ExpiresAt ?? VietnamTime.UtcNow();
         credit.UsedSessionId = null;

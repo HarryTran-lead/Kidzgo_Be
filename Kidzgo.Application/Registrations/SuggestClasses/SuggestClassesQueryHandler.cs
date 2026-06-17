@@ -15,8 +15,7 @@ namespace Kidzgo.Application.Registrations.SuggestClasses.Handler;
 
 public sealed class SuggestClassesQueryHandler(
     IDbContext context,
-    ISchedulePatternParser schedulePatternParser,
-    TicketCompatibilityService ticketCompatibilityService
+    ISchedulePatternParser schedulePatternParser
 ) : IQueryHandler<SuggestClassesQuery, SuggestClassesResponse>
 {
     public async Task<Result<SuggestClassesResponse>> Handle(
@@ -27,7 +26,6 @@ public sealed class SuggestClassesQueryHandler(
             .Include(r => r.Program)
             .Include(r => r.SecondaryLevel)
             .Include(r => r.Branch)
-            .Include(r => r.TuitionPlan)
             .FirstOrDefaultAsync(r => r.Id == query.RegistrationId, cancellationToken);
 
         if (registration == null)
@@ -39,9 +37,8 @@ public sealed class SuggestClassesQueryHandler(
             registration.ProgramId,
             registration.BranchId,
             registration.LevelId,
-            registration.TuitionPlan?.ModuleId,
-            registration.TuitionPlan?.ModuleId.HasValue == true,
-            registration.TuitionPlan?.LearningTicketTypeId,
+            requiredStartModuleId: null,
+            requireUpcomingClass: false,
             registration.PreferredSchedule,
             cancellationToken);
 
@@ -52,7 +49,6 @@ public sealed class SuggestClassesQueryHandler(
                 registration.SecondaryLevelId.Value,
                 requiredStartModuleId: null,
                 requireUpcomingClass: false,
-                registration.TuitionPlan?.LearningTicketTypeId,
                 registration.PreferredSchedule,
                 cancellationToken)
             : (Suggested: new List<SuggestedClassDto>(), Alternative: new List<SuggestedClassDto>());
@@ -79,7 +75,6 @@ public sealed class SuggestClassesQueryHandler(
         Guid levelId,
         Guid? requiredStartModuleId,
         bool requireUpcomingClass,
-        Guid? learningTicketTypeId,
         string? preferredSchedule,
         CancellationToken cancellationToken)
     {
@@ -98,22 +93,9 @@ public sealed class SuggestClassesQueryHandler(
             .OrderBy(c => c.StartDate)
             .ToListAsync(cancellationToken);
 
-        var compatibilityBySlotType = await ticketCompatibilityService.EvaluateForSlotTypesAsync(
-            learningTicketTypeId,
-            matchingClasses
-                .Where(c => c.SlotTypeId.HasValue)
-                .Select(c => c.SlotTypeId!.Value)
-                .Distinct()
-                .ToList(),
-            cancellationToken);
-
         var today = VietnamTime.TodayDateOnly();
 
         var filteredClasses = matchingClasses
-            .Where(c =>
-                !c.SlotTypeId.HasValue ||
-                !compatibilityBySlotType.TryGetValue(c.SlotTypeId.Value, out var evaluation) ||
-                evaluation.IsCompatible)
             .Where(c => IsScheduleMatching(
                 preferredSchedule ?? string.Empty,
                 ResolveEffectiveWeeklyScheduleJson(c, today),

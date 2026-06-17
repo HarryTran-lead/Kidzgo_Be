@@ -54,7 +54,6 @@ public sealed class UseMakeupCreditCommandHandler(
             currentAllocatedSession = await context.Sessions
                 .AsNoTracking()
                 .Include(s => s.Class)
-                .ThenInclude(c => c.Program)
                 .FirstOrDefaultAsync(s => s.Id == credit.UsedSessionId.Value, cancellationToken);
 
             if (currentAllocatedSession != null)
@@ -84,6 +83,7 @@ public sealed class UseMakeupCreditCommandHandler(
 
         var sourceSession = await context.Sessions
             .AsNoTracking()
+            .Include(s => s.Class)
             .FirstOrDefaultAsync(s => s.Id == credit.SourceSessionId, cancellationToken);
 
         if (sourceSession is null)
@@ -94,7 +94,6 @@ public sealed class UseMakeupCreditCommandHandler(
         var targetSession = await context.Sessions
             .AsNoTracking()
             .Include(s => s.Class)
-            .ThenInclude(c => c.Program)
             .FirstOrDefaultAsync(s => s.Id == command.TargetSessionId, cancellationToken);
 
         if (targetSession is null)
@@ -120,14 +119,14 @@ public sealed class UseMakeupCreditCommandHandler(
             return Result.Failure(MakeupCreditErrors.SessionNotBelongToClass);
         }
 
-        if (targetSession.Class.Program.IsMakeup != true)
+        if (targetSession.Class.LevelId != sourceSession.Class.LevelId)
         {
             return Result.Failure(MakeupCreditErrors.TargetClassMustBeMakeupProgram);
         }
 
         if (isFutureReschedule &&
             currentAllocatedSession is not null &&
-            targetSession.Class.ProgramId != currentAllocatedSession.Class.ProgramId)
+            targetSession.Class.LevelId != currentAllocatedSession.Class.LevelId)
         {
             return Result.Failure(MakeupCreditErrors.MustStayInCurrentMakeupProgram);
         }

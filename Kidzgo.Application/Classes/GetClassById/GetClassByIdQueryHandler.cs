@@ -26,7 +26,6 @@ public sealed class GetClassByIdQueryHandler(
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
-            .Include(c => c.SlotType)
             .Include(c => c.ModuleProgresses)
                 .ThenInclude(x => x.Module)
             .Include(c => c.ScheduleSegments)
@@ -85,8 +84,6 @@ public sealed class GetClassByIdQueryHandler(
             CurrentLessonPlanTemplateId = classEntity.CurrentLessonPlanTemplateId,
             CurrentLessonTitle = classEntity.CurrentLessonPlanTemplate?.Title,
             CurrentModuleName = classEntity.CurrentModule.Name,
-            SlotTypeId = classEntity.SlotTypeId,
-            SlotTypeCode = classEntity.SlotType?.Code,
             Code = classEntity.Code,
             Title = classEntity.Title,
             RoomId = classEntity.RoomId,

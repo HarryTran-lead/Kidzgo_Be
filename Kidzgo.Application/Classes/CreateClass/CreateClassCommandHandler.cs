@@ -3,7 +3,6 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Services;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Services;
-using Kidzgo.Application.Sessions.Shared;
 using Kidzgo.Application.Syllabuses.Shared;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Classes.Errors;
@@ -207,27 +206,7 @@ public sealed class CreateClassCommandHandler(
             }
         }
 
-        string? slotTypeCode = null;
         var defaultSectionType = SectionType.Normal;
-        if (command.SlotTypeId.HasValue)
-        {
-            var slotType = await context.SlotTypes
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    x => x.Id == command.SlotTypeId.Value && x.IsActive,
-                    cancellationToken);
-
-            if (slotType is null)
-            {
-                return Result.Failure<CreateClassResponse>(
-                    Error.Validation(
-                        "Class.SlotTypeNotFound",
-                        $"Slot type '{command.SlotTypeId.Value}' was not found or inactive."));
-            }
-
-            slotTypeCode = slotType.Code;
-            defaultSectionType = SlotTypeSectionTypeMapper.Map(slotType.UsageType);
-        }
 
         var sessionsToGenerate = command.SessionsToGenerate.GetValueOrDefault();
         if (sessionsToGenerate > 0 && string.IsNullOrWhiteSpace(normalizedWeeklyScheduleJson))
@@ -327,7 +306,6 @@ public sealed class CreateClassCommandHandler(
             RoomId = command.RoomId,
             MainTeacherId = command.MainTeacherId,
             AssistantTeacherId = command.AssistantTeacherId,
-            SlotTypeId = command.SlotTypeId,
             StartDate = command.StartDate,
             ExpectedEndDate = plannedOccurrences.Count > 0
                 ? VietnamTime.ToVietnamDateOnly(plannedOccurrences[^1].PlannedDatetime)
@@ -382,7 +360,6 @@ public sealed class CreateClassCommandHandler(
                     PlannedRoomId = classEntity.RoomId,
                     PlannedTeacherId = classEntity.MainTeacherId,
                     PlannedAssistantId = classEntity.AssistantTeacherId,
-                    SlotTypeId = classEntity.SlotTypeId,
                     DurationMinutes = occurrence.DurationMinutes,
                     ParticipationType = ParticipationType.Main,
                     SectionType = defaultSectionType,
@@ -422,8 +399,6 @@ public sealed class CreateClassCommandHandler(
             RoomId = classEntity.RoomId,
             MainTeacherId = classEntity.MainTeacherId,
             AssistantTeacherId = classEntity.AssistantTeacherId,
-            SlotTypeId = classEntity.SlotTypeId,
-            SlotTypeCode = slotTypeCode,
             StartDate = classEntity.StartDate,
             ExpectedEndDate = classEntity.ExpectedEndDate,
             ActualEndDate = classEntity.ActualEndDate,

@@ -16,7 +16,6 @@ public sealed class UpdateClassRequest
     public Guid? RoomId { get; set; }
     public Guid? MainTeacherId { get; set; }
     public Guid? AssistantTeacherId { get; set; }
-    public Guid? SlotTypeId { get; set; }
     public DateOnly StartDate { get; set; }
     public DateOnly? EndDate { get; set; }
     public int Capacity { get; set; }

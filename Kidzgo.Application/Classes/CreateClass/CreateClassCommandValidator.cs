@@ -50,10 +50,6 @@ public sealed class CreateClassCommandValidator : AbstractValidator<CreateClassC
         RuleFor(command => command.SessionsToGenerate)
             .GreaterThan(0).WithMessage("Sessions to generate must be greater than 0")
             .When(command => command.SessionsToGenerate.HasValue);
-
-        RuleFor(command => command.SlotTypeId)
-            .NotEqual(Guid.Empty).WithMessage("Slot type ID must not be empty")
-            .When(command => command.SlotTypeId.HasValue);
     }
 }
 

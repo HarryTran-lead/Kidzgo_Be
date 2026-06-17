@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Classes;
 using Kidzgo.Application.Registrations.Shared;
+using Kidzgo.Application.Registrations.Notifications;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Students.Shared;
 using Kidzgo.Domain.Classes;
@@ -17,7 +18,6 @@ public sealed class AssignClassCommandHandler(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
     StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService,
     IUserContext userContext
 ) : ICommandHandler<AssignClassCommand, AssignClassResponse>
 {
@@ -135,18 +135,6 @@ public sealed class AssignClassCommandHandler(
             ClassCapacityStatusHelper.SyncAvailabilityStatus(classEntity, currentActiveEnrollmentCount, now);
         }
 
-        if (classEntity != null &&
-            await IsExplicitlyIncompatibleAsync(
-                registration.TuitionPlan?.LearningTicketTypeId,
-                classEntity.SlotTypeId,
-                cancellationToken))
-        {
-            return Result.Failure<AssignClassResponse>(
-                RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
-                    registration.TuitionPlan?.LearningTicketTypeId,
-                    classEntity.SlotTypeId));
-        }
-
         if (classEntity != null)
         {
             var branchAccessResult = await StudentBranchAccessHelper.ValidateBranchAccessAsync(
@@ -186,15 +174,6 @@ public sealed class AssignClassCommandHandler(
             {
                 return Result.Failure<AssignClassResponse>(
                     RegistrationErrors.TuitionPlanLevelMismatch(registration.TuitionPlanId, classEntity.Id));
-            }
-
-            var shouldEnforceModuleMatch = registration.OperationType != OperationType.TransferBranch;
-            if (shouldEnforceModuleMatch &&
-                registration.TuitionPlan.ModuleId.HasValue &&
-                registration.TuitionPlan.ModuleId != classEntity.StartModuleId)
-            {
-                return Result.Failure<AssignClassResponse>(
-                    RegistrationErrors.TuitionPlanModuleMismatch(registration.TuitionPlanId, classEntity.Id));
             }
         }
 
@@ -275,14 +254,6 @@ public sealed class AssignClassCommandHandler(
             if (currentActiveEnrollmentCount >= classEntity.Capacity)
             {
                 return Result.Failure<AssignClassResponse>(RegistrationErrors.ClassFull(classEntity.Id));
-            }
-
-            if (!isSecondaryTrack &&
-                registration.TuitionPlan?.ModuleId.HasValue == true &&
-                classEntity.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
-            {
-                return Result.Failure<AssignClassResponse>(
-                    RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(registration.TuitionPlanId));
             }
 
             var alreadyEnrolled = await context.ClassEnrollments
@@ -408,6 +379,10 @@ public sealed class AssignClassCommandHandler(
             timestamp: now);
 
         await context.SaveChangesAsync(cancellationToken);
+        if (entryType == EntryType.Wait)
+        {
+            await WaitingListThresholdNotificationHelper.NotifyAsync(context, registration, cancellationToken);
+        }
 
         return new AssignClassResponse
         {
@@ -425,17 +400,5 @@ public sealed class AssignClassCommandHandler(
             FirstStudySessionAt = firstStudySessionAt,
             WarningMessage = warningMessage
         };
-    }
-
-    private async Task<bool> IsExplicitlyIncompatibleAsync(
-        Guid? learningTicketTypeId,
-        Guid? slotTypeId,
-        CancellationToken cancellationToken)
-    {
-        var evaluation = await ticketCompatibilityService.EvaluateAsync(
-            learningTicketTypeId,
-            slotTypeId,
-            cancellationToken);
-        return !evaluation.IsCompatible;
     }
 }

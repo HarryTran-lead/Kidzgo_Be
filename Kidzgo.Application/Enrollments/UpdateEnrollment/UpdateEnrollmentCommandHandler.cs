@@ -12,8 +12,7 @@ namespace Kidzgo.Application.Enrollments.UpdateEnrollment;
 public sealed class UpdateEnrollmentCommandHandler(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService
+    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService
 ) : ICommandHandler<UpdateEnrollmentCommand, UpdateEnrollmentResponse>
 {
     public async Task<Result<UpdateEnrollmentResponse>> Handle(UpdateEnrollmentCommand command, CancellationToken cancellationToken)
@@ -131,17 +130,6 @@ public sealed class UpdateEnrollmentCommandHandler(
                     EnrollmentErrors.TuitionPlanProgramMismatch);
             }
 
-            if (await IsExplicitlyIncompatibleAsync(
-                    tuitionPlan.LearningTicketTypeId,
-                    enrollment.Class.SlotTypeId,
-                    cancellationToken))
-            {
-                return Result.Failure<UpdateEnrollmentResponse>(
-                    EnrollmentErrors.TuitionPlanIncompatibleWithClassSlotType(
-                        tuitionPlan.LearningTicketTypeId,
-                        enrollment.Class.SlotTypeId));
-            }
-
             enrollment.TuitionPlanId = command.TuitionPlanId.Value;
             enrollment.TuitionPlan = tuitionPlan;
         }
@@ -177,17 +165,5 @@ public sealed class UpdateEnrollmentCommandHandler(
             TuitionPlanId = enrollment.TuitionPlanId,
             TuitionPlanName = enrollment.TuitionPlan?.Name
         };
-    }
-
-    private async Task<bool> IsExplicitlyIncompatibleAsync(
-        Guid? learningTicketTypeId,
-        Guid? slotTypeId,
-        CancellationToken cancellationToken)
-    {
-        var evaluation = await ticketCompatibilityService.EvaluateAsync(
-            learningTicketTypeId,
-            slotTypeId,
-            cancellationToken);
-        return !evaluation.IsCompatible;
     }
 }

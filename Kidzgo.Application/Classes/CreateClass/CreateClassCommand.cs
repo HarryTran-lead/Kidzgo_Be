@@ -17,7 +17,6 @@ public sealed class CreateClassCommand : ICommand<CreateClassResponse>
     public Guid? RoomId { get; init; }
     public Guid? MainTeacherId { get; init; }
     public Guid? AssistantTeacherId { get; init; }
-    public Guid? SlotTypeId { get; init; }
     public DateOnly StartDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public int Capacity { get; init; }

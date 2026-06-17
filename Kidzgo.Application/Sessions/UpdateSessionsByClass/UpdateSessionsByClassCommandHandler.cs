@@ -42,20 +42,6 @@ public sealed class UpdateSessionsByClassCommandHandler(
             return Result.Failure<UpdateSessionsByClassResponse>(resourceValidation.Error);
         }
 
-        if (command.SlotTypeId.HasValue)
-        {
-            var slotTypeExists = await context.SlotTypes
-                .AnyAsync(x => x.Id == command.SlotTypeId.Value && x.IsActive, cancellationToken);
-
-            if (!slotTypeExists)
-            {
-                return Result.Failure<UpdateSessionsByClassResponse>(
-                    Error.Validation(
-                        "Session.SlotTypeNotFound",
-                        $"Slot type '{command.SlotTypeId.Value}' was not found or inactive."));
-            }
-        }
-
         var query = context.Sessions
             .Where(s => s.ClassId == command.ClassId);
 
@@ -177,12 +163,6 @@ public sealed class UpdateSessionsByClassCommandHandler(
                 if (command.SectionType.HasValue)
                 {
                     session.SectionType = command.SectionType.Value;
-                    hasChanges = true;
-                }
-
-                if (command.SlotTypeId.HasValue)
-                {
-                    session.SlotTypeId = command.SlotTypeId.Value;
                     hasChanges = true;
                 }
 

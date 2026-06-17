@@ -16,7 +16,6 @@ public sealed class CreateClassRequest
     public Guid? RoomId { get; set; }
     public Guid? MainTeacherId { get; set; }
     public Guid? AssistantTeacherId { get; set; }
-    public Guid? SlotTypeId { get; set; }
     public DateOnly StartDate { get; set; }
     public DateOnly? EndDate { get; set; }
     public int Capacity { get; set; }
@@ -25,6 +24,8 @@ public sealed class CreateClassRequest
     public ClassScheduleRequest? Schedule { get; set; }
     public List<ScheduleSlot>? WeeklyScheduleSlots { get; set; }
     public string? Description { get; set; }
+    /// Used by the waitlist-open flow; ignored by the normal create-class flow.
+    public string Track { get; set; } = "primary";
 }
 
 public sealed class ClassScheduleRequest

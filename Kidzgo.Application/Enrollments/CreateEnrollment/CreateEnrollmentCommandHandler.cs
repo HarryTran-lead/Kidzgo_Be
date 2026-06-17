@@ -13,8 +13,7 @@ namespace Kidzgo.Application.Enrollments.CreateEnrollment;
 public sealed class CreateEnrollmentCommandHandler(
     IDbContext context,
     StudentSessionAssignmentService studentSessionAssignmentService,
-    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService,
-    TicketCompatibilityService ticketCompatibilityService
+    StudentEnrollmentScheduleConflictService studentEnrollmentScheduleConflictService
 ) : ICommandHandler<CreateEnrollmentCommand, CreateEnrollmentResponse>
 {
     public async Task<Result<CreateEnrollmentResponse>> Handle(CreateEnrollmentCommand command, CancellationToken cancellationToken)
@@ -133,30 +132,6 @@ public sealed class CreateEnrollmentCommandHandler(
                 return Result.Failure<CreateEnrollmentResponse>(
                     EnrollmentErrors.TuitionPlanLevelMismatch);
             }
-
-            if (tuitionPlan.ModuleId.HasValue && tuitionPlan.ModuleId != classEntity.StartModuleId)
-            {
-                return Result.Failure<CreateEnrollmentResponse>(
-                    EnrollmentErrors.TuitionPlanModuleMismatch);
-            }
-
-            if (tuitionPlan.ModuleId.HasValue &&
-                classEntity.Status is not ClassStatus.Planned and not ClassStatus.Recruiting)
-            {
-                return Result.Failure<CreateEnrollmentResponse>(
-                    EnrollmentErrors.ModuleBasedTuitionPlanRequiresUpcomingClass);
-            }
-
-            if (await IsExplicitlyIncompatibleAsync(
-                    tuitionPlan.LearningTicketTypeId,
-                    classEntity.SlotTypeId,
-                    cancellationToken))
-            {
-                return Result.Failure<CreateEnrollmentResponse>(
-                    EnrollmentErrors.TuitionPlanIncompatibleWithClassSlotType(
-                        tuitionPlan.LearningTicketTypeId,
-                        classEntity.SlotTypeId));
-            }
         }
 
         var conflictResult = await studentEnrollmentScheduleConflictService.EnsureNoConflictsAsync(
@@ -225,18 +200,6 @@ public sealed class CreateEnrollmentCommandHandler(
             TuitionPlanId = enrollmentWithNav.TuitionPlanId,
             TuitionPlanName = enrollmentWithNav.TuitionPlan?.Name
         };
-    }
-
-    private async Task<bool> IsExplicitlyIncompatibleAsync(
-        Guid? learningTicketTypeId,
-        Guid? slotTypeId,
-        CancellationToken cancellationToken)
-    {
-        var evaluation = await ticketCompatibilityService.EvaluateAsync(
-            learningTicketTypeId,
-            slotTypeId,
-            cancellationToken);
-        return !evaluation.IsCompatible;
     }
 }
 

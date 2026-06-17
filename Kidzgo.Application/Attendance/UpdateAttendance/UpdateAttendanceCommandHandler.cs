@@ -112,7 +112,6 @@ public sealed class UpdateAttendanceCommandHandler(
                 attendance.AbsenceType,
                 attendance.Session.ParticipationType,
                 attendance.Session.SectionType,
-                attendance.Session.SlotTypeId,
                 attendance.Session.ActualDatetime ?? attendance.Session.PlannedDatetime,
                 cancellationToken);
             impactedClassIds.UnionWith(transitionOutcome.ImpactedClassIds);

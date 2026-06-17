@@ -96,11 +96,13 @@ public sealed class MakeupCreditStats
     public int TotalCredits { get; init; }
     public int UsedCredits { get; init; }
     public int AvailableCredits { get; init; }
+    public int TransferredCredits { get; init; }
 
     // Detailed fields
     public int TotalCreditsIssued { get; init; }
     public int UsedCreditsCount { get; init; }
     public int AvailableCreditsCount { get; init; }
+    public int TransferredCreditsCount { get; init; }
     public int ExpiredCreditsCount { get; init; }
     public double UtilizationRate { get; init; }
     public IReadOnlyCollection<StatusBreakdownItem> StatusBreakdown { get; init; } = [];

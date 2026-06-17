@@ -15,7 +15,6 @@ namespace Kidzgo.Application.Registrations.UpgradeTuitionPlan.Handler;
 public sealed class UpgradeTuitionPlanCommandHandler(
     IDbContext context,
     TicketGrantService ticketGrantService,
-    TicketCompatibilityService ticketCompatibilityService,
     IUserContext userContext
 ) : ICommandHandler<UpgradeTuitionPlanCommand, UpgradeTuitionPlanResponse>
 {
@@ -70,64 +69,9 @@ public sealed class UpgradeTuitionPlanCommandHandler(
                 Error.Validation("DifferentLevel", "New tuition plan must match the registration level"));
         }
 
-        if (newTuitionPlan.ModuleId.HasValue && registration.ClassId.HasValue)
-        {
-            var currentClass = await context.Classes
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == registration.ClassId.Value, cancellationToken);
-
-            if (currentClass is null)
-            {
-                return Result.Failure<UpgradeTuitionPlanResponse>(
-                    RegistrationErrors.ClassNotFound(registration.ClassId.Value));
-            }
-
-            if (currentClass.StartModuleId != newTuitionPlan.ModuleId.Value)
-            {
-                return Result.Failure<UpgradeTuitionPlanResponse>(
-                    RegistrationErrors.TuitionPlanModuleMismatch(newTuitionPlan.Id, currentClass.Id));
-            }
-
-            if (currentClass.Status is not Domain.Classes.ClassStatus.Planned and not Domain.Classes.ClassStatus.Recruiting)
-            {
-                return Result.Failure<UpgradeTuitionPlanResponse>(
-                    RegistrationErrors.ModuleBasedTuitionPlanRequiresUpcomingClass(newTuitionPlan.Id));
-            }
-        }
-
-        var activeEnrollmentSlotTypeIds = await context.ClassEnrollments
-            .Where(ce => ce.StudentProfileId == registration.StudentProfileId
-                && ce.Status == Domain.Classes.EnrollmentStatus.Active
-                && (ce.RegistrationId == registration.Id ||
-                    (!ce.RegistrationId.HasValue &&
-                     (ce.ClassId == registration.ClassId || ce.ClassId == registration.SecondaryClassId))))
-            .Join(
-                context.Classes,
-                enrollment => enrollment.ClassId,
-                classEntity => classEntity.Id,
-                (_, classEntity) => classEntity.SlotTypeId)
-            .Where(slotTypeId => slotTypeId.HasValue)
-            .Select(slotTypeId => slotTypeId!.Value)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var incompatibleSlotTypeId = await GetFirstExplicitIncompatibleSlotTypeAsync(
-            newTuitionPlan.LearningTicketTypeId,
-            activeEnrollmentSlotTypeIds,
-            cancellationToken);
-        if (incompatibleSlotTypeId.HasValue)
-        {
-            return Result.Failure<UpgradeTuitionPlanResponse>(
-                RegistrationErrors.TicketTypeIncompatibleWithClassSlotType(
-                    newTuitionPlan.LearningTicketTypeId,
-                    incompatibleSlotTypeId.Value));
-        }
-
         // 5. Extend the current registration in place
         var oldTotalSessions = registration.TotalSessions;
         var carriedForwardSessions = Math.Max(registration.RemainingSessions, 0);
-        var upgradedRemainingSessions = carriedForwardSessions + newTuitionPlan.TotalSessions;
-        var upgradedTotalSessions = registration.UsedSessions + upgradedRemainingSessions;
         var oldTuitionPlanName = registration.TuitionPlan.Name;
         var carryOverCreditAmount = Math.Round(
             Math.Max(registration.RemainingSessions, 0) * registration.TuitionPlan.UnitPriceSession,
@@ -144,6 +88,13 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             newTuitionPlan.TuitionAmount,
             carryOverCreditAmount,
             cancellationToken);
+        var rolloverCredits = await ticketGrantService.GrantRolloverMakeupCreditsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            createdByUserId: null,
+            cancellationToken);
+        var upgradedRemainingSessions = carriedForwardSessions + newTuitionPlan.TotalSessions + rolloverCredits;
+        var upgradedTotalSessions = registration.UsedSessions + upgradedRemainingSessions;
 
         registration.TuitionPlanId = newTuitionPlan.Id;
         registration.TuitionPlan = newTuitionPlan;
@@ -207,7 +158,6 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             registration.StudentProfileId,
             registration.Id,
             newTuitionPlan.TotalSessions,
-            newTuitionPlan.LearningTicketTypeId,
             $"Upgrade to {newTuitionPlan.Name}",
             LearningTicketSource.Purchase,
             createdByUserId: null,
@@ -227,6 +177,7 @@ public sealed class UpgradeTuitionPlanCommandHandler(
                 oldTotalSessions,
                 NewTotalSessions = upgradedTotalSessions,
                 AddedSessions = newTuitionPlan.TotalSessions,
+                RolloverMakeupCredits = rolloverCredits,
                 CarryOverCreditAmount = registration.CarryOverCreditAmount ?? carryOverCreditAmount
             },
             timestamp: now);
@@ -250,34 +201,9 @@ public sealed class UpgradeTuitionPlanCommandHandler(
             DiscountAmount = registration.DiscountAmount ?? 0m,
             CarryOverCreditAmount = registration.CarryOverCreditAmount ?? carryOverCreditAmount,
             FinalTuitionAmount = registration.FinalTuitionAmount ?? Math.Max(0m, newTuitionPlan.TuitionAmount - carryOverCreditAmount),
+            RolledOverMakeupCredits = rolloverCredits,
             Status = registration.Status.ToString()
         };
-    }
-
-    private async Task<Guid?> GetFirstExplicitIncompatibleSlotTypeAsync(
-        Guid? learningTicketTypeId,
-        IReadOnlyCollection<Guid> slotTypeIds,
-        CancellationToken cancellationToken)
-    {
-        if (slotTypeIds.Count == 0)
-        {
-            return null;
-        }
-
-        var evaluations = await ticketCompatibilityService.EvaluateForSlotTypesAsync(
-            learningTicketTypeId,
-            slotTypeIds,
-            cancellationToken);
-
-        foreach (var slotTypeId in slotTypeIds)
-        {
-            if (evaluations.TryGetValue(slotTypeId, out var evaluation) && !evaluation.IsCompatible)
-            {
-                return slotTypeId;
-            }
-        }
-
-        return null;
     }
 
 }

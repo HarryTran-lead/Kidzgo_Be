@@ -36,14 +36,6 @@ public static class RegistrationErrors
         "Registration.TuitionPlanLevelMismatch",
         $"Tuition plan '{tuitionPlanId}' does not match class '{classId}' level.");
 
-    public static Error TuitionPlanModuleMismatch(Guid tuitionPlanId, Guid classId) => Error.Validation(
-        "Registration.TuitionPlanModuleMismatch",
-        $"Tuition plan '{tuitionPlanId}' does not match class '{classId}' start module.");
-
-    public static Error ModuleBasedTuitionPlanRequiresUpcomingClass(Guid tuitionPlanId) => Error.Validation(
-        "Registration.ModuleBasedTuitionPlanRequiresUpcomingClass",
-        $"Tuition plan '{tuitionPlanId}' can only be assigned to classes that are planned or recruiting.");
-
     public static Error StudentNotFound(Guid studentProfileId) => Error.NotFound(
         "Registration.StudentNotFound",
         $"Student profile with ID {studentProfileId} not found");
@@ -111,8 +103,4 @@ public static class RegistrationErrors
     public static Error InvalidEnrollmentConfirmationPdfFormType(string? formType) => Error.Validation(
         "Registration.InvalidEnrollmentConfirmationPdfFormType",
         $"Invalid enrollment confirmation PDF form type: {formType}. Allowed values are auto, new, newStudent, continuing, continuingStudent.");
-
-    public static Error TicketTypeIncompatibleWithClassSlotType(Guid? learningTicketTypeId, Guid? slotTypeId) => Error.Conflict(
-        "Registration.TicketTypeIncompatibleWithClassSlotType",
-        $"Registration ticket type '{learningTicketTypeId}' is incompatible with class slot type '{slotTypeId}'.");
 }

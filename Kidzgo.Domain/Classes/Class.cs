@@ -31,7 +31,6 @@ public class Class : Entity
     public Guid? RoomId { get; set; }
     public Guid? MainTeacherId { get; set; }
     public Guid? AssistantTeacherId { get; set; }
-    public Guid? SlotTypeId { get; set; }
     public DateOnly StartDate { get; set; }
     public DateOnly? ExpectedEndDate { get; set; }
     public DateOnly? ActualEndDate { get; set; }
@@ -54,7 +53,6 @@ public class Class : Entity
     public Classroom? Room { get; set; }
     public User? MainTeacher { get; set; }
     public User? AssistantTeacher { get; set; }
-    public SlotType? SlotType { get; set; }
     public ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
     public ICollection<ClassModuleProgress> ModuleProgresses { get; set; } = new List<ClassModuleProgress>();
     public ICollection<ClassScheduleSegment> ScheduleSegments { get; set; } = new List<ClassScheduleSegment>();

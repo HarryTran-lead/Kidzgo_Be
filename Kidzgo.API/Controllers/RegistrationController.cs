@@ -329,6 +329,7 @@ public class RegistrationController : ControllerBase
     public async Task<IResult> GetWaitingList(
         [FromQuery] Guid? branchId,
         [FromQuery] Guid? programId,
+        [FromQuery] Guid? levelId,
         [FromQuery] string? track,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -338,6 +339,7 @@ public class RegistrationController : ControllerBase
         {
             BranchId = branchId,
             ProgramId = programId,
+            LevelId = levelId,
             Track = track,
             PageNumber = pageNumber,
             PageSize = pageSize

@@ -140,8 +140,6 @@ public interface IDbContext
     DbSet<Level> Levels { get; }
     DbSet<Module> Modules { get; }
     DbSet<BranchProgram> BranchPrograms { get; }
-    DbSet<PackageCurriculumMapping> PackageCurriculumMappings { get; }
-    DbSet<TuitionPlanModuleSelection> TuitionPlanModuleSelections { get; }
     DbSet<ExtracurricularProgram> ExtracurricularPrograms { get; }
     DbSet<ProgramLeavePolicy> ProgramLeavePolicies { get; }
     DbSet<TuitionPlan> TuitionPlans { get; }
@@ -189,15 +187,12 @@ public interface IDbContext
     DbSet<TeachingLogLesson> TeachingLogLessons { get; }
     DbSet<TeachingActivityLog> TeachingActivityLogs { get; }
     DbSet<StudentSessionAssignment> StudentSessionAssignments { get; }
-    DbSet<SlotType> SlotTypes { get; }
 
     // Tickets
     DbSet<Ticket> Tickets { get; }
     DbSet<TicketComment> TicketComments { get; }
     DbSet<LearningTicketItem> LearningTicketItems { get; }
     DbSet<LearningTicketLedger> LearningTicketLedgers { get; }
-    DbSet<LearningTicketType> LearningTicketTypes { get; }
-    DbSet<TicketTypeCompatibility> TicketTypeCompatibilities { get; }
 
     // Academic progression
     DbSet<StudentProgress> StudentProgresses { get; }

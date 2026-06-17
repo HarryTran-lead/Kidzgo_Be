@@ -52,21 +52,9 @@ public static class EnrollmentErrors
         "Enrollment.TuitionPlanLevelMismatch",
         "Tuition plan must belong to the same level as the class");
 
-    public static readonly Error TuitionPlanModuleMismatch = Error.Conflict(
-        "Enrollment.TuitionPlanModuleMismatch",
-        "Module-specific tuition plan must match the class start module");
-
-    public static readonly Error ModuleBasedTuitionPlanRequiresUpcomingClass = Error.Conflict(
-        "Enrollment.ModuleBasedTuitionPlanRequiresUpcomingClass",
-        "Module-based tuition plans can only be assigned to classes that are planned or recruiting.");
-
     public static readonly Error TuitionPlanBranchMismatch = Error.Conflict(
         "Enrollment.TuitionPlanBranchMismatch",
         "Tuition plan is not available for the class branch");
-
-    public static Error TuitionPlanIncompatibleWithClassSlotType(Guid? learningTicketTypeId, Guid? slotTypeId) => Error.Conflict(
-        "Enrollment.TuitionPlanIncompatibleWithClassSlotType",
-        $"Tuition plan ticket type '{learningTicketTypeId}' is incompatible with class slot type '{slotTypeId}'.");
 
     public static readonly Error AlreadyActive = Error.Conflict(
         "Enrollment.AlreadyActive",

@@ -144,8 +144,6 @@ public sealed class ApplicationDbContext(
     public DbSet<Level> Levels => Set<Level>();
     public DbSet<Module> Modules => Set<Module>();
     public DbSet<BranchProgram> BranchPrograms => Set<BranchProgram>();
-    public DbSet<PackageCurriculumMapping> PackageCurriculumMappings => Set<PackageCurriculumMapping>();
-    public DbSet<TuitionPlanModuleSelection> TuitionPlanModuleSelections => Set<TuitionPlanModuleSelection>();
     public DbSet<ExtracurricularProgram> ExtracurricularPrograms => Set<ExtracurricularProgram>();
     public DbSet<ProgramLeavePolicy> ProgramLeavePolicies => Set<ProgramLeavePolicy>();
     public DbSet<TuitionPlan> TuitionPlans => Set<TuitionPlan>();
@@ -193,15 +191,12 @@ public sealed class ApplicationDbContext(
     public DbSet<TeachingLogLesson> TeachingLogLessons => Set<TeachingLogLesson>();
     public DbSet<TeachingActivityLog> TeachingActivityLogs => Set<TeachingActivityLog>();
     public DbSet<StudentSessionAssignment> StudentSessionAssignments => Set<StudentSessionAssignment>();
-    public DbSet<SlotType> SlotTypes => Set<SlotType>();
 
     // Tickets
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<LearningTicketItem> LearningTicketItems => Set<LearningTicketItem>();
     public DbSet<LearningTicketLedger> LearningTicketLedgers => Set<LearningTicketLedger>();
-    public DbSet<LearningTicketType> LearningTicketTypes => Set<LearningTicketType>();
-    public DbSet<TicketTypeCompatibility> TicketTypeCompatibilities => Set<TicketTypeCompatibility>();
 
     // Academic progression
     public DbSet<StudentProgress> StudentProgresses => Set<StudentProgress>();

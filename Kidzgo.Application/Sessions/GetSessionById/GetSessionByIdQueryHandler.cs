@@ -30,7 +30,6 @@ public sealed class GetSessionByIdQueryHandler(
             .Include(s => s.ActualTeacher)
             .Include(s => s.PlannedAssistant)
             .Include(s => s.ActualAssistant)
-            .Include(s => s.SlotType)
             .Include(s => s.LessonPlan)
             .Include(s => s.SessionLessons)
             .Include(s => s.LessonPlanTemplate)
@@ -101,8 +100,6 @@ public sealed class GetSessionByIdQueryHandler(
             DurationMinutes = session.DurationMinutes,
             ParticipationType = session.ParticipationType.ToString(),
             SectionType = session.SectionType.ToString(),
-            SlotTypeId = session.SlotTypeId,
-            SlotTypeCode = session.SlotType?.Code,
             Status = session.Status.ToString(),
             PlannedRoomId = session.PlannedRoomId,
             PlannedRoomName = session.PlannedRoom != null ? session.PlannedRoom.Name : null,

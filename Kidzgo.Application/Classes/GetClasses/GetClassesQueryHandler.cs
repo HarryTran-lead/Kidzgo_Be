@@ -28,7 +28,6 @@ public sealed class GetClassesQueryHandler(
             .Include(c => c.Room)
             .Include(c => c.MainTeacher)
             .Include(c => c.AssistantTeacher)
-            .Include(c => c.SlotType)
             .AsQueryable();
 
         if (userContext.ParentId.HasValue)
@@ -109,8 +108,6 @@ public sealed class GetClassesQueryHandler(
                 CurrentLessonPlanTemplateId = c.CurrentLessonPlanTemplateId,
                 CurrentLessonTitle = c.CurrentLessonPlanTemplate != null ? c.CurrentLessonPlanTemplate.Title : null,
                 CurrentModuleName = c.CurrentModule.Name,
-                SlotTypeId = c.SlotTypeId,
-                SlotTypeCode = c.SlotType != null ? c.SlotType.Code : null,
                 Code = c.Code,
                 Title = c.Title,
                 RoomId = c.RoomId,

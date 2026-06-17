@@ -3,6 +3,7 @@ using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Registrations;
+using Kidzgo.Application.Registrations.Notifications;
 using Kidzgo.Application.Registrations.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Application.Students.Shared;
@@ -193,6 +194,23 @@ public sealed class CreateRegistrationCommandHandler(
         RegistrationDiscountPricingHelper.ApplyToRegistration(registration, pricing);
 
         context.Registrations.Add(registration);
+        await ticketGrantService.GrantTicketsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            tuitionPlan.TotalSessions,
+            $"Purchase {tuitionPlan.Name}",
+            LearningTicketSource.Purchase,
+            createdByUserId: null,
+            cancellationToken);
+        var rolloverCredits = await ticketGrantService.GrantRolloverMakeupCreditsAsync(
+            registration.StudentProfileId,
+            registration.Id,
+            createdByUserId: null,
+            cancellationToken);
+
+        registration.TotalSessions += rolloverCredits;
+        registration.RemainingSessions += rolloverCredits;
+
         RegistrationAuditLogHelper.AddAuditLog(
             context,
             userContext,
@@ -202,19 +220,12 @@ public sealed class CreateRegistrationCommandHandler(
             dataAfter: new
             {
                 registration = RegistrationAuditLogHelper.CreateSnapshot(registration),
-                source = "manual"
+                source = "manual",
+                RolloverMakeupCredits = rolloverCredits
             },
             timestamp: now);
-        await ticketGrantService.GrantTicketsAsync(
-            registration.StudentProfileId,
-            registration.Id,
-            tuitionPlan.TotalSessions,
-            tuitionPlan.LearningTicketTypeId,
-            $"Purchase {tuitionPlan.Name}",
-            LearningTicketSource.Purchase,
-            createdByUserId: null,
-            cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+        await WaitingListThresholdNotificationHelper.NotifyAsync(context, registration, cancellationToken);
 
         return new CreateRegistrationResponse
         {
@@ -251,6 +262,7 @@ public sealed class CreateRegistrationCommandHandler(
             DiscountAmount = registration.DiscountAmount ?? 0m,
             CarryOverCreditAmount = registration.CarryOverCreditAmount ?? 0m,
             FinalTuitionAmount = registration.FinalTuitionAmount ?? tuitionPlan.TuitionAmount,
+            RolledOverMakeupCredits = rolloverCredits,
             CreatedAt = registration.CreatedAt
         };
     }

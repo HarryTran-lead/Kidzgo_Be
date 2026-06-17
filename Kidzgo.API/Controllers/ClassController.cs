@@ -6,6 +6,7 @@ using Kidzgo.Application.Classes.AssignTeacher;
 using Kidzgo.Application.Classes.ChangeClassStatus;
 using Kidzgo.Application.Classes.CheckClassCapacity;
 using Kidzgo.Application.Classes.CreateClass;
+using Kidzgo.Application.Classes.OpenClassFromWaitingList;
 using Kidzgo.Application.Classes.PreviewClassSessions;
 using Kidzgo.Application.Classes.ResyncFutureLessons;
 using Kidzgo.Application.Classes.DeleteClass;
@@ -39,31 +40,27 @@ public class ClassController : ControllerBase
         [FromBody] CreateClassRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new CreateClassCommand
-        {
-            BranchId = request.BranchId,
-            ProgramId = request.ProgramId,
-            LevelId = request.LevelId,
-            SyllabusId = request.SyllabusId,
-            StartModuleId = request.StartModuleId,
-            StartSessionIndex = request.StartSessionIndex,
-            Code = request.Code,
-            Title = request.Name ?? request.Title ?? request.Code,
-            RoomId = request.RoomId,
-            MainTeacherId = request.MainTeacherId,
-            AssistantTeacherId = request.AssistantTeacherId,
-            SlotTypeId = request.SlotTypeId,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate, 
-            Capacity = request.Capacity,
-            SessionsToGenerate = request.SessionsToGenerate,
-            SkipHolidays = request.SkipHolidays,
-            WeeklyScheduleSlots = BuildWeeklyScheduleSlots(request.Schedule, request.WeeklyScheduleSlots),
-            Description = request.Description
-        };
+        var command = BuildCreateClassCommand(request);
 
         var result = await _mediator.Send(command, cancellationToken);
         return result.MatchCreated(c => $"/api/classes/{c.Id}");
+    }
+
+    /// Mo lop tu danh sach cho va tu dong xep cac hoc vien phu hop.
+    [HttpPost("open-from-waiting-list")]
+    [Authorize(Roles = "Admin,ManagementStaff")]
+    public async Task<IResult> OpenClassFromWaitingList(
+        [FromBody] CreateClassRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new OpenClassFromWaitingListCommand
+        {
+            CreateClass = BuildCreateClassCommand(request),
+            Track = request.Track
+        };
+
+        var result = await _mediator.Send(command, cancellationToken);
+        return result.MatchCreated(r => $"/api/classes/{r.CreatedClass.Id}");
     }
 
     [HttpPost("preview-sessions")]
@@ -226,7 +223,6 @@ public class ClassController : ControllerBase
             RoomId = request.RoomId,
             MainTeacherId = request.MainTeacherId,
             AssistantTeacherId = request.AssistantTeacherId,
-            SlotTypeId = request.SlotTypeId,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Capacity = request.Capacity,
@@ -395,6 +391,31 @@ public class ClassController : ControllerBase
             6 => "FR",
             7 => "SA",
             _ => null
+        };
+    }
+
+    private static CreateClassCommand BuildCreateClassCommand(CreateClassRequest request)
+    {
+        return new CreateClassCommand
+        {
+            BranchId = request.BranchId,
+            ProgramId = request.ProgramId,
+            LevelId = request.LevelId,
+            SyllabusId = request.SyllabusId,
+            StartModuleId = request.StartModuleId,
+            StartSessionIndex = request.StartSessionIndex,
+            Code = request.Code,
+            Title = request.Name ?? request.Title ?? request.Code,
+            RoomId = request.RoomId,
+            MainTeacherId = request.MainTeacherId,
+            AssistantTeacherId = request.AssistantTeacherId,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Capacity = request.Capacity,
+            SessionsToGenerate = request.SessionsToGenerate,
+            SkipHolidays = request.SkipHolidays,
+            WeeklyScheduleSlots = BuildWeeklyScheduleSlots(request.Schedule, request.WeeklyScheduleSlots),
+            Description = request.Description
         };
     }
 }

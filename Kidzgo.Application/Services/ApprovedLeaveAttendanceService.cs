@@ -163,7 +163,6 @@ public sealed class ApprovedLeaveAttendanceService(
             null,
             session.ParticipationType,
             session.SectionType,
-            session.SlotTypeId,
             session.ActualDatetime ?? session.PlannedDatetime,
             cancellationToken);
         return outcome.ImpactedClassIds;
@@ -200,7 +199,6 @@ public sealed class ApprovedLeaveAttendanceService(
             attendance.AbsenceType,
             session.ParticipationType,
             session.SectionType,
-            session.SlotTypeId,
             session.ActualDatetime ?? session.PlannedDatetime,
             cancellationToken);
         return outcome.ImpactedClassIds;

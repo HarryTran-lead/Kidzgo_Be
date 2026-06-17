@@ -25,7 +25,6 @@ public sealed class GetSessionsQueryHandler(
             .Include(s => s.ActualTeacher)
             .Include(s => s.PlannedAssistant)
             .Include(s => s.ActualAssistant)
-            .Include(s => s.SlotType)
             .AsQueryable();
 
         if (query.ClassId.HasValue)
@@ -86,8 +85,6 @@ public sealed class GetSessionsQueryHandler(
                 DurationMinutes = s.DurationMinutes,
                 ParticipationType = s.ParticipationType.ToString(),
                 SectionType = s.SectionType.ToString(),
-                SlotTypeId = s.SlotTypeId,
-                SlotTypeCode = s.SlotType != null ? s.SlotType.Code : null,
                 Status = s.Status.ToString(),
                 PlannedRoomId = s.PlannedRoomId,
                 PlannedRoomName = s.PlannedRoom != null ? s.PlannedRoom.Name : null,
@@ -213,8 +210,6 @@ public sealed class GetSessionsQueryHandler(
                 DurationMinutes = s.DurationMinutes,
                 ParticipationType = s.ParticipationType,
                 SectionType = s.SectionType,
-                SlotTypeId = s.SlotTypeId,
-                SlotTypeCode = s.SlotTypeCode,
                 Status = s.Status,
                 PlannedRoomId = s.PlannedRoomId,
                 PlannedRoomName = s.PlannedRoomName,

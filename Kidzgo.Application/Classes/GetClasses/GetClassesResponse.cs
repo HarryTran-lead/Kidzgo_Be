@@ -31,8 +31,6 @@ public sealed class ClassDto
     public Guid? CurrentLessonPlanTemplateId { get; init; }
     public string? CurrentLessonTitle { get; init; }
     public string CurrentModuleName { get; init; } = null!;
-    public Guid? SlotTypeId { get; init; }
-    public string? SlotTypeCode { get; init; }
     public string Code { get; init; } = null!;
     public string Title { get; init; } = null!;
     public Guid? MainTeacherId { get; init; }

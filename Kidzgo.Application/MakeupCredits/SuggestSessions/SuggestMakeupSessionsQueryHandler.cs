@@ -30,7 +30,6 @@ public sealed class SuggestMakeupSessionsQueryHandler(
         var sourceSession = await context.Sessions
             .AsNoTracking()
             .Include(s => s.Class)
-            .ThenInclude(c => c.Program)
             .FirstOrDefaultAsync(s => s.Id == credit.SourceSessionId, cancellationToken);
 
         if (sourceSession is null)
@@ -42,23 +41,6 @@ public sealed class SuggestMakeupSessionsQueryHandler(
         var today = VietnamTime.TodayDateOnly();
         var sourceDate = VietnamTime.ToVietnamDateOnly(sourceSession.PlannedDatetime);
         var firstEligibleDate = MakeupSessionRuleHelper.GetFirstEligibleMakeupDate(sourceDate);
-
-        Session? currentAllocatedSession = null;
-        Guid? restrictedProgramId = null;
-        if (credit.Status == MakeupCreditStatus.Used && credit.UsedSessionId.HasValue)
-        {
-            currentAllocatedSession = await context.Sessions
-                .AsNoTracking()
-                .Include(s => s.Class)
-                .ThenInclude(c => c.Program)
-                .FirstOrDefaultAsync(s => s.Id == credit.UsedSessionId.Value, cancellationToken);
-
-            if (currentAllocatedSession != null &&
-                VietnamTime.ToVietnamDateOnly(currentAllocatedSession.PlannedDatetime) > today)
-            {
-                restrictedProgramId = currentAllocatedSession.Class.ProgramId;
-            }
-        }
 
         var requestedFromDate = query.FromDate ?? today;
         var fromDate = requestedFromDate < firstEligibleDate ? firstEligibleDate : requestedFromDate;
@@ -77,19 +59,14 @@ public sealed class SuggestMakeupSessionsQueryHandler(
         var rawSuggestionsQuery = context.Sessions
             .AsNoTracking()
             .Include(s => s.Class)
-            .ThenInclude(c => c.Program)
+                .ThenInclude(c => c.Program)
             .Where(s => s.Id != sourceSession.Id)
             .Where(s => !credit.UsedSessionId.HasValue || s.Id != credit.UsedSessionId.Value)
             .Where(s => s.Status == SessionStatus.Scheduled && s.PlannedDatetime >= now)
             .Where(s => s.PlannedDatetime >= fromUtc && s.PlannedDatetime <= toUtc)
             .Where(s => s.BranchId == sourceSession.BranchId)
             .Where(s => s.ClassId != sourceSession.ClassId)
-            .Where(s => s.Class.Program.IsMakeup == true);
-
-        if (restrictedProgramId.HasValue)
-        {
-            rawSuggestionsQuery = rawSuggestionsQuery.Where(s => s.Class.ProgramId == restrictedProgramId.Value);
-        }
+            .Where(s => s.Class.LevelId == sourceSession.Class.LevelId);
 
         var rawSuggestions = await rawSuggestionsQuery
             .OrderBy(s => s.PlannedDatetime)

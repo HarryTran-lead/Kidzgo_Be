@@ -35,5 +35,6 @@ public sealed class CreateRegistrationResponse
     public decimal DiscountAmount { get; init; }
     public decimal CarryOverCreditAmount { get; init; }
     public decimal FinalTuitionAmount { get; init; }
+    public int RolledOverMakeupCredits { get; init; }
     public DateTime CreatedAt { get; init; }
 }

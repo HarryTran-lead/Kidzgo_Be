@@ -2,15 +2,15 @@ using Kidzgo.Application.Abstraction.Authentication;
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
 using Kidzgo.Application.LearningTickets.Shared;
-using Kidzgo.Application.Services;
 using Kidzgo.Domain.Common;
+using Kidzgo.Domain.LearningTickets;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kidzgo.Application.LearningTickets.GetStudentCompatibleTickets;
 
 public sealed class GetStudentCompatibleTicketsQueryHandler(
     IDbContext context,
-    IUserContext userContext,
-    TicketCompatibilityService ticketCompatibilityService)
+    IUserContext userContext)
     : IQueryHandler<GetStudentCompatibleTicketsQuery, GetStudentCompatibleTicketsResponse>
 {
     public async Task<Result<GetStudentCompatibleTicketsResponse>> Handle(
@@ -28,18 +28,23 @@ public sealed class GetStudentCompatibleTicketsQueryHandler(
             return Result.Failure<GetStudentCompatibleTicketsResponse>(studentAccessResult.Error);
         }
 
-        var selection = await ticketCompatibilityService.ValidateStudentSessionCompatibilityAsync(
-            studentAccessResult.Value,
-            query.SessionId,
-            cancellationToken);
+        var ticketItem = await context.LearningTicketItems
+            .AsNoTracking()
+            .Where(x => x.StudentProfileId == studentAccessResult.Value &&
+                        x.Status == LearningTicketItemStatus.Available)
+            .OrderBy(x => x.CreatedAt)
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return Result.Success(new GetStudentCompatibleTicketsResponse
         {
-            Compatible = selection.IsCompatible && selection.TicketItem is not null,
-            TicketItemId = selection.TicketItem?.Id,
-            TicketTypeId = selection.TicketTypeId,
-            TicketTypeCode = selection.TicketTypeCode,
-            Reason = selection.Reason
+            Compatible = ticketItem is not null,
+            TicketItemId = ticketItem?.Id,
+            TicketTypeId = null,
+            TicketTypeCode = null,
+            Reason = ticketItem is not null
+                ? "Available ticket found"
+                : "No available tickets"
         });
     }
 }

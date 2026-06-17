@@ -19,8 +19,6 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
         builder.Property(x => x.LevelId)
             .IsRequired();
 
-        builder.Property(x => x.ModuleId);
-
         builder.Property(x => x.Name)
             .HasMaxLength(255)
             .IsRequired();
@@ -39,8 +37,6 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
         builder.Property(x => x.Currency)
             .HasMaxLength(10)
             .IsRequired();
-
-        builder.Property(x => x.LearningTicketTypeId);
 
         builder.Property(x => x.IsActive)
             .IsRequired();
@@ -65,27 +61,12 @@ public class TuitionPlanConfiguration : IEntityTypeConfiguration<TuitionPlan>
             .HasForeignKey(x => x.LevelId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Module)
-            .WithMany(x => x.TuitionPlans)
-            .HasForeignKey(x => x.ModuleId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasMany(x => x.SelectedModules)
-            .WithOne(x => x.TuitionPlan)
-            .HasForeignKey(x => x.TuitionPlanId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasMany(x => x.ClassEnrollments)
             .WithOne(x => x.TuitionPlan)
             .HasForeignKey(x => x.TuitionPlanId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.LearningTicketType)
-            .WithMany()
-            .HasForeignKey(x => x.LearningTicketTypeId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasIndex(x => new { x.ProgramId, x.LevelId, x.ModuleId, x.TotalSessions, x.Name })
+        builder.HasIndex(x => new { x.ProgramId, x.LevelId, x.TotalSessions, x.Name })
             .IsUnique();
     }
 }

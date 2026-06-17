@@ -65,29 +65,5 @@ internal static class SyllabusVersionPromotionService
             context.CurriculumAssignments.Remove(assignment);
         }
 
-        var activeMappings = await context.PackageCurriculumMappings
-            .Where(x => x.IsActive && previousActiveIds.Contains(x.SyllabusId))
-            .ToListAsync(cancellationToken);
-
-        var targetMappings = await context.PackageCurriculumMappings
-            .Where(x => x.SyllabusId == target.Id)
-            .ToListAsync(cancellationToken);
-
-        foreach (var mapping in activeMappings)
-        {
-            var duplicate = targetMappings.FirstOrDefault(x => x.TuitionPlanId == mapping.TuitionPlanId);
-
-            if (duplicate is null)
-            {
-                mapping.SyllabusId = target.Id;
-                mapping.UpdatedAt = now;
-                targetMappings.Add(mapping);
-                continue;
-            }
-
-            duplicate.IsActive = duplicate.IsActive || mapping.IsActive;
-            duplicate.UpdatedAt = now;
-            context.PackageCurriculumMappings.Remove(mapping);
-        }
     }
 }

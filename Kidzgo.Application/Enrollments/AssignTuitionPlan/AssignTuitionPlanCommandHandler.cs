@@ -52,19 +52,6 @@ public sealed class AssignTuitionPlanCommandHandler(
                 EnrollmentErrors.TuitionPlanLevelMismatch);
         }
 
-        if (tuitionPlan.ModuleId.HasValue && tuitionPlan.ModuleId != enrollment.Class.StartModuleId)
-        {
-            return Result.Failure<AssignTuitionPlanResponse>(
-                EnrollmentErrors.TuitionPlanModuleMismatch);
-        }
-
-        if (tuitionPlan.ModuleId.HasValue &&
-            enrollment.Class.Status is not Domain.Classes.ClassStatus.Planned and not Domain.Classes.ClassStatus.Recruiting)
-        {
-            return Result.Failure<AssignTuitionPlanResponse>(
-                EnrollmentErrors.ModuleBasedTuitionPlanRequiresUpcomingClass);
-        }
-
         enrollment.TuitionPlanId = command.TuitionPlanId;
         enrollment.UpdatedAt = VietnamTime.UtcNow();
         await context.SaveChangesAsync(cancellationToken);

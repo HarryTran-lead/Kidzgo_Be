@@ -1,13 +1,10 @@
 using Kidzgo.Application.Abstraction.Data;
 using Kidzgo.Application.Abstraction.Messaging;
-using Kidzgo.Application.MakeupCredits.Settings;
-using Kidzgo.Application.Programs.Shared;
 using Kidzgo.Application.Services;
 using Kidzgo.Domain.Classes;
 using Kidzgo.Domain.Common;
 using Kidzgo.Domain.Sessions;
 using Kidzgo.Domain.Sessions.Errors;
-using Kidzgo.Domain.Schools;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 
@@ -138,7 +135,6 @@ public sealed class CreateLeaveRequestCommandHandler(
         var createdLeaves = new List<LeaveRequest>();
         var impactedClassIds = new HashSet<Guid>();
         var now = VietnamTime.UtcNow();
-        var makeupSettings = await MakeupSettingsHelper.GetOrCreateAsync(context, cancellationToken);
 
         // Create one LeaveRequest per session date (not per session)
         // sessionDate và endDate cách nhau bao nhiêu ngày thì tạo bấy nhiêu LeaveRequest
@@ -181,16 +177,10 @@ public sealed class CreateLeaveRequestCommandHandler(
                         SourceSessionId = session.Id,
                         Status = MakeupCreditStatus.Available,
                         CreatedReason = CreatedReason.ApprovedLeave24H,
-                        ExpiresAt = MakeupSettingsHelper.CalculateExpiresAt(session.PlannedDatetime, makeupSettings),
+                        ExpiresAt = null,
                         CreatedAt = now
                     };
                     context.MakeupCredits.Add(credit);
-
-                    var defaultMakeupClassId = await BranchProgramAccessHelper.GetDefaultMakeupClassIdAsync(
-                        context,
-                        classInfo.BranchId,
-                        cancellationToken);
-                    await ScheduleMakeupSessionAsync(context, credit, classInfo, session, defaultMakeupClassId, cancellationToken);
                 }
 
                 leave.ApprovedAt = now;
@@ -292,130 +282,5 @@ public sealed class CreateLeaveRequestCommandHandler(
     {
         return session.Id.ToString();
     }
-
-    private async Task<int> GetScheduledParticipantCountAsync(
-        SessionParticipantService sessionParticipantService,
-        Session session,
-        CancellationToken cancellationToken)
-    {
-        var participantCount = (await sessionParticipantService
-                .GetParticipantsAsync(session.Id, cancellationToken))
-            .Count;
-
-        var pendingTrackedMakeupCount = context.MakeupAllocations.Local
-            .Count(a => a.TargetSessionId == session.Id && a.Status != MakeupAllocationStatus.Cancelled);
-
-        return participantCount + pendingTrackedMakeupCount;
-    }
-
-    private async Task ScheduleMakeupSessionAsync(
-        IDbContext context,
-        MakeupCredit credit,
-        Class originalClass,
-        Session originalSession,
-        Guid? defaultMakeupClassId,
-        CancellationToken cancellationToken)
-    {
-        var sessionDate = VietnamTime.ToVietnamDateOnly(originalSession.PlannedDatetime);
-        var eligibleFromDate = MakeupSessionRuleHelper.GetFirstEligibleMakeupDate(sessionDate);
-        var eligibleFromUtc = VietnamTime.TreatAsVietnamLocal(eligibleFromDate.ToDateTime(TimeOnly.MinValue));
-
-        var makeupSessionsQuery = context.Sessions
-            .Include(s => s.Class)
-            .ThenInclude(c => c.Program)
-            .Include(s => s.Attendances)
-            .Where(s => s.BranchId == originalClass.BranchId
-                        && s.ClassId != originalClass.Id
-                        && s.Status == SessionStatus.Scheduled
-                        && s.Class.Status == ClassStatus.Active
-                        && s.Class.Program.IsMakeup == true
-                        && s.PlannedDatetime >= eligibleFromUtc)
-            .OrderBy(s => s.PlannedDatetime)
-            .AsQueryable();
-
-        if (defaultMakeupClassId.HasValue)
-        {
-            makeupSessionsQuery = makeupSessionsQuery.Where(s => s.ClassId == defaultMakeupClassId.Value);
-        }
-
-        var makeupSessions = (await makeupSessionsQuery.ToListAsync(cancellationToken))
-            .Where(s =>
-            {
-                var plannedDate = VietnamTime.ToVietnamDateOnly(s.PlannedDatetime);
-                return MakeupSessionRuleHelper.IsEligibleMakeupDate(sessionDate, plannedDate);
-            })
-            .ToList();
-
-        var availableSessions = new List<Session>();
-        foreach (var makeupSession in makeupSessions)
-        {
-            if (await HasActiveAllocationForSessionAsync(context, credit.StudentProfileId, makeupSession.Id, cancellationToken))
-            {
-                continue;
-            }
-
-            var participantCount = await GetScheduledParticipantCountAsync(
-                sessionParticipantService,
-                makeupSession,
-                cancellationToken);
-            if (participantCount < makeupSession.Class.Capacity)
-            {
-                availableSessions.Add(makeupSession);
-            }
-        }
-
-        if (!availableSessions.Any())
-        {
-            return; // No available makeup session
-        }
-
-        var now = VietnamTime.UtcNow();
-        var selectedSession = availableSessions[0];
-
-        // Create makeup allocation
-        var allocation = new MakeupAllocation
-        {
-            Id = Guid.NewGuid(),
-            MakeupCreditId = credit.Id,
-            TargetSessionId = selectedSession.Id,
-            Status = MakeupAllocationStatus.Pending,
-            AssignedAt = now,
-            CreatedAt = now
-        };
-        context.MakeupAllocations.Add(allocation);
-
-        credit.Status = MakeupCreditStatus.Used;
-        credit.UsedSessionId = selectedSession.Id;
-    }
-
-    private static async Task<bool> HasActiveAllocationForSessionAsync(
-        IDbContext context,
-        Guid studentProfileId,
-        Guid targetSessionId,
-        CancellationToken cancellationToken)
-    {
-        var existsInDatabase = await context.MakeupAllocations
-            .AnyAsync(
-                a => a.TargetSessionId == targetSessionId &&
-                     a.Status != MakeupAllocationStatus.Cancelled &&
-                     a.MakeupCredit.StudentProfileId == studentProfileId,
-                cancellationToken);
-
-        if (existsInDatabase)
-        {
-            return true;
-        }
-
-        var pendingCreditIds = context.MakeupCredits.Local
-            .Where(c => c.StudentProfileId == studentProfileId)
-            .Select(c => c.Id)
-            .ToHashSet();
-
-        return context.MakeupAllocations.Local.Any(
-            a => a.TargetSessionId == targetSessionId &&
-                 a.Status != MakeupAllocationStatus.Cancelled &&
-                 pendingCreditIds.Contains(a.MakeupCreditId));
-    }
-
 }
 

@@ -4,5 +4,6 @@ public enum MakeupCreditStatus
 {
     Available,
     Used,
+    Transferred,
     Expired
 }

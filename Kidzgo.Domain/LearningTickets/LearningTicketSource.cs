@@ -5,5 +5,6 @@ public enum LearningTicketSource
     Purchase,
     FreeGrant,
     Adjustment,
-    Import
+    Import,
+    Rollover
 }

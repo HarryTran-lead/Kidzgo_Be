@@ -4,7 +4,8 @@ Param(
     [string]$PublishPath = "C:\apps\kidzgo-api",
     [string]$ServiceName = "KidzgoAPI",
     [string]$ApiBindUrl = "http://0.0.0.0:5000",
-    [string]$PublicBaseUrl = "https://rexengswagger.duckdns.org"
+    [string]$PublicBaseUrl = "https://rexengswagger.duckdns.org",
+    [string]$EnvironmentName = "Production"
 )
 
 Write-Host "==== Kidzgo deploy script (Windows) ====" -ForegroundColor Cyan
@@ -67,7 +68,50 @@ function Set-MachineEnvironmentVariable {
     [Environment]::SetEnvironmentVariable($Name, $Value, "Machine")
 }
 
+function Backup-ConfigFiles {
+    param(
+        [string]$SourcePath,
+        [string]$BackupPath,
+        [string[]]$FileNames
+    )
+
+    if (-not (Test-Path $BackupPath)) {
+        New-Item -ItemType Directory -Path $BackupPath | Out-Null
+    }
+
+    foreach ($fileName in $FileNames) {
+        $sourceFile = Join-Path $SourcePath $fileName
+        if (Test-Path $sourceFile) {
+            Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $BackupPath $fileName) -Force
+            Write-Host "Backed up $fileName" -ForegroundColor DarkGreen
+        }
+    }
+}
+
+function Restore-ConfigFiles {
+    param(
+        [string]$TargetPath,
+        [string]$BackupPath,
+        [string[]]$FileNames
+    )
+
+    foreach ($fileName in $FileNames) {
+        $backupFile = Join-Path $BackupPath $fileName
+        if (Test-Path $backupFile) {
+            Copy-Item -LiteralPath $backupFile -Destination (Join-Path $TargetPath $fileName) -Force
+            Write-Host "Restored $fileName" -ForegroundColor DarkGreen
+        }
+    }
+}
+
 Assert-AdminSession
+
+$ConfigFilesToPreserve = @(
+    "appsettings.Local.json",
+    "appsettings.$EnvironmentName.local.json"
+)
+
+$ConfigBackupPath = Join-Path ([System.IO.Path]::GetTempPath()) ("kidzgo-deploy-config-" + [Guid]::NewGuid().ToString("N"))
 
 Write-Host "`nStep 1/5: Go to project directory" -ForegroundColor Cyan
 Set-Location $ProjectPath
@@ -87,6 +131,8 @@ Stop-ServiceSafe -Name $ServiceName
 
 Write-Host "Waiting 2 seconds for file locks to be released..." -ForegroundColor Yellow
 Start-Sleep -Seconds 2
+
+Backup-ConfigFiles -SourcePath $PublishPath -BackupPath $ConfigBackupPath -FileNames $ConfigFilesToPreserve
 
 $TempPublishPath = "$PublishPath-temp"
 if (Test-Path $TempPublishPath) {
@@ -112,12 +158,20 @@ if (Test-Path $PublishPath) {
 }
 Move-Item -Path $TempPublishPath -Destination $PublishPath -Force
 
+Restore-ConfigFiles -TargetPath $PublishPath -BackupPath $ConfigBackupPath -FileNames $ConfigFilesToPreserve
+
 Write-Host "`nStep 4/5: Configure environment for dual access" -ForegroundColor Cyan
 Set-MachineEnvironmentVariable -Name "ASPNETCORE_URLS" -Value $ApiBindUrl
 Set-MachineEnvironmentVariable -Name "ASPNETCORE_FORWARDEDHEADERS_ENABLED" -Value "true"
+Set-MachineEnvironmentVariable -Name "ASPNETCORE_ENVIRONMENT" -Value $EnvironmentName
+Set-MachineEnvironmentVariable -Name "DOTNET_ENVIRONMENT" -Value $EnvironmentName
 
 Write-Host "`nStep 5/5: Start Windows service '$ServiceName'" -ForegroundColor Cyan
 Start-ServiceSafe -Name $ServiceName
+
+if (Test-Path $ConfigBackupPath) {
+    Remove-Item -Path $ConfigBackupPath -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host "`nDeploy completed successfully." -ForegroundColor Green
 Write-Host "Kidzgo.API is bound to $ApiBindUrl." -ForegroundColor Green

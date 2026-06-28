@@ -11,7 +11,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $deployScript = Join-Path $scriptRoot "deploy-win.ps1"
 
 & $deployScript `
-    -Branch "vps-dev" `
+    -Branch "dev" `
     -ProjectPath $ProjectPath `
     -PublishPath $PublishPath `
     -ServiceName $ServiceName `

@@ -75,10 +75,10 @@ Set-Location $ProjectPath
 Write-Host "`nStep 2/5: Pull latest code from branch '$Branch'" -ForegroundColor Cyan
 git fetch origin
 git checkout $Branch
-git pull origin $Branch
+git reset --hard "origin/$Branch"
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: git pull failed, aborting deploy." -ForegroundColor Red
+    Write-Host "ERROR: git sync failed, aborting deploy." -ForegroundColor Red
     exit 1
 }
 

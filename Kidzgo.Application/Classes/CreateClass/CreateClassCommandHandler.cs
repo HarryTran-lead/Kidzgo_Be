@@ -182,7 +182,9 @@ public sealed class CreateClassCommandHandler(
             AssistantTeacherId = command.AssistantTeacherId,
             StartDate = command.StartDate,
             EndDate = endDate,
-            Status = ClassStatus.Active,
+            // New classes start as Planned; background jobs and explicit status changes
+            // move them to Active when the class actually goes live.
+            Status = ClassStatus.Planned,
             Capacity = command.Capacity,
             WeeklyScheduleJson = normalizedWeeklyScheduleJson,
             Description = command.Description,
